@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 
-const TRADES = ["Bricklayer","Carpenter","Dry Liner","Duct Fitter","Electrician","Gas Engineer","General Builder","Ground Worker","Painter & Decorator","Pipefitter","Plasterer","Plumber","Roofer","Scaffolder","Steel Erector"];
+const TRADES = ["Bricklayer","Carpenter & Joiner","Crane Operator","Drainage Engineer","Dry Liner","Duct Fitter","Electrician","EV Charger Installer","Fire Alarm Engineer","Fire Stopper","Floor Layer & Screeder","Gas Engineer","General Builder","Glazier","Groundworker","Lagger","Painter & Decorator","Pipefitter","Plant Operator","Plasterer","Plumber","Refrigeration Engineer","Roofer","Scaffolder","Solar & Renewables Installer","Stonemason","Structural Steel Erector","Suspended Ceiling Fitter","Telecoms Engineer","Traffic Marshal","Wall & Floor Tiler","Welder & Fabricator"];
 
 const TOOLS = [
   { id:"variation",   label:"Variation Letter",   icon:"📋", section:"Documents" },
@@ -18,6 +18,11 @@ const TOOLS = [
   { id:"selfassess",  label:"Self Assessment Prep",icon:"📊", section:"Finance" },
   { id:"pricequote",  label:"Price Work Quote",    icon:"💰", section:"Finance" },
   { id:"earnings",    label:"Earnings Dashboard",  icon:"📈", section:"Finance" },
+  { id:"scopeworks",  label:"Scope of Works",      icon:"📋", section:"Price Work" },
+  { id:"pwvartrack",  label:"Variation Tracker",   icon:"📉", section:"Price Work" },
+  { id:"standingtime",label:"Standing Time Calc",  icon:"⏱️", section:"Price Work" },
+  { id:"pwprofit",    label:"Profit Calculator",   icon:"💹", section:"Price Work" },
+  { id:"offline",     label:"Offline Mode",        icon:"📡", section:"Account" },
   { id:"photos",      label:"Photo Evidence Log",  icon:"📸", section:"Site Tools" },
   { id:"verbal",      label:"Verbal Instruction",  icon:"🎙️", section:"Site Tools" },
   { id:"contract",    label:"Contract Review",     icon:"🔍", section:"Site Tools" },
@@ -31,13 +36,28 @@ const TOOLS = [
   { id:"reference",   label:"Reference Letter",    icon:"📝", section:"Sole Trader" },
   { id:"rateincrease",label:"Rate Increase Letter",icon:"💷", section:"Sole Trader" },
   { id:"apprentice",  label:"Apprentice Manager",  icon:"🎓", section:"Sole Trader" },
-  { id:"subcomanage", label:"Subcontractor Mgmt",  icon:"👥", section:"Firms" },
-  { id:"vartracker",  label:"Variation Tracker",   icon:"📉", section:"Firms" },
-  { id:"ramslibrary", label:"RAMS Library",        icon:"📚", section:"Firms" },
-  { id:"contractmgmt",label:"Contract Management", icon:"📄", section:"Firms" },
-  { id:"multidiary",  label:"Multi-user Diary",    icon:"📋", section:"Firms" },
-  { id:"paytracker",  label:"Payment Tracker",     icon:"💳", section:"Firms" },
-  { id:"incidentlog", label:"Incident Log",        icon:"🗂️", section:"Firms" },
+  { id:"subcomanage", label:"Subcontractor Mgmt",  icon:"👥", section:"Contractors" },
+  { id:"vartracker",  label:"Variation Tracker",   icon:"📉", section:"Contractors" },
+  { id:"ramslibrary", label:"RAMS Library",        icon:"📚", section:"Contractors" },
+  { id:"contractmgmt",label:"Contract Management", icon:"📄", section:"Contractors" },
+  { id:"multidiary",  label:"Multi-user Diary",    icon:"📋", section:"Contractors" },
+  { id:"paytracker",  label:"Payment Tracker",     icon:"💳", section:"Contractors" },
+  { id:"incidentlog", label:"Incident Log",        icon:"🗂️", section:"Contractors" },
+  { id:"labouralloc", label:"Labour Allocation",   icon:"👷", section:"Contractors" },
+  { id:"purchaseorder",label:"Purchase Order",     icon:"🛒", section:"Contractors" },
+  { id:"subcispay",   label:"Subbi Payment Cert",  icon:"💷", section:"Contractors" },
+  { id:"hspolicy",    label:"H&S Policy",          icon:"🛡️", section:"Contractors" },
+  { id:"subbicheck",  label:"Subbi Compliance",    icon:"✅", section:"Contractors" },
+  { id:"commercialrpt",label:"Commercial Report",  icon:"📊", section:"Contractors" },
+  { id:"tenderletter",label:"Tender Letter",       icon:"📨", section:"Contractors" },
+  { id:"defectstracker",label:"Defects Tracker",   icon:"🔎", section:"Contractors" },
+  { id:"siteaccess",  label:"Site Access Permit",  icon:"🔒", section:"Site Tools" },
+  { id:"measurement", label:"Measurement Record",   icon:"📐", section:"Site Tools" },
+  { id:"newstarter",  label:"New Starter Pack",     icon:"💼", section:"Contractors" },
+  { id:"satisfaction",label:"Client Survey",        icon:"🏆", section:"Documents" },
+  { id:"hireagree",   label:"Hire Agreement",       icon:"📡", section:"Contractors" },
+  { id:"about",     label:"About Morris",        icon:"⚒️", section:"Account" },
+  { id:"favourites", label:"Favourites",           icon:"★", section:"Account" },
   { id:"history",     label:"Doc History",         icon:"📁", section:"Account" },
   { id:"profile",     label:"My Profile",          icon:"👤", section:"Account" },
 ];
@@ -48,8 +68,21 @@ const css = `
   body{background:#0d0d0d}
   .app{min-height:100vh;background:#0d0d0d;color:#f0ede8;font-family:'DM Sans',sans-serif;font-size:14px}
   .header{background:#111;border-bottom:1px solid #1e1e1e;padding:0 20px;display:flex;align-items:center;justify-content:space-between;height:54px;position:sticky;top:0;z-index:100}
-  .logo{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:3px}.logo span{color:#e8a020}
-  .header-right{display:flex;align-items:center;gap:10px}
+  .sidebar-search{padding:10px 12px;border-bottom:1px solid #1a1a1a}
+  .search-input{width:100%;background:#0d0d0d;border:1px solid #222;border-radius:6px;padding:7px 10px 7px 28px;color:#f0ede8;font-family:'DM Sans',sans-serif;font-size:12px;outline:none;transition:border-color .2s}
+  .search-input:focus{border-color:#e8a020}
+  .search-input::placeholder{color:#383838}
+  .search-wrap{position:relative}
+  .search-icon{position:absolute;left:9px;top:50%;transform:translateY(-50%);font-size:11px;color:#444;pointer-events:none}
+  .fav-btn{background:none;border:none;cursor:pointer;font-size:12px;opacity:.4;transition:all .2s;flex-shrink:0;padding:0 2px}
+  .fav-btn:hover{opacity:1}
+  .fav-btn.active{opacity:1}
+  .nav-item-row{display:flex;align-items:center;width:100%}
+  .no-results{padding:20px 16px;font-size:12px;color:#444;text-align:center}
+  .sec-label-row{display:flex;align-items:center;justify-content:space-between;padding:12px 16px 5px;border-top:1px solid #1a1a1a;margin-top:4px}
+  .sec-label-row:first-child{border-top:none;margin-top:0}
+  .sec-label-text{font-size:9px;letter-spacing:2px;color:#444;text-transform:uppercase}
+  .logo{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:4px;line-height:1}.logo span{color:#e8a020}
   .trade-pill{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:20px;padding:5px 12px;font-size:11px;color:#aaa;cursor:pointer;transition:all .2s}
   .trade-pill:hover{border-color:#e8a020;color:#e8a020}
   .layout{display:flex;min-height:calc(100vh - 54px)}
@@ -64,6 +97,11 @@ const css = `
   .main{flex:1;padding:28px 32px;max-width:820px;overflow-y:auto}
   .tool-title{font-family:'Bebas Neue',sans-serif;font-size:34px;letter-spacing:2px;line-height:1;margin-bottom:3px}
   .tool-sub{font-size:12px;color:#555;margin-bottom:22px}.tool-sub span{color:#e8a020}
+  .tool-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:3px}
+  .info-btn{width:22px;height:22px;border-radius:50%;background:#1a1a1a;border:1px solid #2a2a2a;color:#666;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0;margin-top:6px;font-weight:700}
+  .info-btn:hover{border-color:#e8a020;color:#e8a020;background:#1a1400}
+  .info-popup{background:#1a1400;border:1px solid rgba(232,160,32,.25);border-radius:8px;padding:14px 16px;margin-bottom:16px;font-size:13px;color:#ccc;line-height:1.7;animation:fadeUp .2s ease}
+  .info-popup strong{color:#e8a020;display:block;margin-bottom:4px;font-size:11px;letter-spacing:1px;text-transform:uppercase}
   .card{background:#141414;border:1px solid #1e1e1e;border-radius:8px;padding:22px;margin-bottom:14px}
   .fl{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#555;margin-bottom:5px}
   .fi{width:100%;background:#0d0d0d;border:1px solid #222;border-radius:6px;padding:9px 12px;color:#f0ede8;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;transition:border-color .2s;margin-bottom:14px}
@@ -157,16 +195,95 @@ const css = `
   .logo-upload-zone:hover{border-color:#e8a020}
 `;
 
+const TOOL_INFO = {
+  variation: "When a site manager asks you to do extra work that wasn't in your original price — this letter puts it in writing. Without it you probably won't get paid for it. Fill in what the extra work was, how much it costs and who told you to do it. Send it before you start the extra work.",
+  rams: "RAMS stands for Risk Assessment and Method Statement. Most commercial sites won't let you start work without one. It describes what you're doing, what could go wrong and how you're going to stay safe. This tool writes a professional one for your specific trade and task.",
+  diary: "A daily record of what you did on site, who was there and any problems or instructions you received. If anyone ever disputes what happened on a job — your site diary is your proof. Get into the habit of filling it in every evening.",
+  quote: "A professional written quote for a client before you start a job. It describes exactly what you're going to do, what it costs and — importantly — what is NOT included. That last part protects you from clients adding things without paying.",
+  invoice: "A CIS-compliant invoice to send to a contractor or client after completing work. It includes the correct tax deductions under the Construction Industry Scheme so you get paid the right amount and everything is above board with HMRC.",
+  delay: "When you can't do your work because something or someone is stopping you — this letter records it formally. Maybe another trade isn't finished, materials haven't arrived or you weren't given access. Without this letter you can't claim back the time you lost.",
+  handover: "A formal document you use when a job is complete and you're handing it over to the client or main contractor. Both sides sign it. It starts the clock on the defects period and gives you the right to chase your final payment.",
+  subcontract: "A simple written agreement between you and someone working under you, or between you and the contractor who appointed you. It sets out what work is being done, what it costs and how payment works. Stops arguments before they start.",
+  complaint: "When you've tried everything else and someone still won't pay or won't sort out a serious problem — this is a formal letter that shows you mean business. It references your legal rights and sets a clear deadline. Many contractors pay up as soon as they receive one.",
+  timesheet: "A weekly record of the hours you worked and where. Get it signed by your site supervisor every week. If a contractor ever claims you worked fewer days than you did — your signed timesheet is your proof.",
+  chaser: "When an invoice hasn't been paid on time — this sends a formal letter chasing payment. There are three stages: a friendly reminder, a firmer warning and a final legal threat. Each one is stronger than the last. Most contractors pay before you reach stage three.",
+  cis: "This calculates exactly how much HMRC owes you back at the end of the tax year. Most subbies have 20% taken off every payment but their actual tax bill is lower — so they're owed money back. This tool shows you the number in 30 seconds.",
+  selfassess: "Helps you organise everything you need before doing your self assessment tax return. Log your income, expenses and business mileage throughout the year so everything is ready when January comes — instead of scrambling for receipts.",
+  pricequote: "Like the quote builder but specifically for fixed price jobs where you agree one total price for all the work. Very important to list exactly what's included and what isn't — so if the job changes, you can charge for the extra work.",
+  earnings: "Shows you exactly how much you've earned, what's still owed to you and what you're spending on business expenses. Also lets you scan receipts so everything is tracked in one place for your tax return.",
+  mileage: "Every mile you drive for work can be claimed back from HMRC at 45p per mile. This tool tracks your journeys automatically and calculates how much you're owed. Most tradespeople miss this — it can add up to over £1,000 per year.",
+  photos: "Upload photos from site and they get saved with a date and time stamp. If you ever need to prove what condition something was in, what extra work you did or what was there before you arrived — these photos are your visual evidence.",
+  verbal: "Press record when a site manager gives you an instruction verbally. Morris converts what was said into a formal written record. Send it to them by email the same day. If they ever say they didn't instruct something — you have proof they did.",
+  contract: "Paste in a subcontract before you sign it and Morris checks it for anything dodgy. Things like unfair payment terms, too much retention, clauses that take away your rights or make you liable for things that aren't your fault.",
+  dispute: "When a job goes wrong and it's heading toward a formal dispute — this tool helps you build a timeline of everything that happened in the right order. It then generates a formal summary you can use if you need to go to adjudication.",
+  incident: "If something goes wrong on site — a theft, an injury, damage to property — fill this in immediately while the details are fresh. Your insurer will need this if you make a claim. Without a contemporaneous record, claims are much harder to pursue.",
+  reminders: "Set reminders for important dates — when to chase an invoice, when your insurance renews, when a tax deadline is coming. Saves you from missing things that could cost you money.",
+  toolboxtalk: "A short safety briefing you give to your team before starting a new task or at the start of the day. Most commercial sites require them. This tool generates a professional briefing for 15 different topics — working at height, manual handling, fire safety and more.",
+  asbestos: "A record of everyone who has received asbestos awareness training, when they received it and who delivered it. If you work in older buildings you're legally required to have this training and to keep records of it.",
+  snagging: "A formal list of defects or items that need fixing at the end of a job. Both you and the client or contractor sign it. Means your final payment can only be withheld for things actually on the list — not things they think of later.",
+  hmrc: "When HMRC sends you a letter and you need to write back professionally — this tool helps. Whether it's a tax query, a penalty notice or a CIS question, Morris writes a clear formal response.",
+  reference: "A professional reference letter — either one you're requesting from a contractor you've worked for, or one Morris generates based on the work you've done. Useful when applying to new contractors or approved supplier lists.",
+  rateincrease: "A professional letter telling a client or contractor that your rates are going up. It's warm but confident. Acknowledges the working relationship, gives proper notice and explains the reason — so it lands well rather than causing friction.",
+  apprentice: "Manages everything to do with taking on an apprentice. Log their weekly hours, sign off the skills they've learned, track their progress and generate the documents their training provider needs.",
+  subcomanage: "If you're running a team of subbies — this tracks who's working for you, on which project, how much they've invoiced and how much you've paid them. Gives you a clear picture of your subbi spend at a glance.",
+  vartracker: "When you have multiple variation claims going in on different projects — this tracks all of them. You can see which ones have been approved, which are still waiting and which are being disputed. Stops money slipping through the cracks.",
+  ramslibrary: "A library of reusable RAMS templates for your most common tasks. Generate one, save it, adapt it for each new site. Much faster than starting from scratch every time.",
+  contractmgmt: "Tracks all your active contracts in one place — contract values, how much has been certified, retention being held and when it's due for release. Gives you a clear financial picture across all your work.",
+  multidiary: "Like the site diary but for a whole team. Everyone logs their day from their own phone and it all feeds into one company diary. Useful if you're running multiple people across multiple sites.",
+  paytracker: "Tracks every invoice you've raised — which ones have been paid, which are overdue and which are being disputed. Means you always know exactly where your money is.",
+  incidentlog: "A company-wide record of every incident across all your sites — near misses, injuries, damage, theft. Essential for HSE compliance and invaluable if you're ever inspected or face a legal claim.",
+  labouralloc: "Shows which workers are on which site each day. Useful when you're running multiple sites and need to make sure you're not short-staffed anywhere or doubling up people where they're not needed.",
+  purchaseorder: "A formal purchase order when you're ordering materials or hiring plant. Gives the supplier a clear written record of what you've ordered at what price — so there are no surprises on the invoice.",
+  subcispay: "The document you must give every subbi you pay under CIS. It shows how much you paid them, how much you deducted for tax and how much they received. HMRC requires you to issue these within 14 days of the end of each tax month.",
+  hspolicy: "Every company that employs anyone — even one person — is legally required to have a written health and safety policy. Morris generates a professional one tailored to your trade and the size of your business.",
+  subbicheck: "A checklist to run through before a new subbi starts work for you. Makes sure they're CIS registered, have their insurance, have a CSCS card, have submitted their RAMS and have been inducted on site. Protects you if something goes wrong.",
+  commercialrpt: "A monthly summary of all your contracts — how much each one is worth, how much has been certified, how much you've been paid, how much is outstanding and how much retention is being held. Gives you a clear picture of your business finances.",
+  tenderletter: "A professional cover letter to send with a tender when you're bidding for work. Sets out why your company is the right choice for the job. A strong cover letter can make the difference between winning and losing work at the same price.",
+  defectstracker: "Tracks the defects liability period on each completed contract and tells you exactly when the retention is due to be released. Most firms miss out on thousands every year simply because nobody was tracking the release dates.",
+  siteaccess: "A formal document authorising a worker to access a restricted area on site — like a confined space, plant room or roof. Most commercial sites require a signed permit before anyone can enter these areas.",
+  measurement: "A formal record of measurements you've taken on site. When dimensions don't match the drawings and you need to prove what you actually measured and installed — this signed record is your evidence.",
+  newstarter: "A complete pack of documents for every new person who starts working for you. Covers their terms, site rules, emergency contacts, health and safety responsibilities and everything they need to sign before they start.",
+  satisfaction: "A short professional survey you send to a client after completing a job. Captures their feedback and — if they're happy — asks for a testimonial and a Google review. Positive reviews win you more work.",
+  hireagree: "A formal agreement when you're hiring plant or equipment in or out. Covers the hire rate, who's responsible for damage, insurance requirements and what happens if it gets returned late or damaged.",
+  scopeworks: "Before you start any price work — this tool defines exactly what is and isn't included in your price. Everything outside this document is a variation you can charge for. Without it, contractors will say everything was included and you have no comeback.",
+  pwvartrack: "Tracks every change from your original scope in real time as the job progresses. Log each variation with a date, description and cost. By the end of the job you have a complete record of every extra — ready for your final account.",
+  standingtime: "When you can't work because of delays — enter your gang size, their rates and how long you were standing. Morris calculates the total cost and generates a formal standing time claim. On price work this is often the difference between profit and loss.",
+  pwprofit: "Track your actual costs against the fixed price as the job progresses. Log labour hours, materials and plant daily. Morris shows your running margin in real time so you know if you're making or losing money before it's too late.",
+  offline: "Save tools and draft documents to use when you have no signal on site. Everything you save here stays available offline. When your signal comes back Morris syncs automatically.",
+  history: "Every document you save in Morris appears here. Your complete record of everything you've generated — useful for referencing old documents or resending something you created previously.",
+  profile: "Set up your name, company, UTR, bank details and logo once. Morris automatically fills these into every document you generate — so you never have to type them out again.",
+};
+
+// ── Info Button Component ─────────────────────────────────────────────────────
+function InfoButton({toolId}) {
+  const [show, setShow] = useState(false);
+  const info = TOOL_INFO[toolId];
+  if(!info) return null;
+  return(
+    <div style={{position:"relative"}}>
+      <button className="info-btn" onClick={()=>setShow(!show)} title="What does this tool do?">i</button>
+      {show&&(
+        <div className="info-popup" style={{position:"absolute",right:0,top:32,width:320,zIndex:50,boxShadow:"0 8px 32px rgba(0,0,0,.6)"}}>
+          <strong>What this tool does</strong>
+          {info}
+          <button onClick={()=>setShow(false)} style={{background:"none",border:"none",color:"#e8a020",fontSize:11,cursor:"pointer",marginTop:8,padding:0,letterSpacing:1}}>CLOSE ✕</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 const toolConfigs = {
-  variation:{title:"Variation Letter",sub:"Professional variation order letter",fields:[{id:"project",label:"Project Name / Address",ph:"e.g. Unit 4, Trafford Park"},{id:"contractor",label:"Main Contractor",ph:"e.g. Balfour Beatty"},{id:"description",label:"Description of Variation Works",ph:"Describe the additional works..."},{id:"cost",label:"Estimated Cost (£)",ph:"e.g. 1,250"},{id:"reason",label:"Reason / Instruction Received From",ph:"e.g. Site manager instructed verbally on..."}],prompt:(f,t,p)=>`Write a professional variation order letter from a ${t} subcontractor.\nFrom: ${p.name||"[Name]"}, ${p.company||"[Company]"}, UTR: ${p.utr||"[UTR]"}\nProject: ${f.project}, Contractor: ${f.contractor}\nWorks: ${f.description}, Cost: £${f.cost}, Reason: ${f.reason}\nFormal, professional. Reference number, date placeholder, signature block.`},
-  rams:{title:"RAMS",sub:"Risk Assessment & Method Statement",fields:[{id:"task",label:"Task / Activity",ph:"e.g. Ductwork installation at high level"},{id:"location",label:"Site Location",ph:"e.g. Level 3, Block B"},{id:"hazards",label:"Main Hazards",ph:"e.g. Working at height, manual handling..."},{id:"controls",label:"Control Measures",ph:"e.g. MEWP, PPE, spotter in place..."}],prompt:(f,t,p)=>`Write a professional RAMS for a ${t}.\nCompany: ${p.company||"[Company]"}\nTask: ${f.task}, Location: ${f.location}\nHazards: ${f.hazards}, Controls: ${f.controls}\nInclude: scope, sequence, hazard table with risk ratings, PPE list, emergency procedures, sign-off box.`},
-  diary:{title:"Site Diary",sub:"Daily site record — your legal protection",fields:[{id:"date",label:"Date",ph:"e.g. 18 April 2026"},{id:"site",label:"Site / Project",ph:"e.g. Salford Royal Phase 2"},{id:"workers",label:"Workers on Site",ph:"e.g. 3 duct fitters"},{id:"works",label:"Works Carried Out",ph:"Describe what was done today..."},{id:"issues",label:"Issues / Delays / Instructions",ph:"Any problems or verbal instructions..."}],prompt:(f,t,p)=>`Write a professional site diary entry for a ${t} subcontractor.\nCompany: ${p.company||"[Company]"}\nDate: ${f.date}, Site: ${f.site}, Workers: ${f.workers}\nWorks: ${f.works}, Issues: ${f.issues}\nProfessional daily record format with weather placeholder and signature block.`},
-  quote:{title:"Quote Builder",sub:"Professional quotation document",fields:[{id:"client",label:"Client / Company",ph:"e.g. ABC Construction Ltd"},{id:"project",label:"Project Description",ph:"e.g. Mechanical services floors 1-3"},{id:"scope",label:"Scope of Works",ph:"Detail what is included..."},{id:"price",label:"Total Price (£)",ph:"e.g. 8,500"},{id:"exclusions",label:"Exclusions",ph:"e.g. Commissioning, fire stopping..."}],prompt:(f,t,p)=>`Write a professional quotation from a ${t} subcontractor.\nFrom: ${p.name||"[Name]"}, ${p.company||"[Company]"}\nClient: ${f.client}, Project: ${f.project}\nScope: ${f.scope}, Price: £${f.price}, Exclusions: ${f.exclusions}\nInclude: quote reference, 30-day validity, payment terms, assumptions, sign-off.`},
-  invoice:{title:"Invoice",sub:"CIS-compliant invoice",fields:[{id:"client",label:"Invoice To",ph:"e.g. Main Contractor Ltd"},{id:"works",label:"Works Description",ph:"e.g. Ductwork installation w/e 18/04/26"},{id:"amount",label:"Invoice Amount (£)",ph:"e.g. 3,200"}],prompt:(f,t,p)=>`Write a professional CIS invoice for a ${t} subcontractor.\nFrom: ${p.name||"[Name]"}, ${p.company||"[Company]"}, UTR: ${p.utr||"[UTR]"}\nBank: ${p.bankName||"[Name]"}, Sort: ${p.sortCode||"[Sort]"}, Acc: ${p.accNum||"[Acc]"}\nTo: ${f.client}, Works: ${f.works}, Amount: £${f.amount}\nInclude: invoice number, date, labour breakdown, CIS 20% deduction, net payable, VAT note.`},
-  delay:{title:"Delay Notice",sub:"Protect yourself from programme delays",fields:[{id:"project",label:"Project",ph:"e.g. New build, Salford"},{id:"contractor",label:"Main Contractor",ph:"e.g. Kier Construction"},{id:"cause",label:"Cause of Delay",ph:"e.g. No access to floor 4..."},{id:"impact",label:"Impact on Programme",ph:"e.g. 3 days lost, completion pushed to 25th April"}],prompt:(f,t,p)=>`Write a formal delay notice from a ${t} subcontractor.\nFrom: ${p.company||"[Company]"}, Project: ${f.project}, Contractor: ${f.contractor}\nCause: ${f.cause}, Impact: ${f.impact}\nFormal, protective. Reference right to claim loss and expense. Date and signature block.`},
-  handover:{title:"Handover Certificate",sub:"Formal completion document",fields:[{id:"project",label:"Project Name",ph:"e.g. Commercial fit-out, Manchester"},{id:"works",label:"Works Completed",ph:"e.g. Mechanical ductwork floors 1-5"},{id:"date",label:"Handover Date",ph:"e.g. 18 April 2026"},{id:"defects",label:"Outstanding Items",ph:"e.g. None"}],prompt:(f,t,p)=>`Write a professional handover certificate for a ${t} subcontractor.\nCompany: ${p.company||"[Company]"}, Project: ${f.project}\nWorks: ${f.works}, Date: ${f.date}, Outstanding: ${f.defects}\nInclude: practical completion, 12-month defects liability, O&M note, client sign-off.`},
-  subcontract:{title:"Subcontract Letter",sub:"Letter of intent or subcontract award",fields:[{id:"subcontractor",label:"Subcontractor Name",ph:"e.g. Smith Ductwork Ltd"},{id:"works",label:"Scope of Works",ph:"e.g. Supply and fix ductwork level 2..."},{id:"value",label:"Value (£)",ph:"e.g. 12,000"},{id:"start",label:"Start Date",ph:"e.g. 28 April 2026"},{id:"terms",label:"Payment Terms",ph:"e.g. Monthly valuations, 30 days"}],prompt:(f,t,p)=>`Write a professional subcontract appointment letter from a ${t} contractor.\nFrom: ${p.company||"[Company]"}, Subcontractor: ${f.subcontractor}\nWorks: ${f.works}, Value: £${f.value}, Start: ${f.start}, Terms: ${f.terms}\nInclude: scope, programme, insurance, CIS obligations, 5% retention, signature blocks.`},
-  complaint:{title:"Complaint Letter",sub:"Formal complaint or dispute letter",fields:[{id:"recipient",label:"Recipient / Company",ph:"e.g. ABC Main Contractors Ltd"},{id:"issue",label:"Nature of Complaint",ph:"e.g. Payment withheld without reason..."},{id:"resolution",label:"Resolution Sought",ph:"e.g. Full payment of £4,500 within 7 days"},{id:"history",label:"Previous Attempts",ph:"e.g. Emailed 3 times, called twice..."}],prompt:(f,t,p)=>`Write a formal complaint letter from a ${t} subcontractor.\nFrom: ${p.name||"[Name]"}, ${p.company||"[Company]"}\nTo: ${f.recipient}, Issue: ${f.issue}, Resolution: ${f.resolution}, History: ${f.history}\nFirm, professional, legally aware. Construction Act reference if payment. 7-day deadline. Mention adjudication.`},
+  variation:{title:"Variation Letter",sub:"Professional variation order letter",fields:[{id:"project",label:"Project Name / Address",ph:"e.g. Unit 4, Trafford Park"},{id:"contractor",label:"Main Contractor",ph:"e.g. Balfour Beatty"},{id:"description",label:"Description of Variation Works",ph:"Describe the additional works..."},{id:"cost",label:"Estimated Cost (£)",ph:"e.g. 1,250"},{id:"reason",label:"Reason / Instruction Received From",ph:"e.g. Site manager instructed verbally on..."}],prompt:(f,t,p)=>`Write a professional variation order letter from a ${t} subcontractor.\nFrom: ${p.name||"[Name]"}, ${p.company||"[Company]"}, UTR: ${p.utr||"[UTR]"}\nProject: ${f.project}, Contractor: ${f.contractor}\nWorks: ${f.description}, Cost: £${f.cost}, Reason: ${f.reason}\nClear, direct, written by an experienced contractor. Reference number, today's date placeholder, signature block. Sound like someone who knows construction law and means business.\nTone: Direct, professional, written by an experienced contractor — not by a robot. Use construction industry language. Avoid overly formal or flowery phrasing. Get to the point.`},
+  rams:{title:"RAMS",sub:"Risk Assessment & Method Statement",fields:[{id:"task",label:"Task / Activity",ph:"e.g. Ductwork installation at high level"},{id:"location",label:"Site Location",ph:"e.g. Level 3, Block B"},{id:"hazards",label:"Main Hazards",ph:"e.g. Working at height, manual handling..."},{id:"controls",label:"Control Measures",ph:"e.g. MEWP, PPE, spotter in place..."}],prompt:(f,t,p)=>`Write a professional RAMS for a ${t}.\nCompany: ${p.company||"[Company]"}\nTask: ${f.task}, Location: ${f.location}\nHazards: ${f.hazards}, Controls: ${f.controls}\nInclude: scope, task sequence, hazard identification table with likelihood/severity ratings, control measures, PPE requirements, emergency procedures, sign-off box. Write as an experienced contractor would — thorough but not overly academic.\nTone: Direct, professional, written by an experienced contractor — not by a robot. Use construction industry language. Avoid overly formal or flowery phrasing. Get to the point.`},
+  diary:{title:"Site Diary",sub:"Daily site record — your legal protection",fields:[{id:"date",label:"Date",ph:"e.g. 18 April 2026"},{id:"site",label:"Site / Project",ph:"e.g. Salford Royal Phase 2"},{id:"workers",label:"Workers on Site",ph:"e.g. 3 duct fitters"},{id:"works",label:"Works Carried Out",ph:"Describe what was done today..."},{id:"issues",label:"Issues / Delays / Instructions",ph:"Any problems or verbal instructions..."}],prompt:(f,t,p)=>`Write a professional site diary entry for a ${t} subcontractor.\nCompany: ${p.company||"[Company]"}\nDate: ${f.date}, Site: ${f.site}, Workers: ${f.workers}\nWorks: ${f.works}, Issues: ${f.issues}\nWrite as a factual daily record — clear, concise, past tense. Include weather conditions placeholder, start/finish times, and supervisor signature block. Should read like a real site diary, not a template.\nTone: Direct, professional, written by an experienced contractor — not by a robot. Use construction industry language. Avoid overly formal or flowery phrasing. Get to the point.`},
+  quote:{title:"Quote Builder",sub:"Professional quotation document",fields:[{id:"client",label:"Client / Company",ph:"e.g. ABC Construction Ltd"},{id:"project",label:"Project Description",ph:"e.g. Mechanical services floors 1-3"},{id:"scope",label:"Scope of Works",ph:"Detail what is included..."},{id:"price",label:"Total Price (£)",ph:"e.g. 8,500"},{id:"exclusions",label:"Exclusions",ph:"e.g. Commissioning, fire stopping..."}],prompt:(f,t,p)=>`Write a professional quotation from a ${t} subcontractor.\nFrom: ${p.name||"[Name]"}, ${p.company||"[Company]"}\nClient: ${f.client}, Project: ${f.project}\nScope: ${f.scope}, Price: £${f.price}, Exclusions: ${f.exclusions}\nInclude: quote reference number, itemised breakdown, 30-day validity, payment terms (50% upfront option), what's NOT included, assumptions made, and sign-off. Be specific — vague quotes cause disputes.\nTone: Direct, professional, written by an experienced contractor — not by a robot. Use construction industry language. Avoid overly formal or flowery phrasing. Get to the point.`},
+  invoice:{title:"Invoice",sub:"CIS-compliant invoice",fields:[{id:"client",label:"Invoice To",ph:"e.g. Main Contractor Ltd"},{id:"works",label:"Works Description",ph:"e.g. Ductwork installation w/e 18/04/26"},{id:"amount",label:"Invoice Amount (£)",ph:"e.g. 3,200"}],prompt:(f,t,p)=>`Write a professional CIS invoice for a ${t} subcontractor.\nFrom: ${p.name||"[Name]"}, ${p.company||"[Company]"}, UTR: ${p.utr||"[UTR]"}\nBank: ${p.bankName||"[Name]"}, Sort: ${p.sortCode||"[Sort]"}, Acc: ${p.accNum||"[Acc]"}\nTo: ${f.client}, Works: ${f.works}, Amount: £${f.amount}\nInclude: invoice number, date, description of works, gross labour amount, materials if applicable, CIS 20% deduction clearly shown, net amount payable, bank details, payment due date (14 days). Clean and professional.\nTone: Direct, professional, written by an experienced contractor — not by a robot. Use construction industry language. Avoid overly formal or flowery phrasing. Get to the point.`},
+  delay:{title:"Delay Notice",sub:"Protect yourself from programme delays",fields:[{id:"project",label:"Project",ph:"e.g. New build, Salford"},{id:"contractor",label:"Main Contractor",ph:"e.g. Kier Construction"},{id:"cause",label:"Cause of Delay",ph:"e.g. No access to floor 4..."},{id:"impact",label:"Impact on Programme",ph:"e.g. 3 days lost, completion pushed to 25th April"}],prompt:(f,t,p)=>`Write a formal delay notice from a ${t} subcontractor.\nFrom: ${p.company||"[Company]"}, Project: ${f.project}, Contractor: ${f.contractor}\nCause: ${f.cause}, Impact: ${f.impact}\nFirm, factual, protective. Clearly state what caused the delay, what work was impacted and for how long, and reserve the right to claim for loss and expense. Reference the contract programme. Date and signature block.\nTone: Direct, professional, written by an experienced contractor — not by a robot. Use construction industry language. Avoid overly formal or flowery phrasing. Get to the point.`},
+  handover:{title:"Handover Certificate",sub:"Formal completion document",fields:[{id:"project",label:"Project Name",ph:"e.g. Commercial fit-out, Manchester"},{id:"works",label:"Works Completed",ph:"e.g. Mechanical ductwork floors 1-5"},{id:"date",label:"Handover Date",ph:"e.g. 18 April 2026"},{id:"defects",label:"Outstanding Items",ph:"e.g. None"}],prompt:(f,t,p)=>`Write a professional handover certificate for a ${t} subcontractor.\nCompany: ${p.company||"[Company]"}, Project: ${f.project}\nWorks: ${f.works}, Date: ${f.date}, Outstanding: ${f.defects}\nInclude: statement of practical completion, list of outstanding items if any, 12-month defects liability period start date, O&M manual handover note, and dual signature block for contractor and client/employer.\nTone: Direct, professional, written by an experienced contractor — not by a robot. Use construction industry language. Avoid overly formal or flowery phrasing. Get to the point.`},
+  subcontract:{title:"Subcontract Letter",sub:"Letter of intent or subcontract award",fields:[{id:"subcontractor",label:"Subcontractor Name",ph:"e.g. Smith Ductwork Ltd"},{id:"works",label:"Scope of Works",ph:"e.g. Supply and fix ductwork level 2..."},{id:"value",label:"Value (£)",ph:"e.g. 12,000"},{id:"start",label:"Start Date",ph:"e.g. 28 April 2026"},{id:"terms",label:"Payment Terms",ph:"e.g. Monthly valuations, 30 days"}],prompt:(f,t,p)=>`Write a professional subcontract appointment letter from a ${t} contractor.\nFrom: ${p.company||"[Company]"}, Subcontractor: ${f.subcontractor}\nWorks: ${f.works}, Value: £${f.value}, Start: ${f.start}, Terms: ${f.terms}\nInclude: clearly defined scope of works, programme dates, CIS obligations, insurance requirements, 5% retention terms and release date, payment terms, variation procedure, and signature blocks for both parties.\nTone: Direct, professional, written by an experienced contractor — not by a robot. Use construction industry language. Avoid overly formal or flowery phrasing. Get to the point.`},
+  complaint:{title:"Complaint Letter",sub:"Formal complaint or dispute letter",fields:[{id:"recipient",label:"Recipient / Company",ph:"e.g. ABC Main Contractors Ltd"},{id:"issue",label:"Nature of Complaint",ph:"e.g. Payment withheld without reason..."},{id:"resolution",label:"Resolution Sought",ph:"e.g. Full payment of £4,500 within 7 days"},{id:"history",label:"Previous Attempts",ph:"e.g. Emailed 3 times, called twice..."}],prompt:(f,t,p)=>`Write a formal complaint letter from a ${t} subcontractor.\nFrom: ${p.name||"[Name]"}, ${p.company||"[Company]"}\nTo: ${f.recipient}, Issue: ${f.issue}, Resolution: ${f.resolution}, History: ${f.history}\nFirm and direct. If payment related, reference the Housing Grants Construction and Regeneration Act 1996. State the outstanding amount clearly. Give 7 days to respond. Make clear that adjudication is the next step if no resolution. Don't be aggressive but be absolutely clear.\nTone: Direct, professional, written by an experienced contractor — not by a robot. Use construction industry language. Avoid overly formal or flowery phrasing. Get to the point.`},
   timesheet:{title:"Timesheet",sub:"Weekly timesheet for labour records",fields:[{id:"worker",label:"Worker Name",ph:"e.g. D. Morris"},{id:"week",label:"Week Ending",ph:"e.g. 18 April 2026"},{id:"project",label:"Project / Site",ph:"e.g. Salford Royal Phase 2"},{id:"hours",label:"Hours Mon–Sun",ph:"e.g. Mon 8, Tue 8, Wed 8, Thu 8, Fri 8, Sat 4, Sun 0"},{id:"rate",label:"Day Rate (£)",ph:"e.g. 220"}],prompt:(f,t,p)=>`Generate a professional weekly timesheet for a ${t}.\nWorker: ${f.worker||p.name||"[Name]"}, Company: ${p.company||"[Company]"}\nWeek ending: ${f.week}, Project: ${f.project}, Hours: ${f.hours}, Rate: £${f.rate}/day\nTable with daily breakdown, total hours, total value, overtime flag if over 40hrs, signature lines.`},
   hmrc:{title:"HMRC Correspondence",sub:"Respond to HMRC professionally and correctly",fields:[{id:"reference",label:"HMRC Reference / Letter Type",ph:"e.g. SA302 query, penalty notice..."},{id:"issue",label:"What HMRC Are Saying",ph:"Describe the issue or paste key details..."},{id:"position",label:"Your Position",ph:"e.g. I have paid all CIS, my records show..."}],prompt:(f,t,p)=>`Write a professional HMRC response for a self-employed ${t}.\nFrom: ${p.name||"[Name]"}, ${p.company||"[Company]"}, UTR: ${p.utr||"[UTR]"}\nHMRC Issue: ${f.reference} — ${f.issue}\nPosition: ${f.position}\nProfessional, factual, respectful. Reference legislation where appropriate. Date and signature block.`},
   reference:{title:"Reference Letter",sub:"Request or generate a professional reference",fields:[{id:"type",label:"Reference Type",ph:"e.g. Request to contractor / Generate own reference"},{id:"recipient",label:"Who It's Going To",ph:"e.g. New main contractor, mortgage lender"},{id:"period",label:"Period Worked",ph:"e.g. January 2024 to April 2026"},{id:"works",label:"Works Carried Out",ph:"e.g. Ductwork installation on commercial projects"},{id:"quality",label:"Quality / Notes",ph:"e.g. Always professional, good timekeeping"}],prompt:(f,t,p)=>`Write a professional reference letter for a ${t} subcontractor.\nFor: ${p.name||"[Name]"}, ${p.company||"[Company]"}\nTo: ${f.recipient}, Period: ${f.period}, Works: ${f.works}, Notes: ${f.quality}\nProfessional format. Confirm reliability, quality, commercial awareness. Signature block.`},
@@ -227,9 +344,8 @@ function generatePDF(title, content, profile, logoSrc) {
 
 // ── API Call Helper ───────────────────────────────────────────────────────────
 async function callMorris(prompt) {
-  const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
   const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method:"POST", headers:{"Content-Type":"application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01"},
+    method:"POST", headers:{"Content-Type":"application/json"},
     body: JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:1000, messages:[{role:"user",content:prompt}] })
   });
   const d = await res.json();
@@ -257,20 +373,26 @@ function OutputActions({ title, output, profile, logo, onSave }) {
 }
 
 // ── Shared Doc Tool ───────────────────────────────────────────────────────────
-function DocTool({ toolId, trade, profile, logo, onSave }) {
+function DocTool({ toolId, trade, profile, logo, onSave, favourites, toggleFav }) {
   const cfg = toolConfigs[toolId];
   const [fields,setFields]=useState({});
   const [output,setOutput]=useState(""); const [loading,setLoading]=useState(false);
-  const generate=async()=>{setLoading(true);setOutput("");try{setOutput(await callMorris(cfg.prompt(fields,trade,profile)));}catch{setOutput("Error — try again.");}setLoading(false);};
+  const generate=async()=>{setLoading(true);setOutput("");try{setOutput(await callMorris(cfg.prompt(fields,trade,profile)));}catch{setOutput("Something went wrong our end — give it another go.");}setLoading(false);};
   return (
     <div>
-      <div className="tool-title">{cfg.title}</div>
+      <div className="tool-header">
+        <div className="tool-title">{cfg.title}</div>
+        <div style={{display:"flex",gap:6}}>
+          <FavButton toolId={toolId} favourites={favourites} toggleFav={toggleFav}/>
+          <InfoButton toolId={toolId}/>
+        </div>
+      </div>
       <div className="tool-sub">{cfg.sub} — tailored for <span>{trade}</span></div>
       <div className="card">
         {cfg.fields.map(f=>(<div key={f.id}><div className="fl">{f.label}</div><input className="fi" placeholder={f.ph} value={fields[f.id]||""} onChange={e=>setFields({...fields,[f.id]:e.target.value})}/></div>))}
-        <button className="btn" onClick={generate} disabled={loading}>{loading?"WRITING...":`GENERATE ${cfg.title.toUpperCase()}`}</button>
+        <button className="btn" onClick={generate} disabled={loading}>{loading?"MORRIS IS WRITING...":`GENERATE ${cfg.title.toUpperCase()}`}</button>
       </div>
-      {loading&&<div className="loading"><div className="spin"/>Writing your document...</div>}
+      {loading&&<div className="loading"><div className="spin"/>Morris is writing your document...</div>}
       {output&&!loading&&(<div className="output-box"><div className="out-head"><span className="out-label">Document Ready</span><OutputActions title={cfg.title} output={output} profile={profile} logo={logo} onSave={onSave}/></div>{output}</div>)}
     </div>
   );
@@ -326,7 +448,10 @@ function VerbalRecorder({ trade, profile, logo, onSave }) {
 
   return (
     <div>
-      <div className="tool-title">Verbal Instruction Recorder</div>
+      <div className="tool-header">
+        <div className="tool-title">Verbal Instruction Recorder</div>
+        <div style={{display:"flex",gap:6}}><FavButton toolId="verbal" favourites={favourites} toggleFav={toggleFav}/><InfoButton toolId="verbal"/></div>
+      </div>
       <div className="tool-sub">Record what they say on site — Morris turns it into a formal written record</div>
       <div className="info-box"><strong>How it works:</strong> Press record, hold your phone near the site manager as they give the instruction, press stop. Morris creates a formal written record instantly.</div>
       <div className="card" style={{textAlign:"center"}}>
@@ -389,7 +514,10 @@ function EarningsDashboard() {
 
   return (
     <div>
-      <div className="tool-title">Earnings Dashboard</div>
+      <div className="tool-header">
+        <div className="tool-title">Earnings Dashboard</div>
+        <div style={{display:"flex",gap:6}}><FavButton toolId="earnings" favourites={favourites} toggleFav={toggleFav}/><InfoButton toolId="earnings"/></div>
+      </div>
       <div className="tool-sub">Track income, expenses and what you're actually taking home</div>
       <div className="dashboard-grid">
         <div className="dash-card"><div className="dash-num" style={{color:"#4caf50"}}>£{totalEarned.toLocaleString()}</div><div className="dash-label">Total Earned (Paid)</div></div>
@@ -460,7 +588,10 @@ function CISCalc() {
   const fmt=n=>n.toLocaleString("en-GB",{maximumFractionDigits:2});
   return (
     <div>
-      <div className="tool-title">CIS Calculator</div>
+      <div className="tool-header">
+        <div className="tool-title">CIS Calculator</div>
+        <div style={{display:"flex",gap:6}}><FavButton toolId="cis" favourites={favourites} toggleFav={toggleFav}/><InfoButton toolId="cis"/></div>
+      </div>
       <div className="tool-sub">Work out deductions, refunds and what HMRC owes you</div>
       <div className="card">
         <div className="fl">Gross Earnings (£)</div><input className="fi" placeholder="e.g. 35000" value={gross} onChange={e=>setGross(e.target.value)}/>
@@ -499,7 +630,10 @@ function SelfAssess() {
   const fmt=n=>n.toLocaleString("en-GB",{maximumFractionDigits:2});
   return (
     <div>
-      <div className="tool-title">Self Assessment Prep</div>
+      <div className="tool-header">
+        <div className="tool-title">Self Assessment Prep</div>
+        <div style={{display:"flex",gap:6}}><FavButton toolId="selfassess" favourites={favourites} toggleFav={toggleFav}/><InfoButton toolId="selfassess"/></div>
+      </div>
       <div className="tool-sub">Track expenses and mileage — organised before tax time</div>
       <div className="card">
         <div className="fl">Annual Gross Income (£)</div><input className="fi" placeholder="e.g. 42000" value={income} onChange={e=>setIncome(e.target.value)}/>
@@ -529,11 +663,14 @@ function PaymentChaser({trade,profile,logo,onSave}) {
   const generate=async()=>{
     setLoading(true);setOutput("");
     const p=`Write a payment chaser letter stage ${fields.stage} (${stages[fields.stage]}) from a ${trade} subcontractor.\nFrom: ${profile.name||"[Name]"}, ${profile.company||"[Company]"}\nTo: ${fields.client||"[Client]"}, Invoice: ${fields.invoice||"[Ref]"}, Amount: £${fields.amount||"[Amt]"}, Days overdue: ${fields.days||"[Days]"}\n${fields.stage==="3"?"Include Construction Act suspension right, adjudication warning, 7-day final deadline.":fields.stage==="2"?"Firmer tone, reference prior reminder, 14-day deadline.":"Polite but clear, 7-day deadline."}\nProfessional letter with date and signature block.`;
-    try{setOutput(await callMorris(p));}catch{setOutput("Error — try again.");}setLoading(false);
+    try{setOutput(await callMorris(p));}catch{setOutput("Something went wrong our end — give it another go.");}setLoading(false);
   };
   return (
     <div>
-      <div className="tool-title">Payment Chaser</div>
+      <div className="tool-header">
+        <div className="tool-title">Payment Chaser</div>
+        <div style={{display:"flex",gap:6}}><FavButton toolId="chaser" favourites={favourites} toggleFav={toggleFav}/><InfoButton toolId="chaser"/></div>
+      </div>
       <div className="tool-sub">Escalating letters to get your money — fast</div>
       <div className="card">
         <div className="fl">Chaser Stage</div>
@@ -558,7 +695,10 @@ function PhotoLog() {
   const handleFiles=(files)=>{Array.from(files).forEach(file=>{const r=new FileReader();r.onload=e=>{const now=new Date();setPhotos(p=>[...p,{src:e.target.result,caption:caption||"No caption",project:project||"No project",time:now.toLocaleString("en-GB",{day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}),id:Date.now()+Math.random()}]);};r.readAsDataURL(file);});setCaption("");};
   return (
     <div>
-      <div className="tool-title">Photo Evidence Log</div>
+      <div className="tool-header">
+        <div className="tool-title">Photo Evidence Log</div>
+        <div style={{display:"flex",gap:6}}><FavButton toolId="photos" favourites={favourites} toggleFav={toggleFav}/><InfoButton toolId="photos"/></div>
+      </div>
       <div className="tool-sub">Timestamped site photos — your visual paper trail</div>
       <div className="card">
         <div className="row2">
@@ -581,10 +721,13 @@ function PhotoLog() {
 // ── Contract Review ───────────────────────────────────────────────────────────
 function ContractReview({trade,profile,logo,onSave}) {
   const [text,setText]=useState(""); const [output,setOutput]=useState(""); const [loading,setLoading]=useState(false);
-  const review=async()=>{if(!text.trim())return;setLoading(true);setOutput("");try{setOutput(await callMorris(`Construction contract expert reviewing a subcontract for a ${trade} sole trader in the UK.\n1) Flag unfair/dangerous clauses 2) Check payment terms vs Construction Act 3) Flag retention over 5% 4) Flag clauses removing variation rights 5) Flag unlimited liability 6) Overall risk rating: LOW/MEDIUM/HIGH 7) Plain English summary.\nContract: ${text}\nSpecific and practical. Clear headings. Write for a tradesperson.`));}catch{setOutput("Error — try again.");}setLoading(false);};
+  const review=async()=>{if(!text.trim())return;setLoading(true);setOutput("");try{setOutput(await callMorris(`Construction contract expert reviewing a subcontract for a ${trade} sole trader in the UK.\n1) Flag unfair/dangerous clauses 2) Check payment terms vs Construction Act 3) Flag retention over 5% 4) Flag clauses removing variation rights 5) Flag unlimited liability 6) Overall risk rating: LOW/MEDIUM/HIGH 7) Plain English summary.\nContract: ${text}\nSpecific and practical. Clear headings. Write for a tradesperson.`));}catch{setOutput("Something went wrong our end — give it another go.");}setLoading(false);};
   return (
     <div>
-      <div className="tool-title">Contract Review</div>
+      <div className="tool-header">
+        <div className="tool-title">Contract Review</div>
+        <div style={{display:"flex",gap:6}}><FavButton toolId="contract" favourites={favourites} toggleFav={toggleFav}/><InfoButton toolId="contract"/></div>
+      </div>
       <div className="tool-sub">Paste your subcontract — Morris flags the dodgy clauses</div>
       <div className="warn-box"><strong>Important:</strong> Guidance only. For high-value contracts get a solicitor to review.</div>
       <div className="card">
@@ -606,7 +749,10 @@ function DisputeTimeline({profile,logo,onSave}) {
   const buildSummary=async()=>{if(!events.length)return;setLoading(true);setSummary("");const timeline=events.map(e=>`${e.date} [${e.type.toUpperCase()}]: ${e.description}`).join("\n");try{setSummary(await callMorris(`Construction dispute expert. Write a formal chronological dispute summary for adjudication based on:\n${timeline}\nInclude: overview, key events in order, analysis of where things went wrong, aggrieved party position.`));}catch{setSummary("Error — try again.");}setLoading(false);};
   return (
     <div>
-      <div className="tool-title">Dispute Timeline</div>
+      <div className="tool-header">
+        <div className="tool-title">Dispute Timeline</div>
+        <div style={{display:"flex",gap:6}}><FavButton toolId="dispute" favourites={favourites} toggleFav={toggleFav}/><InfoButton toolId="dispute"/></div>
+      </div>
       <div className="tool-sub">Build your chronological record — generate a dispute summary</div>
       <div className="card">
         <div className="row2">
@@ -633,11 +779,11 @@ function IncidentReport({trade,profile,logo,onSave}) {
   const generate=async()=>{
     setLoading(true);setOutput("");
     const p=`Write a professional incident report for a ${trade} subcontractor for insurance and legal purposes.\nFrom: ${profile.name||"[Name]"}, ${profile.company||"[Company]"}\nType: ${fields.type}, Date/Time: ${fields.datetime||"[Date/Time]"}, Location: ${fields.location||"[Location]"}\nDescription: ${fields.description||"[Description]"}, Witnesses: ${fields.witnesses||"None"}, Value/Impact: ${fields.value||"TBC"}, Reported: ${fields.reported||"Yes"}\nFormal incident report with: reference number, all key fields, witness section, photos note, immediate actions, next steps, signature block.`;
-    try{setOutput(await callMorris(p));}catch{setOutput("Error — try again.");}setLoading(false);
+    try{setOutput(await callMorris(p));}catch{setOutput("Something went wrong our end — give it another go.");}setLoading(false);
   };
   return (
     <div>
-      <div className="tool-title">Incident Report</div>
+      <div className="tool-header"><div className="tool-title">Incident Report</div><div style={{display:"flex",gap:6}}><FavButton toolId="incident" favourites={favourites} toggleFav={toggleFav}/><InfoButton toolId="incident"/></div></div>
       <div className="tool-sub">Professional incident records for insurance and legal protection</div>
       <div className="warn-box"><strong>Important:</strong> Complete as soon as possible while details are fresh.</div>
       <div className="card">
@@ -674,7 +820,7 @@ function Reminders() {
   const pending=reminders.filter(r=>!r.done); const done=reminders.filter(r=>r.done);
   return (
     <div>
-      <div className="tool-title">Reminders</div>
+      <div className="tool-header"><div className="tool-title">Reminders</div><InfoButton toolId="reminders"/></div>
       <div className="tool-sub">Invoice chasers, tax deadlines, RAMS renewals</div>
       <div className="card">
         <div className="fl">Reminder</div><input className="fi" placeholder="e.g. Chase payment from Kier — INV-042" value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/>
@@ -713,7 +859,7 @@ function VarTracker() {
 
 function RAMSLibrary({trade,profile,logo,onSave}) {
   const [library,setLibrary]=useState([]); const [fields,setFields]=useState({}); const [output,setOutput]=useState(""); const [loading,setLoading]=useState(false);
-  const generate=async()=>{setLoading(true);setOutput("");try{const result=await callMorris(`Write a comprehensive reusable RAMS template for a ${trade} firm.\nTask: ${fields.task||"General works"}, Hazards: ${fields.hazards||"Standard"}, Controls: ${fields.controls||"Standard"}\nReusable template with [PROJECT NAME], [SITE ADDRESS], [DATE] placeholders. Include: scope, hazard table with risk ratings, PPE, sequence, emergency procedures, competency requirements, sign-off page.`);setOutput(result);setLibrary(l=>[...l,{id:Date.now(),task:fields.task||"General RAMS",content:result,date:new Date().toLocaleDateString("en-GB")}]);}catch{setOutput("Error — try again.");}setLoading(false);};
+  const generate=async()=>{setLoading(true);setOutput("");try{const result=await callMorris(`Write a comprehensive reusable RAMS template for a ${trade} firm.\nTask: ${fields.task||"General works"}, Hazards: ${fields.hazards||"Standard"}, Controls: ${fields.controls||"Standard"}\nReusable template with [PROJECT NAME], [SITE ADDRESS], [DATE] placeholders. Include: scope, hazard table with risk ratings, PPE, sequence, emergency procedures, competency requirements, sign-off page.`);setOutput(result);setLibrary(l=>[...l,{id:Date.now(),task:fields.task||"General RAMS",content:result,date:new Date().toLocaleDateString("en-GB")}]);}catch{setOutput("Something went wrong our end — give it another go.");}setLoading(false);};
   return(<div><div className="tool-title">RAMS Library</div><div className="tool-sub">Generate and store reusable RAMS templates</div><div className="card"><div className="fl">Task / Activity</div><input className="fi" placeholder="e.g. High level ductwork installation" value={fields.task||""} onChange={e=>setFields({...fields,task:e.target.value})}/><div className="fl">Main Hazards</div><input className="fi" placeholder="e.g. Working at height, manual handling..." value={fields.hazards||""} onChange={e=>setFields({...fields,hazards:e.target.value})}/><div className="fl">Control Measures</div><input className="fi" placeholder="e.g. MEWP, harness, PPE..." value={fields.controls||""} onChange={e=>setFields({...fields,controls:e.target.value})}/><button className="btn" onClick={generate} disabled={loading}>{loading?"GENERATING...":"GENERATE RAMS TEMPLATE"}</button></div>{library.length>0&&(<div style={{marginBottom:16}}>{library.map(l=>(<div key={l.id} className="hist-item"><div className="hist-top"><span className="hist-tool">{l.task}</span><span className="hist-date">{l.date}</span></div><div className="hist-preview">{l.content.slice(0,100)}...</div></div>))}</div>)}{loading&&<div className="loading"><div className="spin"/>Generating template...</div>}{output&&!loading&&(<div className="output-box"><div className="out-head"><span className="out-label">RAMS Template</span><OutputActions title="RAMS Template" output={output} profile={profile} logo={logo} onSave={onSave}/></div>{output}</div>)}</div>);
 }
 
@@ -765,7 +911,7 @@ function Profile({profile,setProfile,logo,setLogo}) {
   const handleLogo=(files)=>{if(!files[0])return;const r=new FileReader();r.onload=e=>setLogo(e.target.result);r.readAsDataURL(files[0]);};
   return(
     <div>
-      <div className="tool-title">My Profile</div>
+      <div className="tool-header"><div className="tool-title">My Profile</div><InfoButton toolId="profile"/></div>
       <div className="tool-sub">Set once — auto-fills every document and letterhead</div>
       <div className="card">
         <div className="fl">Company Logo</div>
@@ -797,11 +943,11 @@ function ToolboxTalk({trade,profile,logo,onSave}) {
   const generate=async()=>{
     setLoading(true);setOutput("");
     const p=`Write a professional toolbox talk briefing document for a ${trade} team on site.\nCompany: ${profile.company||"[Company]"}\nTopic: ${fields.topic||"General Safety"}\nSite: ${fields.site||"[Site Name]"}\nDate: ${fields.date||"[Date]"}\nPresented by: ${fields.presenter||profile.name||"[Name]"}\nWrite it as a structured toolbox talk including: key points to cover (5-7 bullet points), relevant legislation or standards, what to do if something goes wrong, questions to ask the team, and a sign-off attendance sheet with spaces for names and signatures. Keep language plain and practical — written for tradespeople not office workers.`;
-    try{setOutput(await callMorris(p));}catch{setOutput("Error — try again.");}setLoading(false);
+    try{setOutput(await callMorris(p));}catch{setOutput("Something went wrong our end — give it another go.");}setLoading(false);
   };
   return(
     <div>
-      <div className="tool-title">Toolbox Talk</div>
+      <div className="tool-header"><div className="tool-title">Toolbox Talk</div><div style={{display:"flex",gap:6}}><FavButton toolId="toolboxtalk" favourites={favourites} toggleFav={toggleFav}/><InfoButton toolId="toolboxtalk"/></div></div>
       <div className="tool-sub">Short safety briefings — required on most commercial sites</div>
       <div className="info-box"><strong>Tip:</strong> Run toolbox talks at the start of the day or before a new task begins. Keep them under 10 minutes. Get everyone to sign the attendance sheet.</div>
       <div className="card">
@@ -835,7 +981,7 @@ function AsbestosRecord() {
   const add=()=>{if(!form.name||!form.date)return;setRecords(r=>[...r,{...form,id:Date.now()}]);setForm({name:"",company:"",date:"",type:"Awareness Briefing",site:"",briefedBy:"",signed:false});setShowForm(false);};
   return(
     <div>
-      <div className="tool-title">Asbestos Awareness Record</div>
+      <div className="tool-header"><div className="tool-title">Asbestos Awareness Record</div><div style={{display:"flex",gap:6}}><FavButton toolId="asbestos" favourites={favourites} toggleFav={toggleFav}/><InfoButton toolId="asbestos"/></div></div>
       <div className="tool-sub">Log who has been briefed and when — stay legally compliant</div>
       <div className="warn-box"><strong>Legal requirement:</strong> Anyone who may disturb asbestos during their work must receive asbestos awareness training. This log is your proof of compliance.</div>
       <div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}>
@@ -896,12 +1042,12 @@ function SnaggingList({trade,profile,logo,onSave}) {
     setLoading(true);setOutput("");
     const list=snags.map(s=>`${s.ref} [${s.priority}] ${s.location}: ${s.description} — Responsible: ${s.responsible||"TBC"} — Deadline: ${s.deadline||"TBC"} — Status: ${s.status}`).join("\n");
     const p=`Write a formal snagging list document for a ${trade} subcontractor.\nCompany: ${profile.company||"[Company]"}\nProject: ${projectInfo.project||"[Project]"}\nClient: ${projectInfo.client||"[Client]"}\nDate: ${projectInfo.date||"[Date]"}\nSnag items:\n${list}\nFormat as a professional handover snagging document with: introduction, numbered snag items table, rectification deadline, sign-off section for both parties, and note that final payment is subject to snagging completion.`;
-    try{setOutput(await callMorris(p));}catch{setOutput("Error — try again.");}setLoading(false);
+    try{setOutput(await callMorris(p));}catch{setOutput("Something went wrong our end — give it another go.");}setLoading(false);
   };
 
   return(
     <div>
-      <div className="tool-title">Snagging List</div>
+      <div className="tool-header"><div className="tool-title">Snagging List</div><div style={{display:"flex",gap:6}}><FavButton toolId="snagging" favourites={favourites} toggleFav={toggleFav}/><InfoButton toolId="snagging"/></div></div>
       <div className="tool-sub">Record defects at handover — get signed off and get paid</div>
       <div className="card">
         <div className="row2">
@@ -979,7 +1125,7 @@ const rateIncreaseConfig = {
 };
 
 // ── Apprentice Manager ────────────────────────────────────────────────────────
-function ApprenticeManager({trade, profile, logo, onSave}) {
+function ApprenticeManager({trade, profile, logo, onSave, favourites, toggleFav}) {
   const [tab, setTab] = useState("log");
   const [logs, setLogs] = useState([
     {id:1, week:"w/e 18 Apr 2026", hours:40, tasks:"Assisted with ductwork installation level 3. Learned how to use angle grinder safely.", skills:["Angle grinder operation","Duct joining techniques"], supervisor:"D. Morris"},
@@ -1028,7 +1174,7 @@ function ApprenticeManager({trade, profile, logo, onSave}) {
     } else if(docType === "warning") {
       prompt = `Write a professional formal warning letter for an apprentice from a ${trade} contractor.\nFrom: ${profile.name||"[Name]"}, ${profile.company||"[Company]"}\nApprentice: ${apprenticeInfo.name||"[Apprentice Name]"}\nInclude: nature of the concern (leave placeholder), previous verbal warnings (placeholder), expected improvement, review date (4 weeks), consequences if no improvement, and signature blocks. Professional, fair and legally appropriate tone.`;
     }
-    try { setOutput(await callMorris(prompt)); } catch { setOutput("Error — try again."); }
+    try { setOutput(await callMorris(prompt)); } catch { setOutput("Something went wrong our end — give it another go."); }
     setLoading(false);
   };
 
@@ -1040,7 +1186,7 @@ function ApprenticeManager({trade, profile, logo, onSave}) {
 
   return (
     <div>
-      <div className="tool-title">Apprentice Manager</div>
+      <div className="tool-header"><div className="tool-title">Apprentice Manager</div><div style={{display:"flex",gap:6}}><FavButton toolId="apprentice" favourites={favourites} toggleFav={toggleFav}/><InfoButton toolId="apprentice"/></div></div>
       <div className="tool-sub">Manage your apprentice — hours, competencies and documents</div>
 
       <div className="card">
@@ -1142,7 +1288,7 @@ function ApprenticeManager({trade, profile, logo, onSave}) {
             </select>
             <button className="btn" onClick={generateDoc} disabled={loading}>{loading?"GENERATING...":"GENERATE DOCUMENT"}</button>
           </div>
-          {loading&&<div className="loading"><div className="spin"/>Writing your document...</div>}
+          {loading&&<div className="loading"><div className="spin"/>Morris is writing your document...</div>}
           {output&&!loading&&(<div className="output-box"><div className="out-head"><span className="out-label">{docType==="offer"?"Offer Letter":docType==="progress"?"Progress Review":"Formal Warning"}</span><OutputActions title="Apprentice Document" output={output} profile={profile} logo={logo} onSave={onSave}/></div>{output}</div>)}
         </div>
       )}
@@ -1150,21 +1296,969 @@ function ApprenticeManager({trade, profile, logo, onSave}) {
   );
 }
 
+// ── Labour Allocation Sheet ───────────────────────────────────────────────────
+function LabourAllocation({favourites=[], toggleFav=()=>{}}) {
+  const [allocations, setAllocations] = useState([
+    {id:1, worker:"D. Morris", trade:"Duct Fitter", site:"Salford Royal Ph2", date:"05 May 2026", hours:8, notes:"Level 3 installation"},
+    {id:2, worker:"J. Smith", trade:"Duct Fitter", site:"Trafford Park Unit 4", date:"05 May 2026", hours:8, notes:"Fan coil connections"},
+    {id:3, worker:"M. Jones", trade:"Fitter's Mate", site:"Salford Royal Ph2", date:"05 May 2026", hours:8, notes:"Assisting level 3"},
+  ]);
+  const [form, setForm] = useState({worker:"", trade:"Duct Fitter", site:"", date:"", hours:"8", notes:""});
+  const [showForm, setShowForm] = useState(false);
+  const sites = [...new Set(allocations.map(a => a.site))];
+  const add = () => {if(!form.worker||!form.site)return; setAllocations(a=>[...a,{...form,id:Date.now(),hours:parseFloat(form.hours)||8}]); setForm({worker:"",trade:"Duct Fitter",site:"",date:"",hours:"8",notes:""}); setShowForm(false);};
+  const totalHours = allocations.reduce((s,a)=>s+(parseFloat(a.hours)||0),0);
+  const siteSummary = sites.map(s=>({site:s, count:allocations.filter(a=>a.site===s).length, hours:allocations.filter(a=>a.site===s).reduce((sum,a)=>sum+(parseFloat(a.hours)||0),0)}));
+  return(
+    <div>
+      <div className="tool-header"><div className="tool-title">Labour Allocation</div><div style={{display:"flex",gap:6}}><FavButton toolId="labouralloc" favourites={favourites} toggleFav={toggleFav}/><InfoButton toolId="labouralloc"/></div></div>
+      <div className="tool-sub">Who is on which site — daily resource management</div>
+      <div className="dashboard-grid">
+        <div className="dash-card"><div className="dash-num">{allocations.length}</div><div className="dash-label">Workers Allocated</div></div>
+        <div className="dash-card"><div className="dash-num">{sites.length}</div><div className="dash-label">Active Sites</div></div>
+        <div className="dash-card"><div className="dash-num">{totalHours}</div><div className="dash-label">Total Hours Today</div></div>
+      </div>
+      <div className="card" style={{marginBottom:14}}>
+        <div style={{fontSize:11,color:"#e8a020",fontWeight:600,marginBottom:12,letterSpacing:1}}>SITE SUMMARY</div>
+        {siteSummary.map(s=>(<div key={s.site} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:"1px solid #141414"}}>
+          <span style={{fontSize:13,color:"#f0ede8"}}>{s.site}</span>
+          <span style={{fontSize:12,color:"#aaa"}}>{s.count} workers · {s.hours} hrs</span>
+        </div>))}
+      </div>
+      <div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}><button className="btn-sm" onClick={()=>setShowForm(!showForm)}>+ Add Allocation</button></div>
+      {showForm&&(<div className="card">
+        <div className="row2"><div><div className="fl">Worker Name</div><input className="fi" placeholder="e.g. D. Morris" value={form.worker} onChange={e=>setForm({...form,worker:e.target.value})}/></div><div><div className="fl">Trade</div><input className="fi" placeholder="e.g. Duct Fitter" value={form.trade} onChange={e=>setForm({...form,trade:e.target.value})}/></div></div>
+        <div className="row2"><div><div className="fl">Site</div><input className="fi" placeholder="e.g. Salford Royal Ph2" value={form.site} onChange={e=>setForm({...form,site:e.target.value})}/></div><div><div className="fl">Date</div><input className="fi" type="date" value={form.date} onChange={e=>setForm({...form,date:e.target.value})}/></div></div>
+        <div className="row2"><div><div className="fl">Hours</div><input className="fi" placeholder="e.g. 8" value={form.hours} onChange={e=>setForm({...form,hours:e.target.value})}/></div><div><div className="fl">Notes</div><input className="fi" placeholder="e.g. Level 3 installation" value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})}/></div></div>
+        <button className="btn-sm" onClick={add} style={{width:"100%",padding:"10px",fontSize:13}}>SAVE ALLOCATION</button>
+      </div>)}
+      <div className="table-wrap"><table><thead><tr><th>Worker</th><th>Trade</th><th>Site</th><th>Hours</th><th>Notes</th><th></th></tr></thead>
+      <tbody>{allocations.map(a=>(<tr key={a.id}><td style={{fontWeight:500,color:"#f0ede8"}}>{a.worker}</td><td>{a.trade}</td><td>{a.site}</td><td>{a.hours}</td><td style={{color:"#555"}}>{a.notes}</td><td><button className="btn-danger" onClick={()=>setAllocations(x=>x.filter(q=>q.id!==a.id))}>✕</button></td></tr>))}</tbody></table></div>
+    </div>
+  );
+}
+
+// ── Purchase Order Generator ──────────────────────────────────────────────────
+function PurchaseOrder({trade, profile, logo, onSave, favourites, toggleFav}) {
+  const [fields, setFields] = useState({});
+  const [output, setOutput] = useState(""); const [loading, setLoading] = useState(false);
+  const generate = async () => {
+    setLoading(true); setOutput("");
+    const p = `Write a professional purchase order for a ${trade} contractor.\nFrom: ${profile.company||"[Company]"}\nTo: ${fields.supplier||"[Supplier]"}\nPO Number: ${fields.poNumber||"PO-001"}\nDate: ${fields.date||"[Date]"}\nItems: ${fields.items||"[Items]"}\nTotal value: £${fields.value||"[Value]"}\nDelivery to: ${fields.delivery||"[Site Address]"}\nRequired by: ${fields.required||"[Date]"}\nInclude: PO reference, itemised list, delivery instructions, payment terms (30 days), authorisation signature block, cancellation terms.`;
+    try{setOutput(await callMorris(p));}catch{setOutput("Something went wrong our end — give it another go.");}setLoading(false);
+  };
+  return(
+    <div>
+      <div className="tool-header"><div className="tool-title">Purchase Order</div><div style={{display:"flex",gap:6}}><FavButton toolId="purchaseorder" favourites={favourites} toggleFav={toggleFav}/><InfoButton toolId="purchaseorder"/></div></div>
+      <div className="tool-sub">Formal purchase orders for materials and plant hire</div>
+      <div className="card">
+        <div className="row2"><div><div className="fl">Supplier Name</div><input className="fi" placeholder="e.g. Wolseley UK Ltd" value={fields.supplier||""} onChange={e=>setFields({...fields,supplier:e.target.value})}/></div><div><div className="fl">PO Number</div><input className="fi" placeholder="e.g. PO-042" value={fields.poNumber||""} onChange={e=>setFields({...fields,poNumber:e.target.value})}/></div></div>
+        <div className="row2"><div><div className="fl">Date</div><input className="fi" type="date" value={fields.date||""} onChange={e=>setFields({...fields,date:e.target.value})}/></div><div><div className="fl">Total Value (£)</div><input className="fi" placeholder="e.g. 4,250" value={fields.value||""} onChange={e=>setFields({...fields,value:e.target.value})}/></div></div>
+        <div className="fl">Items / Materials</div><textarea className="fi" style={{minHeight:80}} placeholder="List items, quantities and unit prices..." value={fields.items||""} onChange={e=>setFields({...fields,items:e.target.value})}/>
+        <div className="row2"><div><div className="fl">Delivery Address</div><input className="fi" placeholder="e.g. Salford Royal, site entrance" value={fields.delivery||""} onChange={e=>setFields({...fields,delivery:e.target.value})}/></div><div><div className="fl">Required By</div><input className="fi" type="date" value={fields.required||""} onChange={e=>setFields({...fields,required:e.target.value})}/></div></div>
+        <button className="btn" onClick={generate} disabled={loading}>{loading?"GENERATING...":"GENERATE PURCHASE ORDER"}</button>
+      </div>
+      {loading&&<div className="loading"><div className="spin"/>Writing your purchase order...</div>}
+      {output&&!loading&&(<div className="output-box"><div className="out-head"><span className="out-label">Purchase Order</span><OutputActions title="Purchase Order" output={output} profile={profile} logo={logo} onSave={onSave}/></div>{output}</div>)}
+    </div>
+  );
+}
+
+// ── Subcontractor CIS Payment Certificate ─────────────────────────────────────
+function SubbiPayCert({trade, profile, logo, onSave, favourites, toggleFav}) {
+  const [fields, setFields] = useState({});
+  const [output, setOutput] = useState(""); const [loading, setLoading] = useState(false);
+  const generate = async () => {
+    setLoading(true); setOutput("");
+    const gross = parseFloat(fields.gross)||0;
+    const rate = parseFloat(fields.rate||20)/100;
+    const deduction = gross * rate;
+    const net = gross - deduction;
+    const p = `Write a CIS Payment and Deduction Statement for a ${trade} contractor paying a subcontractor.\nContractor: ${profile.company||"[Company]"}, UTR: ${profile.utr||"[UTR]"}\nSubcontractor: ${fields.subName||"[Name]"}, UTR: ${fields.subUTR||"[UTR]"}\nPeriod: ${fields.period||"[Period]"}\nGross payment: £${gross.toFixed(2)}, CIS deduction rate: ${fields.rate||20}%, Amount deducted: £${deduction.toFixed(2)}, Net paid: £${net.toFixed(2)}\nInclude: contractor and subcontractor details, payment period, gross amount, deduction rate and amount, net payment, statement that deduction has been paid to HMRC, signature block. Compliant with CIS regulations.`;
+    try{setOutput(await callMorris(p));}catch{setOutput("Something went wrong our end — give it another go.");}setLoading(false);
+  };
+  return(
+    <div>
+      <div className="tool-header"><div className="tool-title">Subbi Payment Certificate</div><div style={{display:"flex",gap:6}}><FavButton toolId="subcispay" favourites={favourites} toggleFav={toggleFav}/><InfoButton toolId="subcispay"/></div></div>
+      <div className="tool-sub">CIS payment and deduction statements — legal requirement</div>
+      <div className="info-box"><strong>Legal requirement:</strong> You must give every CIS subcontractor a payment and deduction statement within 14 days of the end of each tax month.</div>
+      <div className="card">
+        <div style={{fontSize:11,color:"#e8a020",fontWeight:600,marginBottom:12,letterSpacing:1}}>SUBCONTRACTOR DETAILS</div>
+        <div className="row2"><div><div className="fl">Subcontractor Name</div><input className="fi" placeholder="e.g. D. Morris" value={fields.subName||""} onChange={e=>setFields({...fields,subName:e.target.value})}/></div><div><div className="fl">Subcontractor UTR</div><input className="fi" placeholder="e.g. 1234567890" value={fields.subUTR||""} onChange={e=>setFields({...fields,subUTR:e.target.value})}/></div></div>
+        <div className="row2"><div><div className="fl">Payment Period</div><input className="fi" placeholder="e.g. April 2026" value={fields.period||""} onChange={e=>setFields({...fields,period:e.target.value})}/></div><div><div className="fl">Gross Payment (£)</div><input className="fi" placeholder="e.g. 3,200" value={fields.gross||""} onChange={e=>setFields({...fields,gross:e.target.value})}/></div></div>
+        <div className="fl">CIS Deduction Rate</div>
+        <select className="fi" value={fields.rate||"20"} onChange={e=>setFields({...fields,rate:e.target.value})} style={{cursor:"pointer"}}>
+          <option value="20">20% — Standard</option>
+          <option value="30">30% — Higher (unverified)</option>
+          <option value="0">0% — Gross payment status</option>
+        </select>
+        {fields.gross&&(<div className="cis-result" style={{marginBottom:14}}>
+          <div className="cis-row"><span className="cis-label">Gross Payment</span><span>£{(parseFloat(fields.gross)||0).toFixed(2)}</span></div>
+          <div className="cis-row"><span className="cis-label">CIS Deduction ({fields.rate||20}%)</span><span>£{((parseFloat(fields.gross)||0)*(parseFloat(fields.rate||20)/100)).toFixed(2)}</span></div>
+          <div className="cis-row"><span>Net Paid to Subcontractor</span><span style={{color:"#4caf50"}}>£{((parseFloat(fields.gross)||0)-(parseFloat(fields.gross)||0)*(parseFloat(fields.rate||20)/100)).toFixed(2)}</span></div>
+        </div>)}
+        <button className="btn" onClick={generate} disabled={loading}>{loading?"GENERATING...":"GENERATE PAYMENT CERTIFICATE"}</button>
+      </div>
+      {loading&&<div className="loading"><div className="spin"/>Writing your payment certificate...</div>}
+      {output&&!loading&&(<div className="output-box"><div className="out-head"><span className="out-label">CIS Payment Certificate</span><OutputActions title="CIS Payment Certificate" output={output} profile={profile} logo={logo} onSave={onSave}/></div>{output}</div>)}
+    </div>
+  );
+}
+
+// ── Health and Safety Policy ──────────────────────────────────────────────────
+function HSPolicy({trade, profile, logo, onSave, favourites, toggleFav}) {
+  const [fields, setFields] = useState({});
+  const [output, setOutput] = useState(""); const [loading, setLoading] = useState(false);
+  const generate = async () => {
+    setLoading(true); setOutput("");
+    const p = `Write a comprehensive Health and Safety Policy for a ${trade} contractor.\nCompany: ${profile.company||"[Company]"}\nDirector/Owner: ${profile.name||"[Name]"}\nNumber of employees/subbies: ${fields.employees||"1-10"}\nMain activities: ${fields.activities||"Construction and installation works"}\nInclude: policy statement signed by director, organisation section (responsibilities), arrangements section covering risk assessment, RAMS, PPE, first aid, fire, COSHH, working at height, manual handling, accident reporting, training, welfare. Professional and compliant with Health and Safety at Work Act 1974 and CDM 2015. Review date one year from today.`;
+    try{setOutput(await callMorris(p));}catch{setOutput("Something went wrong our end — give it another go.");}setLoading(false);
+  };
+  return(
+    <div>
+      <div className="tool-header"><div className="tool-title">Health & Safety Policy</div><div style={{display:"flex",gap:6}}><FavButton toolId="hspolicy" favourites={favourites} toggleFav={toggleFav}/><InfoButton toolId="hspolicy"/></div></div>
+      <div className="tool-sub">Every employer legally needs one — Morris generates it</div>
+      <div className="warn-box"><strong>Legal requirement:</strong> If you employ anyone — even one person — you are legally required to have a written H&S policy under the Health and Safety at Work Act 1974.</div>
+      <div className="card">
+        <div className="row2"><div><div className="fl">Number of Employees / Subbies</div><select className="fi" value={fields.employees||"1-10"} onChange={e=>setFields({...fields,employees:e.target.value})} style={{cursor:"pointer"}}><option>1-10</option><option>11-25</option><option>26-50</option><option>50+</option></select></div><div><div className="fl">Main Business Activities</div><input className="fi" placeholder="e.g. Ductwork installation on commercial sites" value={fields.activities||""} onChange={e=>setFields({...fields,activities:e.target.value})}/></div></div>
+        <div className="fl">Additional Hazards or Activities</div>
+        <textarea className="fi" style={{minHeight:60}} placeholder="e.g. Working at height, confined spaces, hot works..." value={fields.hazards||""} onChange={e=>setFields({...fields,hazards:e.target.value})}/>
+        <button className="btn" onClick={generate} disabled={loading}>{loading?"GENERATING...":"GENERATE H&S POLICY"}</button>
+      </div>
+      {loading&&<div className="loading"><div className="spin"/>Writing your H&S policy...</div>}
+      {output&&!loading&&(<div className="output-box"><div className="out-head"><span className="out-label">Health & Safety Policy</span><OutputActions title="Health and Safety Policy" output={output} profile={profile} logo={logo} onSave={onSave}/></div>{output}</div>)}
+      <div className="warn-box" style={{marginTop:14}}><strong>Important:</strong> Get this reviewed by a qualified H&S consultant before use. Morris produces a starting template — your policy must reflect your specific operations.</div>
+    </div>
+  );
+}
+
+// ── Subcontractor Compliance Checker ──────────────────────────────────────────
+function SubbiCompliance({favourites=[], toggleFav=()=>{}}) {
+  const [subbies, setSubbies] = useState([
+    {id:1, name:"D. Morris Ductwork", trade:"Duct Fitter", cisReg:true, insurance:true, cscs:true, rams:true, induction:true, tax:true},
+    {id:2, name:"JS Electrical Ltd", trade:"Electrician", cisReg:true, insurance:true, cscs:true, rams:false, induction:false, tax:true},
+  ]);
+  const [form, setForm] = useState({name:"", trade:"", cisReg:false, insurance:false, cscs:false, rams:false, induction:false, tax:false});
+  const [showForm, setShowForm] = useState(false);
+  const checks = [{key:"cisReg",label:"CIS Registered"},{key:"insurance",label:"Insurance"},{key:"cscs",label:"CSCS Card"},{key:"rams",label:"RAMS Submitted"},{key:"induction",label:"Site Inducted"},{key:"tax",label:"UTR Verified"}];
+  const add = () => {if(!form.name)return; setSubbies(s=>[...s,{...form,id:Date.now()}]); setForm({name:"",trade:"",cisReg:false,insurance:false,cscs:false,rams:false,induction:false,tax:false}); setShowForm(false);};
+  const toggle = (id, key) => setSubbies(s=>s.map(x=>x.id===id?{...x,[key]:!x[key]}:x));
+  const getStatus = (s) => {const score=checks.filter(c=>s[c.key]).length; return score===6?"Fully Compliant":score>=4?"Mostly Compliant":"Action Required";};
+  const getStatusClass = (s) => {const score=checks.filter(c=>s[c.key]).length; return score===6?"status-green":score>=4?"status-amber":"status-red";};
+  return(
+    <div>
+      <div className="tool-header"><div className="tool-title">Subbi Compliance Checker</div><div style={{display:"flex",gap:6}}><FavButton toolId="subbicheck" favourites={favourites} toggleFav={toggleFav}/><InfoButton toolId="subbicheck"/></div></div>
+      <div className="tool-sub">Confirm every subcontractor is compliant before they start</div>
+      <div className="info-box"><strong>Why this matters:</strong> If a non-compliant subbi causes an incident on your site — you as the appointing contractor may share liability. Check compliance before day one.</div>
+      <div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}><button className="btn-sm" onClick={()=>setShowForm(!showForm)}>+ Add Subcontractor</button></div>
+      {showForm&&(<div className="card">
+        <div className="row2"><div><div className="fl">Company Name</div><input className="fi" placeholder="e.g. ABC Ductwork Ltd" value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></div><div><div className="fl">Trade</div><input className="fi" placeholder="e.g. Duct Fitter" value={form.trade} onChange={e=>setForm({...form,trade:e.target.value})}/></div></div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
+          {checks.map(c=>(<div key={c.key} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",background:"#0d0d0d",borderRadius:6,border:"1px solid #1a1a1a"}}><input type="checkbox" checked={form[c.key]} onChange={()=>setForm({...form,[c.key]:!form[c.key]})} style={{width:14,height:14,cursor:"pointer"}}/><span style={{fontSize:12,color:"#aaa"}}>{c.label}</span></div>))}
+        </div>
+        <button className="btn-sm" onClick={add} style={{width:"100%",padding:"10px",fontSize:13}}>SAVE</button>
+      </div>)}
+      {subbies.map(s=>(<div key={s.id} className="card" style={{marginBottom:12}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+          <div><div style={{fontSize:14,fontWeight:500,color:"#f0ede8"}}>{s.name}</div><div style={{fontSize:11,color:"#555"}}>{s.trade}</div></div>
+          <span className={`status-pill ${getStatusClass(s)}`}>{getStatus(s)}</span>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}}>
+          {checks.map(c=>(<div key={c.key} onClick={()=>toggle(s.id,c.key)} style={{display:"flex",alignItems:"center",gap:6,padding:"6px 10px",background:s[c.key]?"rgba(76,175,80,.08)":"rgba(224,80,80,.06)",border:`1px solid ${s[c.key]?"rgba(76,175,80,.2)":"rgba(224,80,80,.15)"}`,borderRadius:4,cursor:"pointer",transition:"all .2s"}}>
+            <span style={{fontSize:13}}>{s[c.key]?"✓":"✗"}</span>
+            <span style={{fontSize:11,color:s[c.key]?"#4caf50":"#e05050"}}>{c.label}</span>
+          </div>))}
+        </div>
+      </div>))}
+    </div>
+  );
+}
+
+// ── Monthly Commercial Report ─────────────────────────────────────────────────
+function CommercialReport({trade, profile, logo, onSave, favourites, toggleFav}) {
+  const [contracts, setContracts] = useState([
+    {id:1, name:"Salford Royal Ph2", contractor:"Kier", value:85000, certified:42500, paid:28000, retention:4250, variations:3200, status:"Active"},
+    {id:2, name:"Trafford Park", contractor:"Bowmer & Kirkland", value:32000, certified:28000, paid:28000, retention:1600, variations:0, status:"Defects"},
+  ]);
+  const [output, setOutput] = useState(""); const [loading, setLoading] = useState(false);
+  const totalValue = contracts.reduce((s,c)=>s+c.value,0);
+  const totalCertified = contracts.reduce((s,c)=>s+c.certified,0);
+  const totalPaid = contracts.reduce((s,c)=>s+c.paid,0);
+  const totalRetention = contracts.reduce((s,c)=>s+c.retention,0);
+  const totalVariations = contracts.reduce((s,c)=>s+c.variations,0);
+  const outstanding = totalCertified - totalPaid;
+  const generate = async () => {
+    setLoading(true); setOutput("");
+    const summary = contracts.map(c=>`${c.name} (${c.contractor}): Contract £${c.value.toLocaleString()}, Certified £${c.certified.toLocaleString()}, Paid £${c.paid.toLocaleString()}, Retention £${c.retention.toLocaleString()}, Variations £${c.variations.toLocaleString()}, Status: ${c.status}`).join("\n");
+    const p = `Write a professional monthly commercial report for a ${trade} contractor.\nCompany: ${profile.company||"[Company]"}\nReport period: ${new Date().toLocaleDateString("en-GB",{month:"long",year:"numeric"})}\nContracts:\n${summary}\nTotal contract value: £${totalValue.toLocaleString()}, Total certified: £${totalCertified.toLocaleString()}, Total paid: £${totalPaid.toLocaleString()}, Outstanding: £${outstanding.toLocaleString()}, Retention held: £${totalRetention.toLocaleString()}, Pending variations: £${totalVariations.toLocaleString()}\nInclude: executive summary, contract by contract breakdown, cash position analysis, key risks, actions required, forward look.`;
+    try{setOutput(await callMorris(p));}catch{setOutput("Something went wrong our end — give it another go.");}setLoading(false);
+  };
+  return(
+    <div>
+      <div className="tool-header"><div className="tool-title">Commercial Report</div><div style={{display:"flex",gap:6}}><FavButton toolId="commercialrpt" favourites={favourites} toggleFav={toggleFav}/><InfoButton toolId="commercialrpt"/></div></div>
+      <div className="tool-sub">Monthly overview of all contracts and cash position</div>
+      <div className="dashboard-grid">
+        <div className="dash-card"><div className="dash-num">£{(totalValue/1000).toFixed(0)}k</div><div className="dash-label">Total Contract Value</div></div>
+        <div className="dash-card"><div className="dash-num" style={{color:"#e8a020"}}>£{(outstanding/1000).toFixed(0)}k</div><div className="dash-label">Outstanding</div></div>
+        <div className="dash-card"><div className="dash-num" style={{color:"#e8a020"}}>£{(totalRetention/1000).toFixed(0)}k</div><div className="dash-label">Retention Held</div></div>
+        <div className="dash-card"><div className="dash-num" style={{color:"#4caf50"}}>£{(totalVariations/1000).toFixed(0)}k</div><div className="dash-label">Pending Variations</div></div>
+      </div>
+      <div className="table-wrap" style={{marginBottom:16}}>
+        <table><thead><tr><th>Contract</th><th>Value</th><th>Certified</th><th>Paid</th><th>Outstanding</th><th>Retention</th><th>Status</th></tr></thead>
+        <tbody>{contracts.map(c=>(<tr key={c.id}><td style={{fontWeight:500,color:"#f0ede8"}}>{c.name}</td><td>£{c.value.toLocaleString()}</td><td>£{c.certified.toLocaleString()}</td><td>£{c.paid.toLocaleString()}</td><td style={{color:(c.certified-c.paid)>0?"#e8a020":"#4caf50"}}>£{(c.certified-c.paid).toLocaleString()}</td><td style={{color:"#e8a020"}}>£{c.retention.toLocaleString()}</td><td><span className={`status-pill ${c.status==="Active"?"status-green":c.status==="Defects"?"status-amber":"status-grey"}`}>{c.status}</span></td></tr>))}</tbody></table>
+      </div>
+      <button className="btn" onClick={generate} disabled={loading}>{loading?"GENERATING...":"GENERATE COMMERCIAL REPORT"}</button>
+      {loading&&<div className="loading"><div className="spin"/>Writing your commercial report...</div>}
+      {output&&!loading&&(<div className="output-box"><div className="out-head"><span className="out-label">Commercial Report</span><OutputActions title="Monthly Commercial Report" output={output} profile={profile} logo={logo} onSave={onSave}/></div>{output}</div>)}
+    </div>
+  );
+}
+
+// ── Tender Submission Letter ──────────────────────────────────────────────────
+function TenderLetter({trade, profile, logo, onSave, favourites, toggleFav}) {
+  const [fields, setFields] = useState({});
+  const [output, setOutput] = useState(""); const [loading, setLoading] = useState(false);
+  const generate = async () => {
+    setLoading(true); setOutput("");
+    const p = `Write a professional tender submission cover letter for a ${trade} contractor.\nFrom: ${profile.name||"[Name]"}, ${profile.company||"[Company]"}\nTo: ${fields.recipient||"[Recipient]"}, ${fields.recipientCompany||"[Company]"}\nProject: ${fields.project||"[Project]"}\nTender value: £${fields.value||"[Value]"}\nKey strengths: ${fields.strengths||"Experience, quality, competitive price"}\nPrevious relevant projects: ${fields.projects||"[Previous projects]"}\nWrite a compelling professional tender cover letter that: introduces the company, highlights relevant experience, confirms compliance with tender requirements, expresses enthusiasm for the project, confirms tender validity period, invites questions. Confident, professional and compelling.`;
+    try{setOutput(await callMorris(p));}catch{setOutput("Something went wrong our end — give it another go.");}setLoading(false);
+  };
+  return(
+    <div>
+      <div className="tool-header"><div className="tool-title">Tender Letter</div><div style={{display:"flex",gap:6}}><FavButton toolId="tenderletter" favourites={favourites} toggleFav={toggleFav}/><InfoButton toolId="tenderletter"/></div></div>
+      <div className="tool-sub">Professional tender submission cover letters that win work</div>
+      <div className="card">
+        <div className="row2"><div><div className="fl">Recipient Name</div><input className="fi" placeholder="e.g. John Smith, Procurement Manager" value={fields.recipient||""} onChange={e=>setFields({...fields,recipient:e.target.value})}/></div><div><div className="fl">Recipient Company</div><input className="fi" placeholder="e.g. Kier Construction" value={fields.recipientCompany||""} onChange={e=>setFields({...fields,recipientCompany:e.target.value})}/></div></div>
+        <div className="row2"><div><div className="fl">Project Name</div><input className="fi" placeholder="e.g. Royal Manchester Hospital Phase 3" value={fields.project||""} onChange={e=>setFields({...fields,project:e.target.value})}/></div><div><div className="fl">Tender Value (£)</div><input className="fi" placeholder="e.g. 245,000" value={fields.value||""} onChange={e=>setFields({...fields,value:e.target.value})}/></div></div>
+        <div className="fl">Key Strengths / USPs</div><textarea className="fi" style={{minHeight:60}} placeholder="e.g. 25 years experience, ISO 9001 accredited, local supply chain..." value={fields.strengths||""} onChange={e=>setFields({...fields,strengths:e.target.value})}/>
+        <div className="fl">Relevant Previous Projects</div><textarea className="fi" style={{minHeight:60}} placeholder="e.g. Salford Royal Hospital, Manchester Airport Terminal 3..." value={fields.projects||""} onChange={e=>setFields({...fields,projects:e.target.value})}/>
+        <button className="btn" onClick={generate} disabled={loading}>{loading?"GENERATING...":"GENERATE TENDER LETTER"}</button>
+      </div>
+      {loading&&<div className="loading"><div className="spin"/>Writing your tender letter...</div>}
+      {output&&!loading&&(<div className="output-box"><div className="out-head"><span className="out-label">Tender Submission Letter</span><OutputActions title="Tender Letter" output={output} profile={profile} logo={logo} onSave={onSave}/></div>{output}</div>)}
+    </div>
+  );
+}
+
+// ── Defects Liability Tracker ─────────────────────────────────────────────────
+function DefectsTracker({favourites=[], toggleFav=()=>{}}) {
+  const [contracts, setContracts] = useState([
+    {id:1, name:"Salford Royal Ph2", contractor:"Kier Construction", handover:"2025-09-15", defectsPeriod:12, retention:4250, status:"In Defects", defects:["Minor seal on level 3 FCU","Access panel misaligned roof plant room"]},
+    {id:2, name:"Trafford Park Unit 4", contractor:"Bowmer & Kirkland", handover:"2025-03-01", defectsPeriod:12, retention:1600, status:"Release Due", defects:[]},
+  ]);
+  const [form, setForm] = useState({name:"", contractor:"", handover:"", defectsPeriod:"12", retention:""});
+  const [showForm, setShowForm] = useState(false);
+  const add = () => {if(!form.name)return; setContracts(c=>[...c,{...form,id:Date.now(),defectsPeriod:parseInt(form.defectsPeriod)||12,retention:parseFloat(form.retention)||0,status:"In Defects",defects:[]}]); setForm({name:"",contractor:"",handover:"",defectsPeriod:"12",retention:""}); setShowForm(false);};
+  const getReleaseDate = (handover, months) => {const d=new Date(handover); d.setMonth(d.getMonth()+parseInt(months)); return d;};
+  const getDaysToRelease = (handover, months) => Math.ceil((getReleaseDate(handover,months)-new Date())/(1000*60*60*24));
+  const totalRetention = contracts.reduce((s,c)=>s+c.retention,0);
+  const dueThisMonth = contracts.filter(c=>{const d=getDaysToRelease(c.handover,c.defectsPeriod); return d<=30&&d>=0;}).length;
+  return(
+    <div>
+      <div className="tool-header"><div className="tool-title">Defects Liability Tracker</div><div style={{display:"flex",gap:6}}><FavButton toolId="defectstracker" favourites={favourites} toggleFav={toggleFav}/><InfoButton toolId="defectstracker"/></div></div>
+      <div className="tool-sub">Track retention release dates — never leave money unclaimed</div>
+      <div className="dashboard-grid">
+        <div className="dash-card"><div className="dash-num">{contracts.length}</div><div className="dash-label">Contracts in Defects</div></div>
+        <div className="dash-card"><div className="dash-num" style={{color:"#e8a020"}}>£{totalRetention.toLocaleString()}</div><div className="dash-label">Total Retention Held</div></div>
+        <div className="dash-card"><div className="dash-num" style={{color:dueThisMonth>0?"#4caf50":"#555"}}>{dueThisMonth}</div><div className="dash-label">Releasing This Month</div></div>
+      </div>
+      <div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}><button className="btn-sm" onClick={()=>setShowForm(!showForm)}>+ Add Contract</button></div>
+      {showForm&&(<div className="card">
+        <div className="row2"><div><div className="fl">Contract Name</div><input className="fi" placeholder="e.g. Salford Royal Ph2" value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></div><div><div className="fl">Main Contractor</div><input className="fi" placeholder="e.g. Kier Construction" value={form.contractor} onChange={e=>setForm({...form,contractor:e.target.value})}/></div></div>
+        <div className="row2"><div><div className="fl">Handover Date</div><input className="fi" type="date" value={form.handover} onChange={e=>setForm({...form,handover:e.target.value})}/></div><div><div className="fl">Defects Period (months)</div><select className="fi" value={form.defectsPeriod} onChange={e=>setForm({...form,defectsPeriod:e.target.value})} style={{cursor:"pointer"}}><option value="6">6 months</option><option value="12">12 months</option><option value="24">24 months</option></select></div></div>
+        <div className="fl">Retention Amount (£)</div><input className="fi" placeholder="e.g. 4,250" value={form.retention} onChange={e=>setForm({...form,retention:e.target.value})}/>
+        <button className="btn-sm" onClick={add} style={{width:"100%",padding:"10px",fontSize:13}}>SAVE CONTRACT</button>
+      </div>)}
+      {contracts.map(c=>{
+        const days = getDaysToRelease(c.handover, c.defectsPeriod);
+        const releaseDate = getReleaseDate(c.handover, c.defectsPeriod);
+        const isOverdue = days < 0;
+        const isDueSoon = days >= 0 && days <= 30;
+        return(<div key={c.id} className="card" style={{marginBottom:12}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
+            <div><div style={{fontSize:14,fontWeight:500,color:"#f0ede8",marginBottom:2}}>{c.name}</div><div style={{fontSize:11,color:"#555"}}>{c.contractor}</div></div>
+            <span className={`status-pill ${isOverdue?"status-green":isDueSoon?"status-amber":"status-grey"}`}>{isOverdue?"Release Overdue":isDueSoon?"Release Due Soon":"In Defects"}</span>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:c.defects.length>0?12:0}}>
+            <div><div style={{fontSize:10,color:"#555",letterSpacing:1,marginBottom:2}}>RETENTION</div><div style={{fontSize:15,color:"#e8a020",fontWeight:600}}>£{c.retention.toLocaleString()}</div></div>
+            <div><div style={{fontSize:10,color:"#555",letterSpacing:1,marginBottom:2}}>RELEASE DATE</div><div style={{fontSize:13,color:isOverdue?"#4caf50":isDueSoon?"#e8a020":"#aaa"}}>{releaseDate.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}</div></div>
+            <div><div style={{fontSize:10,color:"#555",letterSpacing:1,marginBottom:2}}>DAYS</div><div style={{fontSize:13,color:isOverdue?"#4caf50":isDueSoon?"#e8a020":"#aaa"}}>{isOverdue?`${Math.abs(days)} overdue`:`${days} remaining`}</div></div>
+          </div>
+          {c.defects.length>0&&(<div style={{borderTop:"1px solid #1a1a1a",paddingTop:10}}><div style={{fontSize:10,color:"#555",letterSpacing:1,marginBottom:6}}>OUTSTANDING DEFECTS</div>{c.defects.map((d,i)=>(<div key={i} style={{fontSize:12,color:"#888",padding:"3px 0",display:"flex",gap:6}}><span style={{color:"#e8a020"}}>—</span>{d}</div>))}</div>)}
+        </div>);
+      })}
+      <div className="info-box"><strong>Tip:</strong> Chase retention release as soon as the defects period expires. Firms miss thousands every year by not tracking these dates. Morris tracks them for you.</div>
+    </div>
+  );
+}
+
+// ── Favourite Button Component ────────────────────────────────────────────────
+function FavButton({toolId, favourites, toggleFav}) {
+  const isFav = favourites.includes(toolId);
+  return(
+    <button
+      className="info-btn"
+      onClick={()=>toggleFav(toolId)}
+      title={isFav?"Remove from favourites":"Add to favourites"}
+      style={{color: isFav?"#e8a020":"#666", borderColor: isFav?"rgba(232,160,32,.4)":"#2a2a2a", background: isFav?"rgba(232,160,32,.08)":"#1a1a1a"}}
+    >
+      {isFav?"★":"☆"}
+    </button>
+  );
+}
+
+
+function SiteAccessPermit({trade, profile, logo, onSave, favourites, toggleFav}) {
+  const [fields, setFields] = useState({type:"Confined Space"});
+  const [output, setOutput] = useState(""); const [loading, setLoading] = useState(false);
+  const permitTypes = ["Confined Space","Working at Height","Hot Works","Electrical Isolation","Roof Access","Plant Room Access","Excavation","Demolition","Asbestos Area","Other Restricted Zone"];
+  const generate = async () => {
+    setLoading(true); setOutput("");
+    const p = `Write a formal site access permit to work for a ${trade} operative.\nPermit type: ${fields.type}\nProject/Site: ${fields.site||"[Site]"}\nIssued by: ${fields.issuedBy||"[Site Manager]"}\nWorker name: ${fields.worker||profile.name||"[Name]"}, Company: ${profile.company||"[Company]"}\nWork description: ${fields.work||"[Description]"}\nLocation: ${fields.location||"[Location]"}\nDate and time: ${fields.datetime||"[Date/Time]"}\nDuration: ${fields.duration||"[Duration]"}\nHazards identified: ${fields.hazards||"[Hazards]"}\nControls in place: ${fields.controls||"[Controls]"}\nInclude: permit reference number, all key fields, hazard checklist, control measures, PPE required, emergency procedures, expiry time, sign off boxes for issuer and recipient, cancellation conditions. Professional and compliant with CDM 2015.`;
+    try{setOutput(await callMorris(p));}catch{setOutput("Something went wrong our end — give it another go.");}setLoading(false);
+  };
+  return(
+    <div>
+      <div className="tool-header"><div className="tool-title">Site Access Permit</div><div style={{display:"flex",gap:6}}><FavButton toolId="siteaccess" favourites={favourites} toggleFav={toggleFav}/><InfoButton toolId="siteaccess"/></div></div>
+      <div className="tool-sub">Formal permit to work for restricted areas and hazardous activities</div>
+      <div className="warn-box"><strong>Important:</strong> Permits must be issued by a competent person — usually the site manager. Morris generates the document. The site manager must review and sign it.</div>
+      <div className="card">
+        <div className="fl">Permit Type</div>
+        <select className="fi" value={fields.type} onChange={e=>setFields({...fields,type:e.target.value})} style={{cursor:"pointer"}}>{permitTypes.map(t=><option key={t}>{t}</option>)}</select>
+        <div className="row2"><div><div className="fl">Site / Project</div><input className="fi" placeholder="e.g. Salford Royal Phase 2" value={fields.site||""} onChange={e=>setFields({...fields,site:e.target.value})}/></div><div><div className="fl">Issued By</div><input className="fi" placeholder="e.g. J. Williams, Site Manager" value={fields.issuedBy||""} onChange={e=>setFields({...fields,issuedBy:e.target.value})}/></div></div>
+        <div className="row2"><div><div className="fl">Worker Name</div><input className="fi" placeholder={profile.name||"e.g. D. Morris"} value={fields.worker||""} onChange={e=>setFields({...fields,worker:e.target.value})}/></div><div><div className="fl">Location on Site</div><input className="fi" placeholder="e.g. Roof plant room, level 5" value={fields.location||""} onChange={e=>setFields({...fields,location:e.target.value})}/></div></div>
+        <div className="fl">Work to be Carried Out</div>
+        <textarea className="fi" style={{minHeight:60}} placeholder="Describe the works requiring access..." value={fields.work||""} onChange={e=>setFields({...fields,work:e.target.value})}/>
+        <div className="row2"><div><div className="fl">Date and Start Time</div><input className="fi" type="datetime-local" value={fields.datetime||""} onChange={e=>setFields({...fields,datetime:e.target.value})}/></div><div><div className="fl">Duration</div><input className="fi" placeholder="e.g. 4 hours / Until 17:00" value={fields.duration||""} onChange={e=>setFields({...fields,duration:e.target.value})}/></div></div>
+        <div className="row2"><div><div className="fl">Hazards Identified</div><input className="fi" placeholder="e.g. Confined space, poor ventilation..." value={fields.hazards||""} onChange={e=>setFields({...fields,hazards:e.target.value})}/></div><div><div className="fl">Controls in Place</div><input className="fi" placeholder="e.g. Gas monitor, buddy system..." value={fields.controls||""} onChange={e=>setFields({...fields,controls:e.target.value})}/></div></div>
+        <button className="btn" onClick={generate} disabled={loading}>{loading?"GENERATING...":"GENERATE ACCESS PERMIT"}</button>
+      </div>
+      {loading&&<div className="loading"><div className="spin"/>Writing your access permit...</div>}
+      {output&&!loading&&(<div className="output-box"><div className="out-head"><span className="out-label">Site Access Permit — {fields.type}</span><OutputActions title="Site Access Permit" output={output} profile={profile} logo={logo} onSave={onSave}/></div>{output}</div>)}
+    </div>
+  );
+}
+
+// ── Site Measurement Record ───────────────────────────────────────────────────
+function MeasurementRecord({trade, profile, logo, onSave, favourites, toggleFav}) {
+  const [measurements, setMeasurements] = useState([]);
+  const [form, setForm] = useState({description:"", dimension:"", location:"", note:"", drawingRef:""});
+  const [projectInfo, setProjectInfo] = useState({project:"", date:"", witnessedBy:""});
+  const [output, setOutput] = useState(""); const [loading, setLoading] = useState(false);
+  const add = () => {if(!form.description||!form.dimension)return; setMeasurements(m=>[...m,{...form,id:Date.now()}]); setForm({description:"",dimension:"",location:"",note:"",drawingRef:""});};
+  const generate = async () => {
+    if(!measurements.length)return;
+    setLoading(true); setOutput("");
+    const list = measurements.map((m,i)=>`${i+1}. ${m.description}: ${m.dimension} — Location: ${m.location} — Drawing ref: ${m.drawingRef||"N/A"} — Note: ${m.note||"None"}`).join("\n");
+    const p = `Write a formal site measurement record for a ${trade} subcontractor.\nCompany: ${profile.company||"[Company]"}\nProject: ${projectInfo.project||"[Project]"}, Date: ${projectInfo.date||"[Date]"}, Witnessed by: ${projectInfo.witnessedBy||"[Witness]"}\nMeasurements taken:\n${list}\nFormat as a professional site measurement record with: reference number, project details, measurement table, notes on deviations from drawings, declaration that measurements are accurate, signature blocks for operative and witness.`;
+    try{setOutput(await callMorris(p));}catch{setOutput("Something went wrong our end — give it another go.");}setLoading(false);
+  };
+  return(
+    <div>
+      <div className="tool-header"><div className="tool-title">Measurement Record</div><div style={{display:"flex",gap:6}}><FavButton toolId="measurement" favourites={favourites} toggleFav={toggleFav}/><InfoButton toolId="measurement"/></div></div>
+      <div className="tool-sub">Formal record of site measurements — your evidence when dimensions are disputed</div>
+      <div className="info-box"><strong>Why it matters:</strong> When a contractor disputes what you installed, your signed measurement record proves exactly what you found on site and what you built. Photos plus measurements plus signatures is almost unbeatable evidence.</div>
+      <div className="card">
+        <div style={{fontSize:11,color:"#e8a020",fontWeight:600,marginBottom:12,letterSpacing:1}}>PROJECT DETAILS</div>
+        <div className="row2"><div><div className="fl">Project / Site</div><input className="fi" placeholder="e.g. Salford Royal Ph2" value={projectInfo.project} onChange={e=>setProjectInfo({...projectInfo,project:e.target.value})}/></div><div><div className="fl">Date</div><input className="fi" type="date" value={projectInfo.date} onChange={e=>setProjectInfo({...projectInfo,date:e.target.value})}/></div></div>
+        <div className="fl">Witnessed By</div><input className="fi" placeholder="e.g. J. Williams, Site Manager" value={projectInfo.witnessedBy} onChange={e=>setProjectInfo({...projectInfo,witnessedBy:e.target.value})}/>
+      </div>
+      <div className="card">
+        <div style={{fontSize:11,color:"#e8a020",fontWeight:600,marginBottom:12,letterSpacing:1}}>ADD MEASUREMENT</div>
+        <div className="row2"><div><div className="fl">Description</div><input className="fi" placeholder="e.g. Main duct run, level 3 north" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/></div><div><div className="fl">Dimension</div><input className="fi" placeholder="e.g. 24.6m x 600x400mm" value={form.dimension} onChange={e=>setForm({...form,dimension:e.target.value})}/></div></div>
+        <div className="row2"><div><div className="fl">Location</div><input className="fi" placeholder="e.g. Corridor 3A to plant room" value={form.location} onChange={e=>setForm({...form,location:e.target.value})}/></div><div><div className="fl">Drawing Reference</div><input className="fi" placeholder="e.g. M-103 Rev B" value={form.drawingRef} onChange={e=>setForm({...form,drawingRef:e.target.value})}/></div></div>
+        <div className="fl">Notes / Deviations</div><input className="fi" placeholder="e.g. Deviated 200mm north due to structural beam" value={form.note} onChange={e=>setForm({...form,note:e.target.value})}/>
+        <button className="btn-sm" onClick={add} style={{width:"100%",padding:"10px",fontSize:13}}>+ ADD MEASUREMENT</button>
+      </div>
+      {measurements.length>0&&(<><div className="table-wrap"><table><thead><tr><th>#</th><th>Description</th><th>Dimension</th><th>Location</th><th>Drawing Ref</th><th></th></tr></thead>
+      <tbody>{measurements.map((m,i)=>(<tr key={m.id}><td style={{color:"#e8a020"}}>{i+1}</td><td>{m.description}</td><td style={{fontFamily:"monospace",color:"#aaa"}}>{m.dimension}</td><td>{m.location}</td><td style={{color:"#555"}}>{m.drawingRef||"—"}</td><td><button className="btn-danger" onClick={()=>setMeasurements(x=>x.filter(q=>q.id!==m.id))}>✕</button></td></tr>))}</tbody></table></div>
+      <div style={{marginTop:16}}><button className="btn" onClick={generate} disabled={loading}>{loading?"GENERATING...":"GENERATE MEASUREMENT RECORD"}</button></div></>)}
+      {measurements.length===0&&<div className="hist-empty">No measurements logged yet. Add them above.</div>}
+      {loading&&<div className="loading"><div className="spin"/>Writing your measurement record...</div>}
+      {output&&!loading&&(<div className="output-box"><div className="out-head"><span className="out-label">Site Measurement Record</span><OutputActions title="Site Measurement Record" output={output} profile={profile} logo={logo} onSave={onSave}/></div>{output}</div>)}
+    </div>
+  );
+}
+
+// ── New Starter Pack ──────────────────────────────────────────────────────────
+function NewStarterPack({trade, profile, logo, onSave, favourites, toggleFav}) {
+  const [fields, setFields] = useState({type:"Employee"});
+  const [output, setOutput] = useState(""); const [loading, setLoading] = useState(false);
+  const generate = async () => {
+    setLoading(true); setOutput("");
+    const p = `Write a comprehensive new starter pack for a ${trade} contractor taking on a new ${fields.type}.\nCompany: ${profile.company||"[Company]"}, Director: ${profile.name||"[Name]"}\nNew starter name: ${fields.name||"[Name]"}\nRole: ${fields.role||trade}\nStart date: ${fields.startDate||"[Date]"}\nRate: ${fields.rate||"[Rate]"}\nInclude all of the following sections:\n1. Welcome letter from the director\n2. Key terms of ${fields.type==="Employee"?"employment":"engagement"} — rate, hours, notice period\n3. Site rules and code of conduct\n4. Health and safety responsibilities\n5. Emergency contact form (with spaces to fill in)\n6. Next of kin details form\n7. Tool and equipment responsibility statement\n8. Confidentiality and data protection acknowledgement\n9. Signature page for company and new starter\nProfessional, warm but clear. Compliant with UK employment law.`;
+    try{setOutput(await callMorris(p));}catch{setOutput("Something went wrong our end — give it another go.");}setLoading(false);
+  };
+  return(
+    <div>
+      <div className="tool-header"><div className="tool-title">New Starter Pack</div><div style={{display:"flex",gap:6}}><FavButton toolId="newstarter" favourites={favourites} toggleFav={toggleFav}/><InfoButton toolId="newstarter"/></div></div>
+      <div className="tool-sub">Complete onboarding pack for every new employee or subbi</div>
+      <div className="info-box"><strong>Why it matters:</strong> A professional new starter pack sets expectations clearly from day one. Every person starts with the same information, same rules, same signed agreements. Protects you legally and sets the right tone.</div>
+      <div className="card">
+        <div className="fl">Starter Type</div>
+        <select className="fi" value={fields.type} onChange={e=>setFields({...fields,type:e.target.value})} style={{cursor:"pointer"}}>
+          <option value="Employee">Employee</option>
+          <option value="Subcontractor">Subcontractor / Subbi</option>
+          <option value="Apprentice">Apprentice</option>
+          <option value="Labour Only Subbi">Labour Only Subbi</option>
+        </select>
+        <div className="row2"><div><div className="fl">Name</div><input className="fi" placeholder="e.g. James Smith" value={fields.name||""} onChange={e=>setFields({...fields,name:e.target.value})}/></div><div><div className="fl">Role / Trade</div><input className="fi" placeholder={`e.g. ${trade}`} value={fields.role||""} onChange={e=>setFields({...fields,role:e.target.value})}/></div></div>
+        <div className="row2"><div><div className="fl">Start Date</div><input className="fi" type="date" value={fields.startDate||""} onChange={e=>setFields({...fields,startDate:e.target.value})}/></div><div><div className="fl">Rate / Salary</div><input className="fi" placeholder="e.g. £220/day or £35,000 p.a." value={fields.rate||""} onChange={e=>setFields({...fields,rate:e.target.value})}/></div></div>
+        <button className="btn" onClick={generate} disabled={loading}>{loading?"GENERATING...":"GENERATE STARTER PACK"}</button>
+      </div>
+      {loading&&<div className="loading"><div className="spin"/>Writing your new starter pack...</div>}
+      {output&&!loading&&(<div className="output-box"><div className="out-head"><span className="out-label">New Starter Pack — {fields.type}</span><OutputActions title="New Starter Pack" output={output} profile={profile} logo={logo} onSave={onSave}/></div>{output}</div>)}
+      <div className="warn-box" style={{marginTop:14}}><strong>Important:</strong> Get employment contracts reviewed by an employment law solicitor before use. Morris produces a professional starting template.</div>
+    </div>
+  );
+}
+
+// ── Client Satisfaction Survey ────────────────────────────────────────────────
+function ClientSurvey({trade, profile, logo, onSave, favourites, toggleFav}) {
+  const [fields, setFields] = useState({});
+  const [output, setOutput] = useState(""); const [loading, setLoading] = useState(false);
+  const generate = async () => {
+    setLoading(true); setOutput("");
+    const p = `Write a professional client satisfaction survey and testimonial request for a ${trade} contractor.\nFrom: ${profile.name||"[Name]"}, ${profile.company||"[Company]"}\nClient name: ${fields.client||"[Client]"}\nProject completed: ${fields.project||"[Project]"}\nCompletion date: ${fields.date||"[Date]"}\nInclude two sections:\n1. A short professional covering letter thanking them for their business and requesting 2 minutes to complete the survey\n2. A structured satisfaction survey with: overall satisfaction (1-5), quality of work (1-5), communication (1-5), value for money (1-5), programme delivery (1-5), would they recommend (yes/no), open comments box, testimonial permission checkbox, Google review request with link placeholder, signature and date\nWarm, professional and easy to complete. Ends with a request to leave a Google review.`;
+    try{setOutput(await callMorris(p));}catch{setOutput("Something went wrong our end — give it another go.");}setLoading(false);
+  };
+  return(
+    <div>
+      <div className="tool-header"><div className="tool-title">Client Satisfaction Survey</div><div style={{display:"flex",gap:6}}><FavButton toolId="satisfaction" favourites={favourites} toggleFav={toggleFav}/><InfoButton toolId="satisfaction"/></div></div>
+      <div className="tool-sub">Professional post-job surveys that generate testimonials and Google reviews</div>
+      <div className="info-box"><strong>The best time to ask:</strong> Send this within 48 hours of handover while the client is happy and the job is fresh. That's when you get the best feedback and the best testimonials.</div>
+      <div className="card">
+        <div className="row2"><div><div className="fl">Client Name / Company</div><input className="fi" placeholder="e.g. ABC Construction Ltd" value={fields.client||""} onChange={e=>setFields({...fields,client:e.target.value})}/></div><div><div className="fl">Project Completed</div><input className="fi" placeholder="e.g. Ductwork installation, level 3" value={fields.project||""} onChange={e=>setFields({...fields,project:e.target.value})}/></div></div>
+        <div className="fl">Completion Date</div><input className="fi" type="date" value={fields.date||""} onChange={e=>setFields({...fields,date:e.target.value})}/>
+        <button className="btn" onClick={generate} disabled={loading}>{loading?"GENERATING...":"GENERATE SURVEY"}</button>
+      </div>
+      {loading&&<div className="loading"><div className="spin"/>Writing your survey...</div>}
+      {output&&!loading&&(<div className="output-box"><div className="out-head"><span className="out-label">Client Satisfaction Survey</span><OutputActions title="Client Satisfaction Survey" output={output} profile={profile} logo={logo} onSave={onSave}/></div>{output}</div>)}
+    </div>
+  );
+}
+
+// ── Plant and Equipment Hire Agreement ────────────────────────────────────────
+function HireAgreement({trade, profile, logo, onSave, favourites, toggleFav}) {
+  const [fields, setFields] = useState({direction:"Hiring In"});
+  const [output, setOutput] = useState(""); const [loading, setLoading] = useState(false);
+  const generate = async () => {
+    setLoading(true); setOutput("");
+    const isHiringIn = fields.direction === "Hiring In";
+    const p = `Write a formal plant and equipment hire agreement for a ${trade} contractor who is ${fields.direction.toLowerCase()} equipment.\n${isHiringIn?"Hirer":"Owner"}: ${profile.company||"[Company]"}, ${profile.name||"[Name]"}\n${isHiringIn?"Owner/Supplier":"Hirer"}: ${fields.otherParty||"[Other Party]"}\nEquipment: ${fields.equipment||"[Equipment]"}\nHire period: ${fields.start||"[Start]"} to ${fields.end||"[End]"}\nHire rate: £${fields.rate||"[Rate]"} ${fields.rateType||"per day"}\nDelivery/Collection: ${fields.delivery||"[Location]"}\nInclude: equipment description and condition on hire, hire period and rates, payment terms, damage liability and excess, insurance requirements, operator competency requirements, return conditions, cancellation terms, signature blocks for both parties. Professional and legally sound.`;
+    try{setOutput(await callMorris(p));}catch{setOutput("Something went wrong our end — give it another go.");}setLoading(false);
+  };
+  return(
+    <div>
+      <div className="tool-header"><div className="tool-title">Plant & Equipment Hire Agreement</div><div style={{display:"flex",gap:6}}><FavButton toolId="hireagree" favourites={favourites} toggleFav={toggleFav}/><InfoButton toolId="hireagree"/></div></div>
+      <div className="tool-sub">Formal hire agreements — protect your equipment and your money</div>
+      <div className="card">
+        <div className="fl">Direction</div>
+        <select className="fi" value={fields.direction} onChange={e=>setFields({...fields,direction:e.target.value})} style={{cursor:"pointer"}}>
+          <option value="Hiring In">Hiring In — I am renting equipment from someone</option>
+          <option value="Hiring Out">Hiring Out — I am renting my equipment to someone</option>
+        </select>
+        <div className="fl">Other Party (Company / Name)</div><input className="fi" placeholder="e.g. ABC Plant Hire Ltd" value={fields.otherParty||""} onChange={e=>setFields({...fields,otherParty:e.target.value})}/>
+        <div className="fl">Equipment Description</div><textarea className="fi" style={{minHeight:60}} placeholder="e.g. 12m scissor lift MEWP, serial number XY1234, capacity 230kg" value={fields.equipment||""} onChange={e=>setFields({...fields,equipment:e.target.value})}/>
+        <div className="row2"><div><div className="fl">Hire Start Date</div><input className="fi" type="date" value={fields.start||""} onChange={e=>setFields({...fields,start:e.target.value})}/></div><div><div className="fl">Hire End Date</div><input className="fi" type="date" value={fields.end||""} onChange={e=>setFields({...fields,end:e.target.value})}/></div></div>
+        <div className="row2"><div><div className="fl">Hire Rate (£)</div><input className="fi" placeholder="e.g. 180" value={fields.rate||""} onChange={e=>setFields({...fields,rate:e.target.value})}/></div><div><div className="fl">Rate Type</div><select className="fi" value={fields.rateType||"per day"} onChange={e=>setFields({...fields,rateType:e.target.value})} style={{cursor:"pointer"}}><option>per day</option><option>per week</option><option>per month</option><option>fixed price</option></select></div></div>
+        <div className="fl">Delivery / Collection Location</div><input className="fi" placeholder="e.g. Salford Royal site entrance" value={fields.delivery||""} onChange={e=>setFields({...fields,delivery:e.target.value})}/>
+        <button className="btn" onClick={generate} disabled={loading}>{loading?"GENERATING...":"GENERATE HIRE AGREEMENT"}</button>
+      </div>
+      {loading&&<div className="loading"><div className="spin"/>Writing your hire agreement...</div>}
+      {output&&!loading&&(<div className="output-box"><div className="out-head"><span className="out-label">Plant & Equipment Hire Agreement</span><OutputActions title="Hire Agreement" output={output} profile={profile} logo={logo} onSave={onSave}/></div>{output}</div>)}
+    </div>
+  );
+}
+
+// ── About Morris ──────────────────────────────────────────────────────────────
+function AboutMorris() {
+  return(
+    <div>
+      <div className="tool-header">
+        <div className="tool-title">About Morris</div>
+      </div>
+      <div className="tool-sub">Built on the tools. For the trades.</div>
+
+      <div className="card" style={{marginBottom:14,borderColor:"rgba(232,160,32,.2)"}}>
+        <div style={{fontSize:11,color:"#e8a020",fontWeight:600,marginBottom:16,letterSpacing:2}}>THE HONEST STORY</div>
+        <p style={{fontSize:14,color:"#ccc",lineHeight:1.8,marginBottom:14}}>
+          Morris was built by a duct fitter who got sick of losing money on paperwork.
+        </p>
+        <p style={{fontSize:14,color:"#ccc",lineHeight:1.8,marginBottom:14}}>
+          After years on commercial sites — Salford Royal, Trafford Park, job after job — the same thing kept happening. Extra works instructed verbally. Nothing in writing. End of job comes and the contractor says it was included. Thousands of pounds lost. Every year. To paperwork nobody taught us to write.
+        </p>
+        <p style={{fontSize:14,color:"#ccc",lineHeight:1.8,marginBottom:14}}>
+          So I built Morris. Not a tech company. Not a startup with investors and a ping pong table. Just a duct fitter who decided to fix a problem he lived through personally — and built a tool that every tradesperson in the UK actually needs.
+        </p>
+        <p style={{fontSize:14,color:"#ccc",lineHeight:1.8}}>
+          Every tool in Morris solves a problem I faced on site. That's what makes it different. It wasn't researched. It was lived.
+        </p>
+        <div style={{marginTop:20,paddingTop:16,borderTop:"1px solid #1a1a1a"}}>
+          <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:18,letterSpacing:3,color:"#e8a020"}}>DEXTER</div>
+          <div style={{fontSize:11,color:"#555",letterSpacing:1,marginTop:2}}>DUCT FITTER · FOUNDER · MORRIS CONSTRUCTION TECH LTD</div>
+        </div>
+      </div>
+
+      <div className="dashboard-grid" style={{marginBottom:14}}>
+        <div className="dash-card"><div className="dash-num">57</div><div className="dash-label">Tools Built</div></div>
+        <div className="dash-card"><div className="dash-num">29</div><div className="dash-label">Trades Supported</div></div>
+        <div className="dash-card"><div className="dash-num">£0</div><div className="dash-label">To Start</div></div>
+      </div>
+
+      <div className="card" style={{marginBottom:14}}>
+        <div style={{fontSize:11,color:"#e8a020",fontWeight:600,marginBottom:16,letterSpacing:2}}>WHAT MORRIS IS NOT</div>
+        {["A generic document template site — every tool is built for construction specifically",
+          "A legal advice service — Morris helps you document professionally, not replace a solicitor",
+          "A complicated system that takes weeks to learn — if you can fill in a form you can use Morris",
+          "Built by people who've never been on a building site — this was built from the tools up"
+        ].map((t,i)=>(<div key={i} style={{display:"flex",gap:10,padding:"8px 0",borderBottom:"1px solid #141414",fontSize:13,color:"#888",lineHeight:1.5}}>
+          <span style={{color:"#e8a020",flexShrink:0}}>—</span>{t}
+        </div>))}
+      </div>
+
+      <div className="card" style={{marginBottom:14}}>
+        <div style={{fontSize:11,color:"#e8a020",fontWeight:600,marginBottom:16,letterSpacing:2}}>PRICING</div>
+        {[
+          {tier:"Free", price:"£0", desc:"3 tools of your choice, 5 documents per month"},
+          {tier:"Solo", price:"£12.99/mo", desc:"All 57 tools, unlimited documents, 1 user"},
+          {tier:"Pro", price:"£24.99/mo", desc:"Everything in Solo, 3 users, subcontractor management"},
+          {tier:"Business", price:"£59.99/mo", desc:"Everything in Pro, 10 users, full Contractors section"},
+        ].map(p=>(<div key={p.tier} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:"1px solid #141414"}}>
+          <div><div style={{fontSize:13,fontWeight:600,color:"#f0ede8",marginBottom:2}}>{p.tier}</div><div style={{fontSize:11,color:"#555"}}>{p.desc}</div></div>
+          <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:18,color:"#e8a020",letterSpacing:1,flexShrink:0,marginLeft:12}}>{p.price}</div>
+        </div>))}
+        <div style={{fontSize:11,color:"#444",marginTop:12}}>Annual subscription available — 2 months free. Cancel anytime.</div>
+      </div>
+
+      <div className="card" style={{marginBottom:14}}>
+        <div style={{fontSize:11,color:"#e8a020",fontWeight:600,marginBottom:16,letterSpacing:2}}>LEGAL</div>
+        <p style={{fontSize:12,color:"#555",lineHeight:1.7,marginBottom:8}}>Morris generates professional document templates to help tradespeople protect their interests. Documents generated by Morris are not legal advice. For complex disputes or contract matters, always consult a qualified solicitor.</p>
+        <p style={{fontSize:12,color:"#555",lineHeight:1.7,marginBottom:8}}>CIS calculations are for guidance only. Always confirm your tax position with a qualified accountant or HMRC directly.</p>
+        <p style={{fontSize:12,color:"#555",lineHeight:1.7}}>Morris Construction Tech Ltd. Registered in England and Wales. ICO Registered. Data processed in accordance with UK GDPR.</p>
+      </div>
+
+      <div style={{textAlign:"center",padding:"20px 0"}}>
+        <div style={{fontSize:11,color:"#333",letterSpacing:2}}>MORRIS CONSTRUCTION TECH LTD</div>
+        <div style={{fontSize:11,color:"#333",letterSpacing:1,marginTop:4}}>hello@morrisapp.co.uk · morrisapp.co.uk</div>
+        <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,color:"#1a1a1a",letterSpacing:4,marginTop:12}}>BUILT ON THE TOOLS.</div>
+      </div>
+    </div>
+  );
+}
+
+// ── Scope of Works Builder ────────────────────────────────────────────────────
+function ScopeOfWorks({trade, profile, logo, onSave, favourites, toggleFav}) {
+  const [fields, setFields] = useState({});
+  const [included, setIncluded] = useState([""]);
+  const [excluded, setExcluded] = useState([""]);
+  const [output, setOutput] = useState(""); const [loading, setLoading] = useState(false);
+  const updateList = (list, setList, i, val) => { const n=[...list]; n[i]=val; setList(n); };
+  const addItem = (list, setList) => setList([...list,""]);
+  const removeItem = (list, setList, i) => setList(list.filter((_,j)=>j!==i));
+  const generate = async () => {
+    setLoading(true); setOutput("");
+    const inc = included.filter(x=>x.trim()).join(", ");
+    const exc = excluded.filter(x=>x.trim()).join(", ");
+    const p = `Write a formal Scope of Works document for a ${trade} subcontractor doing price work.\nCompany: ${profile.company||"[Company]"}, Contractor: ${fields.contractor||"[Contractor]"}\nProject: ${fields.project||"[Project]"}, Zone/Area: ${fields.zone||"[Zone]"}\nFixed Price: £${fields.price||"[Price]"}, Programme: ${fields.programme||"[Programme]"}\nINCLUDED IN PRICE:\n${inc||"[To be listed]"}\nEXCLUDED FROM PRICE (variations chargeable):\n${exc||"[To be listed]"}\nAssumptions: ${fields.assumptions||"None stated"}\nWrite a professional scope of works document that clearly defines the included and excluded items, states the fixed price, programme dates, any assumptions made and declares that anything outside this scope will be valued and agreed as a variation before proceeding. Both parties must sign. Legally clear and professionally formatted.`;
+    try{setOutput(await callMorris(p));}catch{setOutput("Error — try again.");}setLoading(false);
+  };
+  return(
+    <div>
+      <div className="tool-header">
+        <div className="tool-title">Scope of Works</div>
+        <div style={{display:"flex",gap:6}}><FavButton toolId="scopeworks" favourites={favourites} toggleFav={toggleFav}/><InfoButton toolId="scopeworks"/></div>
+      </div>
+      <div className="tool-sub">Define exactly what's included before price work starts — protect yourself from day one</div>
+      <div className="info-box"><strong>Why this matters:</strong> A signed scope of works is your contract. Everything outside it is a variation. Without it — contractors say everything was included. With it — you get paid for every change.</div>
+      <div className="card">
+        <div className="row2"><div><div className="fl">Contractor</div><input className="fi" placeholder="e.g. IDSL" value={fields.contractor||""} onChange={e=>setFields({...fields,contractor:e.target.value})}/></div><div><div className="fl">Project</div><input className="fi" placeholder="e.g. Salford Royal Ph2" value={fields.project||""} onChange={e=>setFields({...fields,project:e.target.value})}/></div></div>
+        <div className="row2"><div><div className="fl">Zone / Area</div><input className="fi" placeholder="e.g. Level 3 North Wing" value={fields.zone||""} onChange={e=>setFields({...fields,zone:e.target.value})}/></div><div><div className="fl">Fixed Price (£)</div><input className="fi" placeholder="e.g. 12,500" value={fields.price||""} onChange={e=>setFields({...fields,price:e.target.value})}/></div></div>
+        <div className="fl">Programme</div><input className="fi" placeholder="e.g. 4 weeks — 5 May to 30 May 2026" style={{marginBottom:16}} value={fields.programme||""} onChange={e=>setFields({...fields,programme:e.target.value})}/>
+        <div style={{fontSize:11,color:"#4caf50",fontWeight:600,marginBottom:8,letterSpacing:1}}>✓ INCLUDED IN PRICE</div>
+        {included.map((item,i)=>(
+          <div key={i} style={{display:"flex",gap:8,marginBottom:6}}>
+            <input className="fi" style={{marginBottom:0,flex:1}} placeholder={`e.g. ${i===0?"Supply and fix all ductwork as per drawings":i===1?"All associated supports and fixings":"Add item..."}`} value={item} onChange={e=>updateList(included,setIncluded,i,e.target.value)}/>
+            {included.length>1&&<button className="btn-danger" onClick={()=>removeItem(included,setIncluded,i)}>✕</button>}
+          </div>
+        ))}
+        <button className="btn-sm" style={{marginBottom:16}} onClick={()=>addItem(included,setIncluded)}>+ Add included item</button>
+        <div style={{fontSize:11,color:"#e05050",fontWeight:600,marginBottom:8,letterSpacing:1}}>✗ EXCLUDED FROM PRICE — chargeable as variations</div>
+        {excluded.map((item,i)=>(
+          <div key={i} style={{display:"flex",gap:8,marginBottom:6}}>
+            <input className="fi" style={{marginBottom:0,flex:1}} placeholder={`e.g. ${i===0?"Any works not shown on issue Rev B drawings":i===1?"Additional access hatches":"Add exclusion..."}`} value={item} onChange={e=>updateList(excluded,setExcluded,i,e.target.value)}/>
+            {excluded.length>1&&<button className="btn-danger" onClick={()=>removeItem(excluded,setExcluded,i)}>✕</button>}
+          </div>
+        ))}
+        <button className="btn-sm" style={{marginBottom:16}} onClick={()=>addItem(excluded,setExcluded)}>+ Add exclusion</button>
+        <div className="fl">Assumptions / Conditions</div>
+        <textarea className="fi" style={{minHeight:60}} placeholder="e.g. Price based on unobstructed access. Builders work by others. All drawings at Rev B." value={fields.assumptions||""} onChange={e=>setFields({...fields,assumptions:e.target.value})}/>
+        <button className="btn" onClick={generate} disabled={loading}>{loading?"GENERATING...":"GENERATE SCOPE OF WORKS"}</button>
+      </div>
+      {loading&&<div className="loading"><div className="spin"/>Writing your scope of works...</div>}
+      {output&&!loading&&(<div className="output-box"><div className="out-head"><span className="out-label">Scope of Works</span><OutputActions title="Scope of Works" output={output} profile={profile} logo={logo} onSave={onSave}/></div>{output}</div>)}
+    </div>
+  );
+}
+
+// ── Price Work Variation Tracker ──────────────────────────────────────────────
+function PWVarTracker({trade, profile, logo, onSave, favourites, toggleFav}) {
+  const [variations, setVariations] = useState([
+    {id:1, date:"01/05/2026", description:"Additional duct run level 3 east corridor", reason:"Drawing change Rev C", cost:850, status:"Submitted"},
+    {id:2, date:"03/05/2026", description:"Relocation of 4 nr supply grilles", reason:"Ceiling grid change", cost:420, status:"Agreed"},
+    {id:3, date:"04/05/2026", description:"Additional fire dampers x3 — not on original drawings", reason:"Building control requirement", cost:1200, status:"Pending"},
+  ]);
+  const [form, setForm] = useState({date:"",description:"",reason:"",cost:"",status:"Pending"});
+  const [showForm, setShowForm] = useState(false);
+  const [output, setOutput] = useState(""); const [loading, setLoading] = useState(false);
+  const statuses = ["Pending","Submitted","Agreed","Disputed","Rejected"];
+  const statusColours = {Pending:"#888",Submitted:"#e8a020",Agreed:"#4caf50",Disputed:"#e05050",Rejected:"#555"};
+  const add = () => { if(!form.description)return; setVariations(v=>[...v,{...form,id:Date.now(),cost:parseFloat(form.cost)||0}]); setForm({date:"",description:"",reason:"",cost:"",status:"Pending"}); setShowForm(false); };
+  const totalValue = variations.reduce((s,v)=>s+v.cost,0);
+  const agreedValue = variations.filter(v=>v.status==="Agreed").reduce((s,v)=>s+v.cost,0);
+  const pendingValue = variations.filter(v=>v.status==="Pending"||v.status==="Submitted").reduce((s,v)=>s+v.cost,0);
+  const generateFinalAccount = async () => {
+    setLoading(true); setOutput("");
+    const list = variations.map(v=>`${v.date}: ${v.description} — Reason: ${v.reason} — £${v.cost} — Status: ${v.status}`).join("\n");
+    const p = `Write a formal variation account summary for a ${trade} subcontractor.\nCompany: ${profile.company||"[Company]"}\nTotal variations: £${totalValue.toLocaleString()}, Agreed: £${agreedValue.toLocaleString()}, Pending: £${pendingValue.toLocaleString()}\nVariations:\n${list}\nWrite a professional final account covering letter that summarises all variations, groups them by status, states the total claimed and requests formal agreement within 14 days. Professional and firm.`;
+    try{setOutput(await callMorris(p));}catch{setOutput("Error — try again.");}setLoading(false);
+  };
+  return(
+    <div>
+      <div className="tool-header">
+        <div className="tool-title">PW Variation Tracker</div>
+        <div style={{display:"flex",gap:6}}><FavButton toolId="pwvartrack" favourites={favourites} toggleFav={toggleFav}/><InfoButton toolId="pwvartrack"/></div>
+      </div>
+      <div className="tool-sub">Track every scope change on price work — generate your final account</div>
+      <div className="dashboard-grid">
+        <div className="dash-card"><div className="dash-num">£{totalValue.toLocaleString()}</div><div className="dash-label">Total Claimed</div></div>
+        <div className="dash-card"><div className="dash-num" style={{color:"#4caf50"}}>£{agreedValue.toLocaleString()}</div><div className="dash-label">Agreed</div></div>
+        <div className="dash-card"><div className="dash-num" style={{color:"#e8a020"}}>£{pendingValue.toLocaleString()}</div><div className="dash-label">Pending</div></div>
+        <div className="dash-card"><div className="dash-num">{variations.length}</div><div className="dash-label">Total Variations</div></div>
+      </div>
+      <div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}><button className="btn-sm" onClick={()=>setShowForm(!showForm)}>+ Add Variation</button></div>
+      {showForm&&(<div className="card">
+        <div className="row2"><div><div className="fl">Date</div><input className="fi" type="date" value={form.date} onChange={e=>setForm({...form,date:e.target.value})}/></div><div><div className="fl">Cost (£)</div><input className="fi" placeholder="e.g. 850" value={form.cost} onChange={e=>setForm({...form,cost:e.target.value})}/></div></div>
+        <div className="fl">Description of Variation</div><input className="fi" placeholder="e.g. Additional duct run level 3 east corridor" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/>
+        <div className="fl">Reason / Cause</div><input className="fi" placeholder="e.g. Drawing change Rev C" value={form.reason} onChange={e=>setForm({...form,reason:e.target.value})}/>
+        <div className="fl">Status</div>
+        <select className="fi" value={form.status} onChange={e=>setForm({...form,status:e.target.value})} style={{cursor:"pointer",marginBottom:12}}>{statuses.map(s=><option key={s}>{s}</option>)}</select>
+        <button className="btn-sm" onClick={add} style={{width:"100%",padding:"10px",fontSize:13}}>SAVE VARIATION</button>
+      </div>)}
+      <div className="table-wrap" style={{marginBottom:16}}>
+        <table><thead><tr><th>Date</th><th>Description</th><th>Reason</th><th>Cost</th><th>Status</th><th></th></tr></thead>
+        <tbody>{variations.map(v=>(<tr key={v.id}>
+          <td style={{color:"#555",whiteSpace:"nowrap"}}>{v.date}</td>
+          <td style={{color:"#f0ede8"}}>{v.description}</td>
+          <td style={{color:"#555"}}>{v.reason}</td>
+          <td style={{color:"#e8a020",fontWeight:600}}>£{v.cost.toLocaleString()}</td>
+          <td><span style={{fontSize:10,color:statusColours[v.status],border:`1px solid ${statusColours[v.status]}`,padding:"2px 8px",borderRadius:10,whiteSpace:"nowrap"}}>{v.status}</span></td>
+          <td><button className="btn-danger" onClick={()=>setVariations(x=>x.filter(q=>q.id!==v.id))}>✕</button></td>
+        </tr>))}</tbody></table>
+      </div>
+      <button className="btn" onClick={generateFinalAccount} disabled={loading}>{loading?"GENERATING...":"GENERATE FINAL ACCOUNT LETTER"}</button>
+      {loading&&<div className="loading"><div className="spin"/>Writing your final account...</div>}
+      {output&&!loading&&(<div className="output-box"><div className="out-head"><span className="out-label">Final Account Letter</span><OutputActions title="Variation Final Account" output={output} profile={profile} logo={logo} onSave={onSave}/></div>{output}</div>)}
+    </div>
+  );
+}
+
+// ── Standing Time Calculator ──────────────────────────────────────────────────
+function StandingTimeCalc({trade, profile, logo, onSave, favourites, toggleFav}) {
+  const [entries, setEntries] = useState([]);
+  const [form, setForm] = useState({date:"",reason:"",workers:"1",hours:"",rate:"",supervisor:""});
+  const [showForm, setShowForm] = useState(false);
+  const [output, setOutput] = useState(""); const [loading, setLoading] = useState(false);
+  const add = () => {
+    if(!form.reason||!form.hours)return;
+    const cost = (parseFloat(form.workers)||1)*(parseFloat(form.hours)||0)*(parseFloat(form.rate)||0);
+    setEntries(e=>[...e,{...form,id:Date.now(),workers:parseInt(form.workers)||1,hours:parseFloat(form.hours)||0,rate:parseFloat(form.rate)||0,cost}]);
+    setForm({date:"",reason:"",workers:"1",hours:"",rate:"",supervisor:""});
+    setShowForm(false);
+  };
+  const totalCost = entries.reduce((s,e)=>s+e.cost,0);
+  const totalHours = entries.reduce((s,e)=>s+(e.workers*e.hours),0);
+  const generate = async () => {
+    if(!entries.length)return;
+    setLoading(true); setOutput("");
+    const list = entries.map(e=>`${e.date}: ${e.reason} — ${e.workers} workers x ${e.hours} hours @ £${e.rate}/hr = £${e.cost.toFixed(2)} — Supervised by: ${e.supervisor||"[Name]"}`).join("\n");
+    const p = `Write a formal standing time claim letter for a ${trade} subcontractor.\nCompany: ${profile.company||"[Company]"}\nTotal standing time cost: £${totalCost.toFixed(2)}, Total man hours lost: ${totalHours}\nStanding time entries:\n${list}\nWrite a professional claim letter that formally notifies the contractor of standing time incurred, references each occurrence with date, cause and cost, states the total amount claimed, requests payment within 14 days and references the right to claim under the subcontract. Firm, professional and legally referenced.`;
+    try{setOutput(await callMorris(p));}catch{setOutput("Error — try again.");}setLoading(false);
+  };
+  return(
+    <div>
+      <div className="tool-header">
+        <div className="tool-title">Standing Time Calculator</div>
+        <div style={{display:"flex",gap:6}}><FavButton toolId="standingtime" favourites={favourites} toggleFav={toggleFav}/><InfoButton toolId="standingtime"/></div>
+      </div>
+      <div className="tool-sub">Log delays, calculate the cost and claim it back formally</div>
+      <div className="dashboard-grid">
+        <div className="dash-card"><div className="dash-num" style={{color:"#e8a020"}}>£{totalCost.toFixed(2)}</div><div className="dash-label">Total Claimable</div></div>
+        <div className="dash-card"><div className="dash-num">{totalHours}</div><div className="dash-label">Man Hours Lost</div></div>
+        <div className="dash-card"><div className="dash-num">{entries.length}</div><div className="dash-label">Occurrences</div></div>
+      </div>
+      <div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}><button className="btn-sm" onClick={()=>setShowForm(!showForm)}>+ Log Standing Time</button></div>
+      {showForm&&(<div className="card">
+        <div className="row2"><div><div className="fl">Date</div><input className="fi" type="date" value={form.date} onChange={e=>setForm({...form,date:e.target.value})}/></div><div><div className="fl">Number of Workers</div><input className="fi" placeholder="e.g. 3" value={form.workers} onChange={e=>setForm({...form,workers:e.target.value})}/></div></div>
+        <div className="fl">Reason for Standing</div><input className="fi" placeholder="e.g. No access to level 3 — other trade still working" value={form.reason} onChange={e=>setForm({...form,reason:e.target.value})}/>
+        <div className="row2"><div><div className="fl">Hours Lost</div><input className="fi" placeholder="e.g. 4" value={form.hours} onChange={e=>setForm({...form,hours:e.target.value})}/></div><div><div className="fl">Hourly Rate Per Worker (£)</div><input className="fi" placeholder="e.g. 28" value={form.rate} onChange={e=>setForm({...form,rate:e.target.value})}/></div></div>
+        <div className="fl">Confirmed By (Site Supervisor)</div><input className="fi" placeholder="e.g. J. Williams, Site Manager" value={form.supervisor} onChange={e=>setForm({...form,supervisor:e.target.value})}/>
+        {form.workers&&form.hours&&form.rate&&(<div className="cis-result" style={{marginBottom:12}}>
+          <div className="cis-row"><span className="cis-label">{form.workers} workers × {form.hours} hrs × £{form.rate}/hr</span><span style={{color:"#4caf50",fontWeight:600}}>£{((parseFloat(form.workers)||0)*(parseFloat(form.hours)||0)*(parseFloat(form.rate)||0)).toFixed(2)}</span></div>
+        </div>)}
+        <button className="btn-sm" onClick={add} style={{width:"100%",padding:"10px",fontSize:13}}>SAVE ENTRY</button>
+      </div>)}
+      {entries.length>0&&(<>
+        <div className="table-wrap" style={{marginBottom:16}}>
+          <table><thead><tr><th>Date</th><th>Reason</th><th>Workers</th><th>Hours</th><th>Cost</th><th></th></tr></thead>
+          <tbody>{entries.map(e=>(<tr key={e.id}>
+            <td style={{color:"#555",whiteSpace:"nowrap"}}>{e.date}</td>
+            <td style={{color:"#f0ede8"}}>{e.reason}</td>
+            <td style={{textAlign:"center"}}>{e.workers}</td>
+            <td style={{textAlign:"center"}}>{e.hours}</td>
+            <td style={{color:"#e8a020",fontWeight:600}}>£{e.cost.toFixed(2)}</td>
+            <td><button className="btn-danger" onClick={()=>setEntries(x=>x.filter(q=>q.id!==e.id))}>✕</button></td>
+          </tr>))}</tbody></table>
+        </div>
+        <button className="btn" onClick={generate} disabled={loading}>{loading?"GENERATING...":"GENERATE STANDING TIME CLAIM"}</button>
+      </>)}
+      {entries.length===0&&<div className="hist-empty">No standing time logged yet. Log your first occurrence above.</div>}
+      {loading&&<div className="loading"><div className="spin"/>Writing your standing time claim...</div>}
+      {output&&!loading&&(<div className="output-box"><div className="out-head"><span className="out-label">Standing Time Claim</span><OutputActions title="Standing Time Claim" output={output} profile={profile} logo={logo} onSave={onSave}/></div>{output}</div>)}
+    </div>
+  );
+}
+
+// ── Price Work Profit Calculator ──────────────────────────────────────────────
+function PWProfitCalc({trade, favourites, toggleFav}) {
+  const [job, setJob] = useState({name:"", contractor:"", zone:"", price:"", startDate:""});
+  const [labourEntries, setLabourEntries] = useState([]);
+  const [materialEntries, setMaterialEntries] = useState([]);
+  const [labourForm, setLabourForm] = useState({date:"",description:"",workers:"1",hours:"",rate:""});
+  const [matForm, setMatForm] = useState({date:"",description:"",cost:""});
+  const [showLabour, setShowLabour] = useState(false);
+  const [showMat, setShowMat] = useState(false);
+  const price = parseFloat(job.price)||0;
+  const totalLabour = labourEntries.reduce((s,e)=>s+e.cost,0);
+  const totalMaterials = materialEntries.reduce((s,e)=>s+(parseFloat(e.cost)||0),0);
+  const totalCosts = totalLabour + totalMaterials;
+  const profit = price - totalCosts;
+  const margin = price>0?((profit/price)*100).toFixed(1):0;
+  const addLabour = () => {
+    if(!labourForm.description||!labourForm.hours)return;
+    const cost=(parseInt(labourForm.workers)||1)*(parseFloat(labourForm.hours)||0)*(parseFloat(labourForm.rate)||0);
+    setLabourEntries(e=>[...e,{...labourForm,id:Date.now(),cost}]);
+    setLabourForm({date:"",description:"",workers:"1",hours:"",rate:""});
+    setShowLabour(false);
+  };
+  const addMat = () => {
+    if(!matForm.description||!matForm.cost)return;
+    setMaterialEntries(e=>[...e,{...matForm,id:Date.now()}]);
+    setMatForm({date:"",description:"",cost:""});
+    setShowMat(false);
+  };
+  const profitColor = profit>0?"#4caf50":profit<0?"#e05050":"#888";
+  return(
+    <div>
+      <div className="tool-header">
+        <div className="tool-title">PW Profit Calculator</div>
+        <div style={{display:"flex",gap:6}}><FavButton toolId="pwprofit" favourites={favourites} toggleFav={toggleFav}/><InfoButton toolId="pwprofit"/></div>
+      </div>
+      <div className="tool-sub">Track costs against your fixed price in real time</div>
+      <div className="card">
+        <div style={{fontSize:11,color:"#e8a020",fontWeight:600,marginBottom:12,letterSpacing:1}}>JOB DETAILS</div>
+        <div className="row2"><div><div className="fl">Job / Zone Name</div><input className="fi" placeholder="e.g. Level 3 North Wing" value={job.name} onChange={e=>setJob({...job,name:e.target.value})}/></div><div><div className="fl">Fixed Price (£)</div><input className="fi" placeholder="e.g. 12,500" value={job.price} onChange={e=>setJob({...job,price:e.target.value})}/></div></div>
+        <div className="row2"><div><div className="fl">Contractor</div><input className="fi" placeholder="e.g. IDSL" value={job.contractor} onChange={e=>setJob({...job,contractor:e.target.value})}/></div><div><div className="fl">Start Date</div><input className="fi" type="date" value={job.startDate} onChange={e=>setJob({...job,startDate:e.target.value})}/></div></div>
+      </div>
+      {price>0&&(<div className="dashboard-grid" style={{marginBottom:16}}>
+        <div className="dash-card"><div className="dash-num">£{price.toLocaleString()}</div><div className="dash-label">Fixed Price</div></div>
+        <div className="dash-card"><div className="dash-num" style={{color:"#e05050"}}>£{totalCosts.toLocaleString()}</div><div className="dash-label">Total Costs</div></div>
+        <div className="dash-card"><div className="dash-num" style={{color:profitColor}}>£{Math.abs(profit).toLocaleString()}</div><div className="dash-label">{profit>=0?"Profit":"Loss"}</div></div>
+        <div className="dash-card"><div className="dash-num" style={{color:profitColor}}>{margin}%</div><div className="dash-label">Margin</div></div>
+      </div>)}
+      {price>0&&(<div style={{background:"#0d0d0d",border:"1px solid #1a1a1a",borderRadius:8,padding:12,marginBottom:16}}>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{fontSize:11,color:"#555"}}>Cost Progress</span><span style={{fontSize:11,color:profitColor}}>{price>0?((totalCosts/price)*100).toFixed(0):0}% of price used</span></div>
+        <div style={{height:8,background:"#1a1a1a",borderRadius:4,overflow:"hidden"}}>
+          <div style={{height:"100%",background:totalCosts/price>0.9?"#e05050":totalCosts/price>0.7?"#e8a020":"#4caf50",width:`${Math.min((totalCosts/price)*100,100)}%`,borderRadius:4,transition:"width .3s"}}/>
+        </div>
+      </div>)}
+      <div style={{display:"flex",gap:10,marginBottom:12}}>
+        <button className="btn-sm" onClick={()=>{setShowLabour(!showLabour);setShowMat(false);}}>+ Labour</button>
+        <button className="btn-sm" onClick={()=>{setShowMat(!showMat);setShowLabour(false);}}>+ Materials</button>
+      </div>
+      {showLabour&&(<div className="card">
+        <div style={{fontSize:11,color:"#e8a020",fontWeight:600,marginBottom:12,letterSpacing:1}}>ADD LABOUR COST</div>
+        <div className="row2"><div><div className="fl">Date</div><input className="fi" type="date" value={labourForm.date} onChange={e=>setLabourForm({...labourForm,date:e.target.value})}/></div><div><div className="fl">Description</div><input className="fi" placeholder="e.g. Duct installation level 3" value={labourForm.description} onChange={e=>setLabourForm({...labourForm,description:e.target.value})}/></div></div>
+        <div className="row2"><div><div className="fl">Workers</div><input className="fi" placeholder="e.g. 2" value={labourForm.workers} onChange={e=>setLabourForm({...labourForm,workers:e.target.value})}/></div><div><div className="fl">Hours</div><input className="fi" placeholder="e.g. 8" value={labourForm.hours} onChange={e=>setLabourForm({...labourForm,hours:e.target.value})}/></div></div>
+        <div className="fl">Rate per Worker (£/hr)</div><input className="fi" placeholder="e.g. 28" value={labourForm.rate} onChange={e=>setLabourForm({...labourForm,rate:e.target.value})}/>
+        <button className="btn-sm" onClick={addLabour} style={{width:"100%",padding:"10px",fontSize:13}}>SAVE LABOUR</button>
+      </div>)}
+      {showMat&&(<div className="card">
+        <div style={{fontSize:11,color:"#e8a020",fontWeight:600,marginBottom:12,letterSpacing:1}}>ADD MATERIAL COST</div>
+        <div className="row2"><div><div className="fl">Date</div><input className="fi" type="date" value={matForm.date} onChange={e=>setMatForm({...matForm,date:e.target.value})}/></div><div><div className="fl">Description</div><input className="fi" placeholder="e.g. 600x400 ductwork 3m lengths x10" value={matForm.description} onChange={e=>setMatForm({...matForm,description:e.target.value})}/></div></div>
+        <div className="fl">Cost (£)</div><input className="fi" placeholder="e.g. 380" value={matForm.cost} onChange={e=>setMatForm({...matForm,cost:e.target.value})}/>
+        <button className="btn-sm" onClick={addMat} style={{width:"100%",padding:"10px",fontSize:13}}>SAVE MATERIALS</button>
+      </div>)}
+      {(labourEntries.length>0||materialEntries.length>0)&&(<div className="card">
+        {labourEntries.length>0&&(<><div style={{fontSize:11,color:"#e8a020",fontWeight:600,marginBottom:8,letterSpacing:1}}>LABOUR — £{totalLabour.toLocaleString()}</div>
+        {labourEntries.map(e=>(<div key={e.id} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid #1a1a1a",fontSize:12}}>
+          <span style={{color:"#aaa"}}>{e.description}</span><span style={{color:"#e05050"}}>£{e.cost.toFixed(2)}</span>
+        </div>))}</>)}
+        {materialEntries.length>0&&(<><div style={{fontSize:11,color:"#e8a020",fontWeight:600,marginBottom:8,marginTop:12,letterSpacing:1}}>MATERIALS — £{totalMaterials.toLocaleString()}</div>
+        {materialEntries.map(e=>(<div key={e.id} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid #1a1a1a",fontSize:12}}>
+          <span style={{color:"#aaa"}}>{e.description}</span><span style={{color:"#e05050"}}>£{parseFloat(e.cost).toFixed(2)}</span>
+        </div>))}</>)}
+      </div>)}
+    </div>
+  );
+}
+
+// ── Offline Mode ──────────────────────────────────────────────────────────────
+function OfflineMode({profile, favourites, navigateTo}) {
+  const [savedDrafts, setSavedDrafts] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("morris_offline_drafts")||"[]"); } catch { return []; }
+  });
+  const [newDraft, setNewDraft] = useState({title:"", content:"", tool:""});
+  const [showForm, setShowForm] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  useState(()=>{
+    const on=()=>setIsOnline(true); const off=()=>setIsOnline(false);
+    window.addEventListener("online",on); window.addEventListener("offline",off);
+    return()=>{window.removeEventListener("online",on);window.removeEventListener("offline",off);};
+  },[]);
+  const saveDraft = () => {
+    if(!newDraft.title)return;
+    const drafts=[...savedDrafts,{...newDraft,id:Date.now(),date:new Date().toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}];
+    setSavedDrafts(drafts);
+    try{localStorage.setItem("morris_offline_drafts",JSON.stringify(drafts));}catch{}
+    setNewDraft({title:"",content:"",tool:""});
+    setShowForm(false);
+  };
+  const deleteDraft = (id) => {
+    const drafts=savedDrafts.filter(d=>d.id!==id);
+    setSavedDrafts(drafts);
+    try{localStorage.setItem("morris_offline_drafts",JSON.stringify(drafts));}catch{}
+  };
+  const favTools = favourites.map(id=>TOOLS.find(t=>t.id===id)).filter(Boolean);
+  return(
+    <div>
+      <div className="tool-header">
+        <div className="tool-title">Offline Mode</div>
+        <InfoButton toolId="offline"/>
+      </div>
+      <div className="tool-sub">Save notes and drafts for use on site with no signal</div>
+      <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 16px",background:"#141414",border:"1px solid #1e1e1e",borderRadius:8,marginBottom:16}}>
+        <div style={{width:10,height:10,borderRadius:"50%",background:isOnline?"#4caf50":"#e05050",flexShrink:0}}/>
+        <span style={{fontSize:13,color:isOnline?"#4caf50":"#e05050",fontWeight:500}}>{isOnline?"You're online — all features available":"You're offline — saved drafts available below"}</span>
+      </div>
+      {favTools.length>0&&(<div className="card" style={{marginBottom:16}}>
+        <div style={{fontSize:11,color:"#e8a020",fontWeight:600,marginBottom:12,letterSpacing:1}}>★ YOUR FAVOURITE TOOLS — QUICK ACCESS</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+          {favTools.map(t=>(<div key={t.id} onClick={()=>navigateTo(t.id)} style={{padding:"10px 12px",background:"#0d0d0d",border:"1px solid #222",borderRadius:6,cursor:"pointer",display:"flex",alignItems:"center",gap:8,transition:"all .2s"}} onMouseEnter={e=>e.currentTarget.style.borderColor="#e8a020"} onMouseLeave={e=>e.currentTarget.style.borderColor="#222"}>
+            <span>{t.icon}</span><span style={{fontSize:12,color:"#aaa"}}>{t.label}</span>
+          </div>))}
+        </div>
+      </div>)}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+        <div style={{fontSize:11,color:"#555",letterSpacing:1,textTransform:"uppercase"}}>Saved Drafts ({savedDrafts.length})</div>
+        <button className="btn-sm" onClick={()=>setShowForm(!showForm)}>+ Save Draft</button>
+      </div>
+      {showForm&&(<div className="card">
+        <div className="fl">Draft Title</div><input className="fi" placeholder="e.g. Level 3 variation notes" value={newDraft.title} onChange={e=>setNewDraft({...newDraft,title:e.target.value})}/>
+        <div className="fl">Tool / Document Type</div><input className="fi" placeholder="e.g. Variation Letter, Site Diary..." value={newDraft.tool} onChange={e=>setNewDraft({...newDraft,tool:e.target.value})}/>
+        <div className="fl">Notes / Draft Content</div>
+        <textarea className="fi" style={{minHeight:100}} placeholder="Save your notes, measurements, details or partial document content here..." value={newDraft.content} onChange={e=>setNewDraft({...newDraft,content:e.target.value})}/>
+        <button className="btn-sm" onClick={saveDraft} style={{width:"100%",padding:"10px",fontSize:13}}>SAVE OFFLINE DRAFT</button>
+      </div>)}
+      {savedDrafts.length===0&&!showForm&&(<div className="hist-empty">No drafts saved yet. Save notes or partial documents here to access on site with no signal.</div>)}
+      {savedDrafts.map(d=>(<div key={d.id} className="card" style={{marginBottom:10}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
+          <div><div style={{fontSize:13,fontWeight:500,color:"#f0ede8",marginBottom:2}}>{d.title}</div><div style={{fontSize:10,color:"#555"}}>{d.tool&&`${d.tool} · `}{d.date}</div></div>
+          <button className="btn-danger" onClick={()=>deleteDraft(d.id)}>✕</button>
+        </div>
+        {d.content&&<div style={{fontSize:12,color:"#888",lineHeight:1.6,whiteSpace:"pre-wrap",borderTop:"1px solid #1a1a1a",paddingTop:8}}>{d.content}</div>}
+      </div>))}
+      <div className="info-box" style={{marginTop:16}}><strong>How offline mode works:</strong> Drafts are saved to your device. They stay available even with no internet. Document generation needs a connection — use this tool to save your notes and details on site, then generate the full document when you're back online.</div>
+    </div>
+  );
+}
+
+// ── Favourites Page ───────────────────────────────────────────────────────────
+function FavouritesPage({favourites, navigateTo}) {
+  const favTools = favourites.map(id=>TOOLS.find(t=>t.id===id)).filter(Boolean);
+  return(
+    <div>
+      <div className="tool-header">
+        <div className="tool-title">Favourites</div>
+      </div>
+      <div className="tool-sub">Your starred tools — tap any to open it</div>
+      {favTools.length===0&&(
+        <div style={{background:"#141414",border:"1px solid #1e1e1e",borderRadius:8,padding:40,textAlign:"center"}}>
+          <div style={{fontSize:32,marginBottom:16}}>☆</div>
+          <div style={{fontSize:14,color:"#666",marginBottom:8}}>No favourites yet</div>
+          <div style={{fontSize:12,color:"#444",lineHeight:1.7}}>Open any tool and tap the ☆ star button at the top right to add it to your favourites. It will appear here instantly.</div>
+        </div>
+      )}
+      {favTools.length>0&&(
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:10}}>
+          {favTools.map(t=>(
+            <div key={t.id} onClick={()=>navigateTo(t.id)} style={{background:"#141414",border:"1px solid rgba(232,160,32,.15)",borderRadius:8,padding:"20px 16px",cursor:"pointer",transition:"all .2s",display:"flex",flexDirection:"column",gap:8}} onMouseEnter={e=>{e.currentTarget.style.background="#1a1400";e.currentTarget.style.borderColor="rgba(232,160,32,.35)";}} onMouseLeave={e=>{e.currentTarget.style.background="#141414";e.currentTarget.style.borderColor="rgba(232,160,32,.15)";}}>
+              <span style={{fontSize:24}}>{t.icon}</span>
+              <div style={{fontSize:13,fontWeight:500,color:"#f0ede8"}}>{t.label}</div>
+              <div style={{fontSize:10,color:"#555",letterSpacing:1,textTransform:"uppercase"}}>{t.section}</div>
+              <div style={{fontSize:10,color:"#e8a020",marginTop:4}}>Open →</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── App Shell ─────────────────────────────────────────────────────────────────
-export default function App() {
+export default function Morris() {
   const [active,setActive]=useState("variation");
-  const [trade,setTrade]=useState("Duct Fitter");
+  const [trade,setTrade]=useState(()=>{try{return localStorage.getItem("morris_trade")||"Duct Fitter";}catch{return "Duct Fitter";}});
   const [tempTrade,setTempTrade]=useState("Duct Fitter");
   const [showTradeModal,setShowTradeModal]=useState(false);
-  const [history,setHistory]=useState([]);
-  const [profile,setProfile]=useState({name:"",company:"",utr:"",cis:"",phone:"",email:"",bankName:"",sortCode:"",accNum:""});
-  const [logo,setLogo]=useState(null);
+  const [history,setHistory]=useState(()=>{try{return JSON.parse(localStorage.getItem("morris_history")||"[]");}catch{return [];}});
+  const [profile,setProfile]=useState(()=>{try{return JSON.parse(localStorage.getItem("morris_profile")||"null")||{name:"",company:"",utr:"",cis:"",phone:"",email:"",bankName:"",sortCode:"",accNum:""};}catch{return {name:"",company:"",utr:"",cis:"",phone:"",email:"",bankName:"",sortCode:"",accNum:""};}});
+  const [logo,setLogo]=useState(()=>{try{return localStorage.getItem("morris_logo")||null;}catch{return null;}});
+  const [search,setSearch]=useState("");
+  const [recents,setRecents]=useState(()=>{try{return JSON.parse(localStorage.getItem("morris_recents")||"[]");}catch{return [];}});
+  const [favourites,setFavourites]=useState(()=>{try{return JSON.parse(localStorage.getItem("morris_favs")||"[]");}catch{return [];}});
 
-  const saveDoc=(tool,content)=>{const date=new Date().toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"});setHistory(h=>[...h,{tool,content,date}]);};
+  // Persist to localStorage whenever state changes
+  useEffect(()=>{try{localStorage.setItem("morris_trade",trade);}catch{}},[trade]);
+  useEffect(()=>{try{localStorage.setItem("morris_history",JSON.stringify(history));}catch{}},[history]);
+  useEffect(()=>{try{localStorage.setItem("morris_profile",JSON.stringify(profile));}catch{}},[profile]);
+  useEffect(()=>{try{if(logo)localStorage.setItem("morris_logo",logo);else localStorage.removeItem("morris_logo");}catch{}},[logo]);
+  useEffect(()=>{try{localStorage.setItem("morris_recents",JSON.stringify(recents));}catch{}},[recents]);
+  useEffect(()=>{try{localStorage.setItem("morris_favs",JSON.stringify(favourites));}catch{}},[favourites]);
+
+  const saveDoc=(tool,content)=>{const date=new Date().toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"});setHistory(h=>[...h,{tool,content,date}].slice(-50));};
+
+  const navigateTo=(id)=>{
+    setActive(id);
+    setSearch("");
+    setRecents(r=>{const filtered=r.filter(x=>x!==id); return [id,...filtered].slice(0,5);});
+  };
+
+  const toggleFav=(id)=>{
+    setFavourites(f=>f.includes(id)?f.filter(x=>x!==id):[...f,id]);
+  };
+
   const sections=[...new Set(TOOLS.map(t=>t.section))];
 
+  const filteredTools = search.trim()
+    ? TOOLS.filter(t=>t.label.toLowerCase().includes(search.toLowerCase())||t.section.toLowerCase().includes(search.toLowerCase()))
+    : null;
+
+  const recentTools = recents.map(id=>TOOLS.find(t=>t.id===id)).filter(Boolean);
+  const favTools = favourites.map(id=>TOOLS.find(t=>t.id===id)).filter(Boolean);
+
   const renderTool=()=>{
-    const p={trade,profile,logo,onSave:saveDoc};
+    const p={trade,profile,logo,onSave:saveDoc,favourites,toggleFav};
     if(active==="cis") return <CISCalc/>;
     if(active==="selfassess") return <SelfAssess/>;
     if(active==="earnings") return <EarningsDashboard/>;
@@ -1186,6 +2280,26 @@ export default function App() {
     if(active==="paytracker") return <PayTracker/>;
     if(active==="incidentlog") return <IncidentLogFirm/>;
     if(active==="apprentice") return <ApprenticeManager {...p}/>;
+    if(active==="siteaccess") return <SiteAccessPermit {...p}/>;
+    if(active==="measurement") return <MeasurementRecord {...p}/>;
+    if(active==="newstarter") return <NewStarterPack {...p}/>;
+    if(active==="satisfaction") return <ClientSurvey {...p}/>;
+    if(active==="hireagree") return <HireAgreement {...p}/>;
+    if(active==="labouralloc") return <LabourAllocation/>;
+    if(active==="purchaseorder") return <PurchaseOrder {...p}/>;
+    if(active==="subcispay") return <SubbiPayCert {...p}/>;
+    if(active==="hspolicy") return <HSPolicy {...p}/>;
+    if(active==="subbicheck") return <SubbiCompliance/>;
+    if(active==="commercialrpt") return <CommercialReport {...p}/>;
+    if(active==="tenderletter") return <TenderLetter {...p}/>;
+    if(active==="defectstracker") return <DefectsTracker/>;
+    if(active==="about") return <AboutMorris/>;
+    if(active==="scopeworks") return <ScopeOfWorks {...p}/>;
+    if(active==="pwvartrack") return <PWVarTracker {...p}/>;
+    if(active==="standingtime") return <StandingTimeCalc {...p}/>;
+    if(active==="pwprofit") return <PWProfitCalc {...p}/>;
+    if(active==="offline") return <OfflineMode profile={profile} favourites={favourites} navigateTo={navigateTo}/>;
+    if(active==="favourites") return <FavouritesPage favourites={favourites} navigateTo={navigateTo}/>;
     if(active==="history") return <History history={history} onDelete={i=>setHistory(h=>h.filter((_,j)=>j!==h.length-1-i))}/>;
     if(active==="profile") return <Profile profile={profile} setProfile={setProfile} logo={logo} setLogo={setLogo}/>;
     if(toolConfigs[active]) return <DocTool key={active} toolId={active} {...p}/>;
@@ -1205,15 +2319,97 @@ export default function App() {
         </div>
         <div className="layout">
           <div className="sidebar">
-            {sections.map(sec=>(<div key={sec}>
-              <div className="sec-label">{sec}</div>
-              {TOOLS.filter(t=>t.section===sec).map(t=>(<div key={t.id} className={`nav-item ${active===t.id?"active":""}`} onClick={()=>setActive(t.id)}>
-                <span className="nav-icon">{t.icon}</span><span className="nav-label">{t.label}</span>
-                {t.id==="history"&&history.length>0&&<span style={{marginLeft:"auto",fontSize:10,color:"#e8a020",flexShrink:0}}>{history.length}</span>}
-              </div>))}
-            </div>))}
+
+            {/* Search */}
+            <div className="sidebar-search">
+              <div className="search-wrap">
+                <span className="search-icon">🔍</span>
+                <input
+                  className="search-input"
+                  placeholder="Search tools..."
+                  value={search}
+                  onChange={e=>setSearch(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Search results */}
+            {search.trim() && (
+              <div>
+                <div className="sec-label-row"><span className="sec-label-text">Search Results</span></div>
+                {filteredTools.length===0 && <div className="no-results">No tools found</div>}
+                {filteredTools.map(t=>(
+                  <div key={t.id} className={`nav-item ${active===t.id?"active":""}`} onClick={()=>navigateTo(t.id)}>
+                    <span className="nav-icon">{t.icon}</span>
+                    <span className="nav-label">{t.label}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Not searching — show normal sidebar */}
+            {!search.trim() && (<>
+
+              {/* Favourites */}
+              {favTools.length>0&&(
+                <div>
+                  <div className="sec-label-row"><span className="sec-label-text" style={{color:"#e8a020"}}>★ Favourites</span></div>
+                  {favTools.map(t=>(
+                    <div key={t.id} className={`nav-item ${active===t.id?"active":""}`} onClick={()=>navigateTo(t.id)}>
+                      <span className="nav-icon">{t.icon}</span>
+                      <span className="nav-label">{t.label}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Recently Used */}
+              {recentTools.length>0&&(
+                <div>
+                  <div className="sec-label-row"><span className="sec-label-text">Recently Used</span></div>
+                  {recentTools.map(t=>(
+                    <div key={t.id} className={`nav-item ${active===t.id?"active":""}`} onClick={()=>navigateTo(t.id)}>
+                      <span className="nav-icon">{t.icon}</span>
+                      <span className="nav-label">{t.label}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* All sections */}
+              {sections.map(sec=>(
+                <div key={sec}>
+                  <div className="sec-label-row">
+                    <span className="sec-label-text">{sec}</span>
+                  </div>
+                  {TOOLS.filter(t=>t.section===sec).map(t=>(
+                    <div key={t.id} className={`nav-item ${active===t.id?"active":""}`} onClick={()=>navigateTo(t.id)}>
+                      <span className="nav-icon">{t.icon}</span>
+                      <span className="nav-label">{t.label}</span>
+                      {t.id==="history"&&history.length>0&&<span style={{marginLeft:"auto",fontSize:10,color:"#e8a020",flexShrink:0}}>{history.length}</span>}
+                      {t.id==="favourites"&&favourites.length>0&&<span style={{marginLeft:"auto",fontSize:10,color:"#e8a020",flexShrink:0}}>{favourites.length}</span>}
+                    </div>
+                  ))}
+                </div>
+              ))}
+
+            </>)}
           </div>
-          <div className="main">{renderTool()}</div>
+          <div className="main">
+            {!profile.company&&active!=="profile"&&active!=="favourites"&&active!=="history"&&(
+              <div onClick={()=>navigateTo("profile")} style={{background:"rgba(232,160,32,.06)",border:"1px solid rgba(232,160,32,.2)",borderRadius:8,padding:"10px 16px",marginBottom:20,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",transition:"all .2s"}} onMouseEnter={e=>e.currentTarget.style.background="rgba(232,160,32,.1)"} onMouseLeave={e=>e.currentTarget.style.background="rgba(232,160,32,.06)"}>
+                <div style={{display:"flex",alignItems:"center",gap:10}}>
+                  <span style={{fontSize:16}}>👤</span>
+                  <div>
+                    <div style={{fontSize:12,color:"#e8a020",fontWeight:600}}>Set up your profile first</div>
+                    <div style={{fontSize:11,color:"#666"}}>Morris will auto-fill your company name, UTR and details into every document</div>
+                  </div>
+                </div>
+                <span style={{color:"#e8a020",fontSize:12}}>→</span>
+              </div>
+            )}
+            {renderTool()}
+          </div>
         </div>
         {showTradeModal&&(<div className="modal-overlay" onClick={()=>setShowTradeModal(false)}><div className="modal" onClick={e=>e.stopPropagation()}><h2>Your Trade</h2><p>Morris tailors every document to your trade.</p><div className="trade-grid">{TRADES.map(t=><div key={t} className={`trade-opt ${tempTrade===t?"sel":""}`} onClick={()=>setTempTrade(t)}>{t}</div>)}</div><button className="confirm-btn" onClick={()=>{setTrade(tempTrade);setShowTradeModal(false);}}>CONFIRM TRADE</button></div></div>)}
       </div>
