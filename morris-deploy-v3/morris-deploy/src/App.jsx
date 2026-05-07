@@ -22,6 +22,9 @@ const TOOLS = [
   { id:"pwvartrack",  label:"Variation Tracker",   icon:"📉", section:"Price Work" },
   { id:"standingtime",label:"Standing Time Calc",  icon:"⏱️", section:"Price Work" },
   { id:"pwprofit",    label:"Profit Calculator",   icon:"💹", section:"Price Work" },
+  { id:"verbvariation",label:"Verbal → Variation",  icon:"🎙️⚡",section:"Documents" },
+  { id:"phototodoc",   label:"Photo to Document",   icon:"📸✨",section:"Documents" },
+  { id:"cispredict",   label:"CIS Refund Predictor",icon:"💰", section:"Finance" },
   { id:"offline",     label:"Offline Mode",        icon:"📡", section:"Account" },
   { id:"photos",      label:"Photo Evidence Log",  icon:"📸", section:"Site Tools" },
   { id:"verbal",      label:"Verbal Instruction",  icon:"🎙️", section:"Site Tools" },
@@ -245,7 +248,12 @@ const TOOL_INFO = {
   newstarter: "A complete pack of documents for every new person who starts working for you. Covers their terms, site rules, emergency contacts, health and safety responsibilities and everything they need to sign before they start.",
   satisfaction: "A short professional survey you send to a client after completing a job. Captures their feedback and — if they're happy — asks for a testimonial and a Google review. Positive reviews win you more work.",
   hireagree: "A formal agreement when you're hiring plant or equipment in or out. Covers the hire rate, who's responsible for damage, insurance requirements and what happens if it gets returned late or damaged.",
-  scopeworks: "Before you start any price work — this tool defines exactly what is and isn't included in your price. Everything outside this document is a variation you can charge for. Without it, contractors will say everything was included and you have no comeback.",
+  verbvariation: "Press record on site when a manager gives you a verbal instruction. Speak for 30 seconds. Morris converts it into a formal variation letter instantly — ready to send before the manager walks away. 45 seconds from verbal instruction to sent letter.",
+  phototodoc: "Take a photo of a handwritten note, delivery note, damaged material or site condition. Morris reads the photo and converts it into a formal professional document automatically. No typing needed.",
+  contractscan: "Paste your subcontract into Morris before you sign it. Morris reads the whole thing and gives you a traffic light report — green clauses are fine, amber need attention, red are dangerous. Plain English explanation of every risk.",
+  paypredict: "Enter a contractor's company name before you start work. Morris checks their background and gives you a payment probability score. Know the likelihood of getting paid before you lift a tool.",
+  cispredict: "See exactly how much HMRC owes you back at year end — updated in real time as you log each payment. By January you already know the number before you file.",
+  morrisscore: "Your personal commercial protection score out of 100. Goes up every time you use a Morris protection tool. Shows contractors you document everything professionally.", Everything outside this document is a variation you can charge for. Without it, contractors will say everything was included and you have no comeback.",
   pwvartrack: "Tracks every change from your original scope in real time as the job progresses. Log each variation with a date, description and cost. By the end of the job you have a complete record of every extra — ready for your final account.",
   standingtime: "When you can't work because of delays — enter your gang size, their rates and how long you were standing. Morris calculates the total cost and generates a formal standing time claim. On price work this is often the difference between profit and loss.",
   pwprofit: "Track your actual costs against the fixed price as the job progresses. Log labour hours, materials and plant daily. Morris shows your running margin in real time so you know if you're making or losing money before it's too late.",
@@ -344,30 +352,129 @@ function generatePDF(title, content, profile, logoSrc) {
 
 // ── API Call Helper ───────────────────────────────────────────────────────────
 async function callMorris(prompt) {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method:"POST", headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:1000, messages:[{role:"user",content:prompt}] })
+  const res = await fetch("/api/generate", {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({ prompt })
   });
   const d = await res.json();
+  if(!res.ok) throw new Error(d.error||"API error");
+  return d.text || "No output.";
+}  const d = await res.json();
   return d.content?.map(b=>b.text||"").join("") || "No output.";
 }
 
 // ── Output Actions Bar ────────────────────────────────────────────────────────
-function OutputActions({ title, output, profile, logo, onSave }) {
+// ── Login Screen ──────────────────────────────────────────────────────────────
+function LoginScreen({onLogin}) {
+  const [mode, setMode] = useState("login"); // login | signup | verify
+  const [form, setForm] = useState({username:"", password:"", phone:"", otp:""});
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [generatedOtp, setGeneratedOtp] = useState("");
+
+  const getUsers = () => { try { return JSON.parse(localStorage.getItem("morris_users")||"{}"); } catch { return {}; } };
+  const saveUsers = (u) => { try { localStorage.setItem("morris_users", JSON.stringify(u)); } catch {} };
+
+  const handleSignup = () => {
+    if(!form.username||!form.password||!form.phone){ setError("Please fill in all fields"); return; }
+    if(form.username.length < 3){ setError("Username must be at least 3 characters"); return; }
+    if(form.password.length < 6){ setError("Password must be at least 6 characters"); return; }
+    const users = getUsers();
+    if(users[form.username.toLowerCase()]){ setError("Username already taken — choose another"); return; }
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    setGeneratedOtp(otp);
+    setOtpSent(true);
+    setMode("verify");
+    setError("");
+    alert(`Your verification code is: ${otp}\n\n(In production this would be sent to ${form.phone} via SMS)`);
+  };
+
+  const handleVerify = () => {
+    if(form.otp !== generatedOtp){ setError("Incorrect code — please try again"); return; }
+    const users = getUsers();
+    users[form.username.toLowerCase()] = { password: form.password, phone: form.phone, joined: new Date().toISOString() };
+    saveUsers(users);
+    onLogin(form.username);
+  };
+
+  const handleLogin = () => {
+    if(!form.username||!form.password){ setError("Please enter your username and password"); return; }
+    const users = getUsers();
+    const user = users[form.username.toLowerCase()];
+    if(!user){ setError("Username not found — please sign up"); return; }
+    if(user.password !== form.password){ setError("Incorrect password"); return; }
+    onLogin(form.username);
+  };
+
+  return(
+    <div style={{minHeight:"100vh",background:"#060606",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div style={{width:"100%",maxWidth:400}}>
+        <div style={{textAlign:"center",marginBottom:40}}>
+          <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:48,letterSpacing:6,color:"#f0ede8",marginBottom:4}}>MORRIS<span style={{color:"#e8a020"}}>.</span></div>
+          <div style={{fontSize:12,color:"#555",letterSpacing:2,textTransform:"uppercase"}}>Built on the Tools</div>
+        </div>
+        <div style={{background:"#0d0d0d",border:"1px solid rgba(232,160,32,.15)",borderRadius:12,padding:32}}>
+          {mode==="verify"?(
+            <>
+              <div style={{fontSize:14,color:"#f0ede8",fontWeight:600,marginBottom:8}}>Verify your phone</div>
+              <div style={{fontSize:12,color:"#666",marginBottom:24}}>Enter the 6 digit code sent to {form.phone}</div>
+              <div style={{fontSize:11,color:"#e8a020",marginBottom:6,letterSpacing:1}}>VERIFICATION CODE</div>
+              <input style={{width:"100%",background:"#1a1a1a",border:"1px solid #2a2a2a",borderRadius:6,padding:"12px 14px",color:"#f0ede8",fontSize:20,letterSpacing:8,textAlign:"center",outline:"none",marginBottom:16,boxSizing:"border-box"}} placeholder="000000" maxLength={6} value={form.otp} onChange={e=>setForm({...form,otp:e.target.value})}/>
+              {error&&<div style={{fontSize:12,color:"#e05050",marginBottom:12}}>{error}</div>}
+              <button onClick={handleVerify} style={{width:"100%",background:"linear-gradient(135deg,#e8a020,#c8780a)",border:"none",borderRadius:6,padding:"14px",color:"#000",fontFamily:"'Bebas Neue',sans-serif",fontSize:18,letterSpacing:3,cursor:"pointer"}}>VERIFY & LOGIN</button>
+              <button onClick={()=>setMode("signup")} style={{width:"100%",background:"none",border:"none",color:"#555",fontSize:12,cursor:"pointer",marginTop:12}}>Back</button>
+            </>
+          ):(<>
+            <div style={{display:"flex",gap:0,marginBottom:28,background:"#1a1a1a",borderRadius:8,padding:4}}>
+              {["login","signup"].map(m=>(<button key={m} onClick={()=>{setMode(m);setError("");}} style={{flex:1,padding:"10px",background:mode===m?"#e8a020":"transparent",border:"none",borderRadius:6,color:mode===m?"#000":"#555",fontFamily:"'Bebas Neue',sans-serif",fontSize:15,letterSpacing:2,cursor:"pointer",transition:"all .2s"}}>{m==="login"?"LOG IN":"SIGN UP"}</button>))}
+            </div>
+            <div style={{fontSize:11,color:"#e8a020",marginBottom:6,letterSpacing:1}}>USERNAME</div>
+            <input style={{width:"100%",background:"#1a1a1a",border:"1px solid #2a2a2a",borderRadius:6,padding:"12px 14px",color:"#f0ede8",fontSize:14,outline:"none",marginBottom:14,boxSizing:"border-box",fontFamily:"'DM Sans',sans-serif"}} placeholder="e.g. dmorris" value={form.username} onChange={e=>setForm({...form,username:e.target.value})}/>
+            <div style={{fontSize:11,color:"#e8a020",marginBottom:6,letterSpacing:1}}>PASSWORD</div>
+            <input type="password" style={{width:"100%",background:"#1a1a1a",border:"1px solid #2a2a2a",borderRadius:6,padding:"12px 14px",color:"#f0ede8",fontSize:14,outline:"none",marginBottom:14,boxSizing:"border-box",fontFamily:"'DM Sans',sans-serif"}} placeholder="Min 6 characters" value={form.password} onChange={e=>setForm({...form,password:e.target.value})}/>
+            {mode==="signup"&&(<>
+              <div style={{fontSize:11,color:"#e8a020",marginBottom:6,letterSpacing:1}}>PHONE NUMBER</div>
+              <input style={{width:"100%",background:"#1a1a1a",border:"1px solid #2a2a2a",borderRadius:6,padding:"12px 14px",color:"#f0ede8",fontSize:14,outline:"none",marginBottom:14,boxSizing:"border-box",fontFamily:"'DM Sans',sans-serif"}} placeholder="e.g. 07700 000000" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})}/>
+            </>)}
+            {error&&<div style={{fontSize:12,color:"#e05050",marginBottom:12}}>{error}</div>}
+            <button onClick={mode==="login"?handleLogin:handleSignup} style={{width:"100%",background:"linear-gradient(135deg,#e8a020,#c8780a)",border:"none",borderRadius:6,padding:"14px",color:"#000",fontFamily:"'Bebas Neue',sans-serif",fontSize:18,letterSpacing:3,cursor:"pointer",marginBottom:16}}>{mode==="login"?"LOG IN TO MORRIS":"CREATE ACCOUNT"}</button>
+            {mode==="login"&&<div style={{fontSize:12,color:"#555",textAlign:"center"}}>No account? <span onClick={()=>setMode("signup")} style={{color:"#e8a020",cursor:"pointer"}}>Sign up free</span></div>}
+          </>)}
+        </div>
+        <div style={{textAlign:"center",marginTop:20,fontSize:11,color:"#333"}}>Morris Construction Tech Ltd · ICO Reg: C1923529</div>
+      </div>
+    </div>
+  );
+}
+
+
   const [copied,setCopied]=useState(false);
   const [saved,setSaved]=useState(false);
   const copy=()=>{navigator.clipboard.writeText(output);setCopied(true);setTimeout(()=>setCopied(false),2000);};
   const save=()=>{onSave(title,output);setSaved(true);setTimeout(()=>setSaved(false),2000);};
   const pdf=()=>generatePDF(title,output,profile,logo);
-  const whatsapp=()=>window.open(`https://wa.me/?text=${encodeURIComponent(title+"\n\n"+output)}`,"_blank");
   const email=()=>window.open(`mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(output)}`);
+  const whatsapp=()=>{
+    const text=`*${title}*\n\n${output}\n\n_Generated by Morris — morrisapp.co.uk_`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,"_blank");
+  };
+  const whatsappPDF=()=>{
+    generatePDF(title,output,profile,logo);
+    setTimeout(()=>{
+      const text=`*${title}*\n\nPDF document attached — generated by Morris.\n_Morris Construction Tech Ltd — morrisapp.co.uk_`;
+      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,"_blank");
+    },1500);
+  };
   return (
     <div className="out-actions">
       <button className="save-btn" onClick={save}>{saved?"Saved ✓":"Save"}</button>
       <button className="copy-btn" onClick={copy}>{copied?"Copied ✓":"Copy"}</button>
       <button className="pdf-btn" onClick={pdf}>📄 PDF</button>
       <button className="email-btn" onClick={email}>✉ Email</button>
-      <button className="wa-btn" onClick={whatsapp}>WhatsApp</button>
+      <button className="wa-btn" onClick={whatsapp}>💬 WhatsApp</button>
+      <button className="wa-btn" onClick={whatsappPDF} style={{background:"rgba(37,211,102,.08)",borderColor:"rgba(37,211,102,.25)",color:"#25d366"}}>📄→WhatsApp</button>
     </div>
   );
 }
@@ -2183,6 +2290,397 @@ function OfflineMode({profile, favourites, navigateTo}) {
   );
 }
 
+// ── Verbal → Variation (Wow Feature 1) ───────────────────────────────────────
+function VerbalVariation({trade, profile, logo, onSave, favourites, toggleFav}) {
+  const [recording, setRecording] = useState(false);
+  const [transcript, setTranscript] = useState("");
+  const [output, setOutput] = useState(""); const [loading, setLoading] = useState(false);
+  const [step, setStep] = useState(1); // 1=record, 2=review, 3=done
+  const recognitionRef = React.useRef(null);
+
+  const startRecording = () => {
+    if(!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)){
+      alert("Speech recognition not supported on this browser. Try Chrome.");
+      return;
+    }
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SR();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-GB';
+    recognition.onresult = (e) => {
+      const t = Array.from(e.results).map(r=>r[0].transcript).join(' ');
+      setTranscript(t);
+    };
+    recognition.start();
+    recognitionRef.current = recognition;
+    setRecording(true);
+  };
+
+  const stopRecording = () => {
+    if(recognitionRef.current) recognitionRef.current.stop();
+    setRecording(false);
+    setStep(2);
+  };
+
+  const generateVariation = async () => {
+    setLoading(true); setOutput("");
+    const p = `Convert this verbal instruction recorded on site into a professional formal variation letter.\nTrade: ${trade}, Company: ${profile.company||"[Company]"}, Name: ${profile.name||"[Name]"}\nVerbal instruction recorded: "${transcript}"\nGenerate a complete formal variation letter that: references the verbal instruction, describes the extra works, states the date, requests written confirmation and approval, includes a cost to be agreed or estimated if mentioned. Professional, formal, ready to send immediately.`;
+    try{setOutput(await callMorris(p)); setStep(3);}catch{setOutput("Error — try again.");}
+    setLoading(false);
+  };
+
+  return(
+    <div>
+      <div className="tool-header">
+        <div className="tool-title">Verbal → Variation</div>
+        <div style={{display:"flex",gap:6}}><FavButton toolId="verbvariation" favourites={favourites} toggleFav={toggleFav}/><InfoButton toolId="verbvariation"/></div>
+      </div>
+      <div className="tool-sub">Speak on site — Morris writes the variation letter — send it before they walk away</div>
+      <div className="info-box"><strong>How it works:</strong> Press Record when a site manager gives you a verbal instruction. Speak naturally describing what they asked you to do. Stop recording. Morris converts it into a formal variation letter in seconds.</div>
+
+      {step===1&&(
+        <div style={{textAlign:"center",padding:"40px 20px"}}>
+          <div style={{fontSize:64,marginBottom:24}}>{recording?"🔴":"🎙️"}</div>
+          <div style={{fontSize:14,color:"#aaa",marginBottom:32}}>{recording?"Recording... speak clearly about the instruction you received":"Press record when the site manager gives you a verbal instruction"}</div>
+          {!recording?(
+            <button onClick={startRecording} style={{background:"linear-gradient(135deg,#e8a020,#c8780a)",border:"none",borderRadius:50,width:80,height:80,fontSize:28,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto",boxShadow:"0 8px 32px rgba(232,160,32,.3)"}}>🎙️</button>
+          ):(
+            <div>
+              <div style={{display:"flex",gap:4,justifyContent:"center",marginBottom:24}}>
+                {[...Array(5)].map((_,i)=><div key={i} style={{width:4,borderRadius:2,background:"#e8a020",animation:`wave ${0.5+i*0.1}s ease infinite alternate`,height:20+Math.random()*20}}/>)}
+              </div>
+              <button onClick={stopRecording} style={{background:"#e05050",border:"none",borderRadius:50,width:80,height:80,fontSize:28,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto",boxShadow:"0 8px 32px rgba(224,80,80,.3)"}}>⏹️</button>
+              <div style={{marginTop:16,fontSize:12,color:"#666"}}>Press stop when done speaking</div>
+            </div>
+          )}
+          {transcript&&<div style={{marginTop:24,background:"#0d0d0d",border:"1px solid #1a1a1a",borderRadius:8,padding:16,fontSize:13,color:"#aaa",textAlign:"left",lineHeight:1.6}}>{transcript}</div>}
+        </div>
+      )}
+
+      {step===2&&(
+        <div>
+          <div className="card">
+            <div style={{fontSize:11,color:"#e8a020",fontWeight:600,marginBottom:8,letterSpacing:1}}>WHAT YOU SAID — EDIT IF NEEDED</div>
+            <textarea className="fi" style={{minHeight:120,fontSize:13}} value={transcript} onChange={e=>setTranscript(e.target.value)}/>
+            <div style={{display:"flex",gap:10}}>
+              <button className="btn-sm" onClick={()=>{setStep(1);setTranscript("");}}>Re-record</button>
+              <button className="btn" onClick={generateVariation} disabled={loading||!transcript} style={{flex:1}}>{loading?"GENERATING...":"GENERATE VARIATION LETTER ⚡"}</button>
+            </div>
+          </div>
+          {loading&&<div className="loading"><div className="spin"/>Converting to variation letter...</div>}
+        </div>
+      )}
+
+      {step===3&&output&&(
+        <div>
+          <div className="output-box">
+            <div className="out-head">
+              <span className="out-label">Variation Letter — Generated in seconds ⚡</span>
+              <OutputActions title="Variation Letter" output={output} profile={profile} logo={logo} onSave={onSave}/>
+            </div>
+            {output}
+          </div>
+          <button className="btn-sm" onClick={()=>{setStep(1);setTranscript("");setOutput("");}} style={{marginTop:12,width:"100%"}}>Record Another</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Photo to Document (Wow Feature 2) ─────────────────────────────────────────
+function PhotoToDoc({trade, profile, logo, onSave, favourites, toggleFav}) {
+  const [image, setImage] = useState(null);
+  const [docType, setDocType] = useState("auto");
+  const [output, setOutput] = useState(""); const [loading, setLoading] = useState(false);
+  const docTypes = ["auto","Variation Letter","Notification of Defect","Delivery Record","Incident Report","Daywork Sheet","Site Diary Entry","Verbal Instruction Record"];
+
+  const handlePhoto = (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setImage(reader.result);
+    reader.readAsDataURL(file);
+  };
+
+  const generate = async () => {
+    if(!image){alert("Please take or upload a photo first");return;}
+    setLoading(true); setOutput("");
+    const typeInstruction = docType==="auto" ? "Identify what type of construction document this should become and generate the appropriate formal document." : `Generate a formal ${docType} based on this photo.`;
+    const p = `You are looking at a photo from a UK construction site. ${typeInstruction}\nTrade: ${trade}, Company: ${profile.company||"[Company]"}\nThe photo may show: handwritten notes, delivery notes, damaged materials, site conditions, verbal instructions, daywork records, or other site documentation.\nGenerate a complete professional formal document based on what you can identify. Include all relevant details, dates, references and signature blocks. Make it ready to send immediately.`;
+    try{
+      const response = await fetch("/api/generate", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({prompt: p, image: image})
+      });
+      const d = await response.json();
+      setOutput(d.text||"Error — try again.");
+    }catch{setOutput("Error — try again.");}
+    setLoading(false);
+  };
+
+  return(
+    <div>
+      <div className="tool-header">
+        <div className="tool-title">Photo to Document</div>
+        <div style={{display:"flex",gap:6}}><FavButton toolId="phototodoc" favourites={favourites} toggleFav={toggleFav}/><InfoButton toolId="phototodoc"/></div>
+      </div>
+      <div className="tool-sub">Take a photo on site — Morris converts it into a formal document</div>
+      <div className="card">
+        <div className="fl">Document Type</div>
+        <select className="fi" value={docType} onChange={e=>setDocType(e.target.value)} style={{cursor:"pointer",marginBottom:16}}>
+          {docTypes.map(t=><option key={t}>{t==="auto"?"🔮 Auto-detect (Morris decides)":t}</option>)}
+        </select>
+        <div className="fl">Photo</div>
+        <label style={{display:"block",border:"2px dashed rgba(232,160,32,.3)",borderRadius:8,padding:24,textAlign:"center",cursor:"pointer",marginBottom:16,transition:"all .2s"}} onMouseEnter={e=>e.currentTarget.style.borderColor="rgba(232,160,32,.6)"} onMouseLeave={e=>e.currentTarget.style.borderColor="rgba(232,160,32,.3)"}>
+          {image?(
+            <img src={image} style={{maxWidth:"100%",maxHeight:200,borderRadius:6,objectFit:"contain"}} alt="Site photo"/>
+          ):(
+            <div>
+              <div style={{fontSize:40,marginBottom:8}}>📸</div>
+              <div style={{fontSize:13,color:"#666"}}>Tap to take photo or upload from gallery</div>
+              <div style={{fontSize:11,color:"#444",marginTop:4}}>Handwritten notes, delivery docs, site conditions...</div>
+            </div>
+          )}
+          <input type="file" accept="image/*" capture="environment" onChange={handlePhoto} style={{display:"none"}}/>
+        </label>
+        {image&&<button className="btn-sm" onClick={()=>setImage(null)} style={{marginBottom:12,width:"100%"}}>Remove Photo</button>}
+        <button className="btn" onClick={generate} disabled={loading||!image}>{loading?"READING PHOTO...":"CONVERT PHOTO TO DOCUMENT 📸✨"}</button>
+      </div>
+      {loading&&<div className="loading"><div className="spin"/>Reading your photo and generating document...</div>}
+      {output&&!loading&&(<div className="output-box"><div className="out-head"><span className="out-label">Document from Photo</span><OutputActions title="Site Document" output={output} profile={profile} logo={logo} onSave={onSave}/></div>{output}</div>)}
+    </div>
+  );
+}
+
+// ── Contract Red Flag Scanner (Wow Feature 3) ─────────────────────────────────
+function ContractScanner({trade, profile, logo, onSave, favourites, toggleFav}) {
+  const [contract, setContract] = useState("");
+  const [output, setOutput] = useState(""); const [loading, setLoading] = useState(false);
+  const [flags, setFlags] = useState([]);
+
+  const scan = async () => {
+    if(!contract.trim()){alert("Paste your contract text first");return;}
+    setLoading(true); setOutput(""); setFlags([]);
+    const p = `You are a construction law expert reviewing a subcontract for a ${trade} sole trader in the UK.\nReview this subcontract and produce a traffic light risk report:\n\n${contract}\n\nFormat your response as:\n🟢 GREEN - SAFE CLAUSES: List clauses that are standard and acceptable\n🟡 AMBER - WATCH OUT: List clauses that need attention with plain English explanation\n🔴 RED - DANGER: List clauses that are seriously unfair or dangerous with exact explanation of the risk and what to say to get them changed\n\nThen provide: OVERALL RISK SCORE out of 10 (10 = very risky), KEY NEGOTIATION POINTS (top 3 things to push back on), RECOMMENDED ACTIONS before signing.\n\nUse plain English. No legal jargon. Write as if explaining to a tradesperson on site.`;
+    try{setOutput(await callMorris(p));}catch{setOutput("Error — try again.");}
+    setLoading(false);
+  };
+
+  return(
+    <div>
+      <div className="tool-header">
+        <div className="tool-title">Contract Scanner</div>
+        <div style={{display:"flex",gap:6}}><FavButton toolId="contractscan" favourites={favourites} toggleFav={toggleFav}/><InfoButton toolId="contractscan"/></div>
+      </div>
+      <div className="tool-sub">Paste your subcontract — Morris flags every dodgy clause in plain English</div>
+      <div className="warn-box"><strong>Important:</strong> Morris highlights risks for your awareness. This is not legal advice. For contracts over £50,000 consider getting a solicitor to review before signing.</div>
+      <div className="card">
+        <div className="fl">Paste Your Contract Here</div>
+        <textarea className="fi" style={{minHeight:200,fontSize:12,fontFamily:"monospace"}} placeholder="Paste the full text of your subcontract here. You can copy it from a PDF or email..." value={contract} onChange={e=>setContract(e.target.value)}/>
+        <div style={{fontSize:11,color:"#555",marginBottom:12}}>{contract.length} characters — {Math.round(contract.split(' ').length)} words</div>
+        <button className="btn" onClick={scan} disabled={loading||!contract.trim()}>{loading?"SCANNING CONTRACT...":"SCAN FOR RED FLAGS 🚦"}</button>
+      </div>
+      {loading&&<div className="loading"><div className="spin"/>Reading your contract and identifying risks...</div>}
+      {output&&!loading&&(
+        <div className="output-box">
+          <div className="out-head">
+            <span className="out-label">Contract Risk Report</span>
+            <OutputActions title="Contract Risk Report" output={output} profile={profile} logo={logo} onSave={onSave}/>
+          </div>
+          <div style={{whiteSpace:"pre-wrap",fontSize:13,lineHeight:1.7}}>
+            {output.split('\n').map((line,i)=>(
+              <div key={i} style={{
+                padding: line.startsWith('🔴')||line.startsWith('🟡')||line.startsWith('🟢') ? "8px 12px" : "2px 0",
+                background: line.startsWith('🔴') ? "rgba(224,80,80,.06)" : line.startsWith('🟡') ? "rgba(232,160,32,.06)" : line.startsWith('🟢') ? "rgba(76,175,80,.06)" : "transparent",
+                borderLeft: line.startsWith('🔴') ? "3px solid #e05050" : line.startsWith('🟡') ? "3px solid #e8a020" : line.startsWith('🟢') ? "3px solid #4caf50" : "none",
+                borderRadius: 4,
+                marginBottom: line.startsWith('🔴')||line.startsWith('🟡')||line.startsWith('🟢') ? 6 : 0,
+              }}>{line}</div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Payment Probability Score (Wow Feature 4) ─────────────────────────────────
+function PayPredict({trade, favourites, toggleFav}) {
+  const [contractor, setContractor] = useState("");
+  const [output, setOutput] = useState(""); const [loading, setLoading] = useState(false);
+  const [score, setScore] = useState(null);
+
+  const check = async () => {
+    if(!contractor.trim()){alert("Enter a contractor name");return;}
+    setLoading(true); setOutput(""); setScore(null);
+    const p = `You are a construction industry payment risk analyst.\nA ${trade} subcontractor wants to know the payment risk of working for: "${contractor}"\n\nBased on general knowledge of UK construction industry payment practices, company types, and risk factors, provide:\n1. PAYMENT PROBABILITY SCORE: X/10 (10 = excellent payer, 1 = very high risk)\n2. RISK LEVEL: Green / Amber / Red\n3. WHAT TO LOOK FOR: 3 specific things to check before starting (Companies House, reviews, contract terms)\n4. PROTECTIVE MEASURES: What documents and protections to have in place before starting\n5. RED FLAGS TO WATCH: Warning signs during the job\n6. RECOMMENDED ACTIONS: Whether to proceed and on what terms\n\nNote: This is based on general industry knowledge, not specific company data. Always do your own due diligence. Be helpful and practical.`;
+    try{
+      const result = await callMorris(p);
+      setOutput(result);
+      const scoreMatch = result.match(/(\d+)\/10/);
+      if(scoreMatch) setScore(parseInt(scoreMatch[1]));
+    }catch{setOutput("Error — try again.");}
+    setLoading(false);
+  };
+
+  const scoreColor = score ? (score>=7?"#4caf50":score>=4?"#e8a020":"#e05050") : "#888";
+  const scoreLabel = score ? (score>=7?"Good Payer":"Pay risk — be careful":score>=4?"Proceed with Caution":"High Risk — protect yourself") : "";
+
+  return(
+    <div>
+      <div className="tool-header">
+        <div className="tool-title">Pay Probability</div>
+        <div style={{display:"flex",gap:6}}><FavButton toolId="paypredict" favourites={favourites} toggleFav={toggleFav}/><InfoButton toolId="paypredict"/></div>
+      </div>
+      <div className="tool-sub">Check a contractor before you start work — know your payment risk</div>
+      <div className="info-box"><strong>Check before you start:</strong> Enter the contractor's name and Morris assesses the payment risk based on industry knowledge. Always do your own checks on Companies House too.</div>
+      <div className="card">
+        <div className="fl">Contractor / Company Name</div>
+        <input className="fi" placeholder="e.g. Imperial Ductwork Services Ltd" value={contractor} onChange={e=>setContractor(e.target.value)}/>
+        <button className="btn" onClick={check} disabled={loading||!contractor.trim()}>{loading?"CHECKING...":"CHECK PAYMENT RISK 🔮"}</button>
+      </div>
+      {loading&&<div className="loading"><div className="spin"/>Assessing payment risk...</div>}
+      {score&&!loading&&(
+        <div style={{textAlign:"center",padding:"24px",background:"#0d0d0d",border:`2px solid ${scoreColor}`,borderRadius:12,marginBottom:16}}>
+          <div style={{fontSize:64,fontFamily:"'Bebas Neue',sans-serif",color:scoreColor,lineHeight:1}}>{score}/10</div>
+          <div style={{fontSize:14,color:scoreColor,fontWeight:600,marginTop:4}}>{scoreLabel}</div>
+          <div style={{fontSize:11,color:"#555",marginTop:8}}>{contractor}</div>
+        </div>
+      )}
+      {output&&!loading&&(<div className="output-box"><div className="out-head"><span className="out-label">Payment Risk Report — {contractor}</span></div><div style={{whiteSpace:"pre-wrap",fontSize:13,lineHeight:1.7}}>{output}</div></div>)}
+    </div>
+  );
+}
+
+// ── CIS Refund Predictor (Wow Feature 5) ──────────────────────────────────────
+function CISPredict({favourites, toggleFav}) {
+  const [payments, setPayments] = useState([]);
+  const [form, setForm] = useState({date:"",contractor:"",gross:"",rate:"20"});
+  const [showForm, setShowForm] = useState(false);
+  const [expenses, setExpenses] = useState("0");
+
+  const add = () => {
+    if(!form.gross)return;
+    const gross=parseFloat(form.gross)||0;
+    const deduction=gross*(parseFloat(form.rate)/100);
+    setPayments(p=>[...p,{...form,id:Date.now(),gross,deduction,net:gross-deduction}]);
+    setForm({date:"",contractor:"",gross:"",rate:"20"});
+    setShowForm(false);
+  };
+
+  const totalGross = payments.reduce((s,p)=>s+p.gross,0);
+  const totalDeducted = payments.reduce((s,p)=>s+p.deduction,0);
+  const totalExpenses = parseFloat(expenses)||0;
+  const taxableIncome = Math.max(0, totalGross - totalExpenses - 12570); // minus personal allowance
+  const actualTaxDue = taxableIncome <= 37700 ? taxableIncome * 0.20 : 37700*0.20 + (taxableIncome-37700)*0.40;
+  const estimatedRefund = Math.max(0, totalDeducted - actualTaxDue);
+  const estimatedOwed = Math.max(0, actualTaxDue - totalDeducted);
+
+  return(
+    <div>
+      <div className="tool-header">
+        <div className="tool-title">CIS Refund Predictor</div>
+        <div style={{display:"flex",gap:6}}><FavButton toolId="cispredict" favourites={favourites} toggleFav={toggleFav}/><InfoButton toolId="cispredict"/></div>
+      </div>
+      <div className="tool-sub">See exactly how much HMRC owes you — updated in real time</div>
+      <div className="dashboard-grid">
+        <div className="dash-card"><div className="dash-num">£{totalGross.toLocaleString()}</div><div className="dash-label">Total Gross Earnings</div></div>
+        <div className="dash-card"><div className="dash-num" style={{color:"#e05050"}}>£{totalDeducted.toLocaleString()}</div><div className="dash-label">Total CIS Deducted</div></div>
+        <div className="dash-card"><div className="dash-num" style={{color:estimatedRefund>0?"#4caf50":"#e05050"}}>£{Math.round(estimatedRefund>0?estimatedRefund:estimatedOwed).toLocaleString()}</div><div className="dash-label">{estimatedRefund>0?"Estimated Refund 🎉":"Estimated Tax Owed"}</div></div>
+        <div className="dash-card"><div className="dash-num">{payments.length}</div><div className="dash-label">Payments Logged</div></div>
+      </div>
+      {estimatedRefund>0&&totalGross>0&&(
+        <div style={{background:"rgba(76,175,80,.08)",border:"1px solid rgba(76,175,80,.25)",borderRadius:8,padding:16,marginBottom:16,textAlign:"center"}}>
+          <div style={{fontSize:28,marginBottom:4}}>🎉</div>
+          <div style={{fontSize:16,color:"#4caf50",fontWeight:600}}>HMRC owes you approximately £{Math.round(estimatedRefund).toLocaleString()}</div>
+          <div style={{fontSize:12,color:"#888",marginTop:4}}>Based on your logged payments and expenses — claim this back through self assessment</div>
+        </div>
+      )}
+      <div className="card" style={{marginBottom:12}}>
+        <div className="fl">Business Expenses This Year (£)</div>
+        <input className="fi" placeholder="e.g. 3500 — tools, materials, van, workwear..." value={expenses} onChange={e=>setExpenses(e.target.value)}/>
+        <div style={{fontSize:11,color:"#555"}}>Expenses reduce your taxable income and increase your refund</div>
+      </div>
+      <div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}><button className="btn-sm" onClick={()=>setShowForm(!showForm)}>+ Log CIS Payment</button></div>
+      {showForm&&(<div className="card">
+        <div className="row2"><div><div className="fl">Date</div><input className="fi" type="date" value={form.date} onChange={e=>setForm({...form,date:e.target.value})}/></div><div><div className="fl">Contractor</div><input className="fi" placeholder="e.g. IDSL" value={form.contractor} onChange={e=>setForm({...form,contractor:e.target.value})}/></div></div>
+        <div className="row2"><div><div className="fl">Gross Payment (£)</div><input className="fi" placeholder="e.g. 2200" value={form.gross} onChange={e=>setForm({...form,gross:e.target.value})}/></div><div><div className="fl">Deduction Rate</div><select className="fi" value={form.rate} onChange={e=>setForm({...form,rate:e.target.value})} style={{cursor:"pointer"}}><option value="20">20% Standard</option><option value="30">30% Higher</option><option value="0">0% Gross</option></select></div></div>
+        <button className="btn-sm" onClick={add} style={{width:"100%",padding:"10px",fontSize:13}}>SAVE PAYMENT</button>
+      </div>)}
+      {payments.length>0&&(<div className="table-wrap"><table><thead><tr><th>Date</th><th>Contractor</th><th>Gross</th><th>Deducted</th><th>Net Paid</th></tr></thead>
+      <tbody>{payments.map(p=>(<tr key={p.id}><td>{p.date}</td><td>{p.contractor}</td><td>£{p.gross.toLocaleString()}</td><td style={{color:"#e05050"}}>£{p.deduction.toFixed(2)}</td><td style={{color:"#4caf50"}}>£{p.net.toFixed(2)}</td></tr>))}</tbody></table></div>)}
+      {payments.length===0&&<div className="hist-empty">No payments logged yet. Add your CIS payments above to see your refund prediction.</div>}
+      <div className="warn-box" style={{marginTop:16}}><strong>Estimate only:</strong> This is based on standard tax rates and your logged figures. Your actual refund depends on your full tax position. Use a construction accountant for your actual self assessment.</div>
+    </div>
+  );
+}
+
+// ── Morris Score ──────────────────────────────────────────────────────────────
+function MorrisScore({history, favourites, profile}) {
+  const toolsUsed = [...new Set(history.map(h=>h.tool))].length;
+  const profileComplete = profile.company&&profile.name&&profile.utr ? 3 : (profile.company||profile.name) ? 1 : 0;
+  const favCount = favourites.length;
+  const docCount = history.length;
+
+  const score = Math.min(100, Math.round(
+    (toolsUsed * 3) +
+    (profileComplete * 10) +
+    (favCount * 2) +
+    (Math.min(docCount, 20) * 1.5)
+  ));
+
+  const level = score >= 80 ? "Elite" : score >= 60 ? "Professional" : score >= 40 ? "Developing" : score >= 20 ? "Getting Started" : "Beginner";
+  const levelColor = score >= 80 ? "#e8a020" : score >= 60 ? "#4caf50" : score >= 40 ? "#2196f3" : score >= 20 ? "#9c27b0" : "#555";
+
+  const milestones = [
+    {label:"Complete your profile", done:profileComplete===3, points:30, action:"Go to My Profile"},
+    {label:"Generate your first document", done:docCount>=1, points:5, action:"Try Variation Letter"},
+    {label:"Use 5 different tools", done:toolsUsed>=5, points:15, action:"Explore the sidebar"},
+    {label:"Use 10 different tools", done:toolsUsed>=10, points:15, action:"Keep exploring"},
+    {label:"Save 10 documents", done:docCount>=10, points:15, action:"Generate more documents"},
+    {label:"Add 3 favourites", done:favCount>=3, points:6, action:"Star your top tools"},
+    {label:"Use 20 different tools", done:toolsUsed>=20, points:20, action:"Explore all sections"},
+  ];
+
+  return(
+    <div>
+      <div className="tool-header">
+        <div className="tool-title">Morris Score</div>
+        <InfoButton toolId="morrisscore"/>
+      </div>
+      <div className="tool-sub">Your commercial protection score — the higher the better</div>
+      <div style={{textAlign:"center",padding:"32px 20px",background:"#0d0d0d",border:"1px solid rgba(232,160,32,.1)",borderRadius:12,marginBottom:20}}>
+        <div style={{position:"relative",display:"inline-block",marginBottom:16}}>
+          <svg width="140" height="140" viewBox="0 0 140 140">
+            <circle cx="70" cy="70" r="60" fill="none" stroke="#1a1a1a" strokeWidth="12"/>
+            <circle cx="70" cy="70" r="60" fill="none" stroke={levelColor} strokeWidth="12" strokeDasharray={`${(score/100)*377} 377`} strokeLinecap="round" transform="rotate(-90 70 70)" style={{transition:"stroke-dasharray 1s ease"}}/>
+          </svg>
+          <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",textAlign:"center"}}>
+            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:42,color:levelColor,lineHeight:1}}>{score}</div>
+            <div style={{fontSize:10,color:"#555",letterSpacing:1}}>OUT OF 100</div>
+          </div>
+        </div>
+        <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:24,color:levelColor,letterSpacing:3}}>{level}</div>
+        <div style={{fontSize:12,color:"#555",marginTop:4}}>Morris Protection Level</div>
+      </div>
+      <div className="card">
+        <div style={{fontSize:11,color:"#e8a020",fontWeight:600,marginBottom:16,letterSpacing:1}}>HOW TO INCREASE YOUR SCORE</div>
+        {milestones.map((m,i)=>(<div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:"1px solid #141414"}}>
+          <div style={{width:24,height:24,borderRadius:"50%",background:m.done?"rgba(76,175,80,.15)":"rgba(232,160,32,.08)",border:`1px solid ${m.done?"rgba(76,175,80,.3)":"rgba(232,160,32,.15)"}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:12}}>{m.done?"✓":"○"}</div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:12,color:m.done?"#4caf50":"#aaa",textDecoration:m.done?"line-through":"none"}}>{m.label}</div>
+            {!m.done&&<div style={{fontSize:10,color:"#555"}}>{m.action}</div>}
+          </div>
+          <div style={{fontSize:11,color:m.done?"#4caf50":"#555",flexShrink:0}}>+{m.points}pts</div>
+        </div>))}
+      </div>
+      <div className="info-box"><strong>What your score means:</strong> A high Morris Score shows contractors and clients that you document everything professionally. Elite Morris users are the most commercially protected tradespeople in the UK.</div>
+    </div>
+  );
+}
+
 // ── Favourites Page ───────────────────────────────────────────────────────────
 function FavouritesPage({favourites, navigateTo}) {
   const favTools = favourites.map(id=>TOOLS.find(t=>t.id===id)).filter(Boolean);
@@ -2217,6 +2715,9 @@ function FavouritesPage({favourites, navigateTo}) {
 
 // ── App Shell ─────────────────────────────────────────────────────────────────
 export default function Morris() {
+  const [user, setUser] = useState(()=>{ try{return localStorage.getItem("morris_user")||null;}catch{return null;} });
+  const handleLogin = (username) => { try{localStorage.setItem("morris_user",username);}catch{} setUser(username); };
+  const handleLogout = () => { try{localStorage.removeItem("morris_user");}catch{} setUser(null); };
   const [active,setActive]=useState("variation");
   const [trade,setTrade]=useState(()=>{try{return localStorage.getItem("morris_trade")||"Duct Fitter";}catch{return "Duct Fitter";}});
   const [tempTrade,setTempTrade]=useState("Duct Fitter");
@@ -2294,6 +2795,9 @@ export default function Morris() {
     if(active==="tenderletter") return <TenderLetter {...p}/>;
     if(active==="defectstracker") return <DefectsTracker/>;
     if(active==="about") return <AboutMorris/>;
+    if(active==="verbvariation") return <VerbalVariation {...p}/>;
+    if(active==="phototodoc") return <PhotoToDoc {...p}/>;
+    if(active==="cispredict") return <CISPredict favourites={favourites} toggleFav={toggleFav}/>;
     if(active==="scopeworks") return <ScopeOfWorks {...p}/>;
     if(active==="pwvartrack") return <PWVarTracker {...p}/>;
     if(active==="standingtime") return <StandingTimeCalc {...p}/>;
@@ -2306,6 +2810,8 @@ export default function Morris() {
     return null;
   };
 
+  if(!user) return <><style>{css}</style><LoginScreen onLogin={handleLogin}/></>;
+
   return(
     <>
       <style>{css}</style>
@@ -2314,7 +2820,9 @@ export default function Morris() {
           <div className="logo">MORRIS<span>.</span></div>
           <div className="header-right">
             {history.length>0&&<span className="tag">{history.length} saved</span>}
+            <span style={{fontSize:11,color:"#e8a020",letterSpacing:1}}>👤 {user}</span>
             <button className="trade-pill" onClick={()=>{setTempTrade(trade);setShowTradeModal(true);}}>⚙ {trade}</button>
+            <button onClick={handleLogout} style={{background:"none",border:"1px solid #222",borderRadius:4,color:"#555",fontSize:10,padding:"4px 8px",cursor:"pointer",letterSpacing:1}}>LOG OUT</button>
           </div>
         </div>
         <div className="layout">
