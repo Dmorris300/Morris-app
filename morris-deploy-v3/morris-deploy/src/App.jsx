@@ -360,8 +360,7 @@ async function callMorris(prompt) {
   const d = await res.json();
   if(!res.ok) throw new Error(d.error||"API error");
   return d.text || "No output.";
-}  const d = await res.json();
-  return d.content?.map(b=>b.text||"").join("") || "No output.";
+  
 }
 
 // ── Output Actions Bar ────────────────────────────────────────────────────────
