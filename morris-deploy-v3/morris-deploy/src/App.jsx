@@ -449,7 +449,7 @@ function LoginScreen({onLogin}) {
 }
 
 
-  const [copied,setCopied]=useState(false);
+   function OutputActions({title, output, profile, logo, onSave}) {  function OutputActions({title, output, profile, logo, onSave}) { const [copied,setCopied]=useState(false);
   const [saved,setSaved]=useState(false);
   const copy=()=>{navigator.clipboard.writeText(output);setCopied(true);setTimeout(()=>setCopied(false),2000);};
   const save=()=>{onSave(title,output);setSaved(true);setTimeout(()=>setSaved(false),2000);};
@@ -512,7 +512,7 @@ function VerbalRecorder({ trade, profile, logo, onSave }) {
   const [status,setStatus]=useState("Press the button to start recording a verbal instruction");
   const recognitionRef=useRef(null);
   const [saved,setSaved]=useState(false);
-  const [copied,setCopied]=useState(false);
+   function OutputActions({title, output, profile, logo, onSave}) {  function OutputActions({title, output, profile, logo, onSave}) { const [copied,setCopied]=useState(false);
 
   const startRecording=()=>{
     if(!("webkitSpeechRecognition" in window||"SpeechRecognition" in window)){
