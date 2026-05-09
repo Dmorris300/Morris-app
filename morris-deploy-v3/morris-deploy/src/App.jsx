@@ -477,7 +477,6 @@ function LoginScreen({onLogin}) {
     </div>
   );
 }
-
 // ── Shared Doc Tool ───────────────────────────────────────────────────────────
 function DocTool({ toolId, trade, profile, logo, onSave, favourites, toggleFav }) {
   const cfg = toolConfigs[toolId];
