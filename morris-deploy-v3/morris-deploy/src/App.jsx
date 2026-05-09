@@ -2710,7 +2710,7 @@ function FavouritesPage({favourites, navigateTo}) {
     </div>
   );
 }
-
+ }                                                                   
 // ── App Shell ─────────────────────────────────────────────────────────────────
 export default function Morris() {
   const [user, setUser] = useState(()=>{ try{return localStorage.getItem("morris_user")||null;}catch{return null;} });
