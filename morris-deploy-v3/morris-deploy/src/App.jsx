@@ -2524,7 +2524,7 @@ function PayPredict({trade, favourites, toggleFav}) {
   };
 
   const scoreColor = score ? (score>=7?"#4caf50":score>=4?"#e8a020":"#e05050") : "#888";
-  const scoreLabel = score ? (score>=7?"Good Payer":score>=4?"Proceed with Caution""Proceed with Caution":"High Risk — protect yourself") : "";
+  const scoreLabel = score ? (score>=7?"Good Payer":score>=4?"Proceed withCaution":"High Risk — protect yourself") : "";
 
   return(
     <div>
