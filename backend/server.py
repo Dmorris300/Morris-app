@@ -184,9 +184,9 @@ async def forgot_password(req: ForgotPasswordReq):
         "token": reset_token,
         "userId": user["id"],
         "email": email_lower,
-        "expiresAt": expires_at.isoformat(),
+        "expiresAt": expires_at,  # stored as BSON Date so TTL index can purge
         "used": False,
-        "createdAt": datetime.now(timezone.utc).isoformat(),
+        "createdAt": datetime.now(timezone.utc),
     })
     return {
         "ok": True,
@@ -204,7 +204,11 @@ async def reset_password(req: ResetPasswordReq):
         raise HTTPException(400, "Invalid reset token")
     if record.get("used"):
         raise HTTPException(400, "This reset link has already been used")
-    expires_at = datetime.fromisoformat(record["expiresAt"])
+    expires_at = record["expiresAt"]
+    if isinstance(expires_at, str):
+        expires_at = datetime.fromisoformat(expires_at)
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
     if datetime.now(timezone.utc) > expires_at:
         raise HTTPException(400, "Reset link has expired")
     # Update password, invalidate existing session token, mark reset token used
@@ -214,7 +218,7 @@ async def reset_password(req: ResetPasswordReq):
     )
     await db.password_reset_tokens.update_one(
         {"token": req.token},
-        {"$set": {"used": True, "usedAt": datetime.now(timezone.utc).isoformat()}},
+        {"$set": {"used": True, "usedAt": datetime.now(timezone.utc)}},
     )
     return {"ok": True, "message": "Password updated. Please log in."}
 
@@ -352,7 +356,8 @@ async def on_startup():
         await db.users.create_index("username", unique=True)
         await db.users.create_index("email", unique=True, sparse=True)
         await db.password_reset_tokens.create_index("token", unique=True)
-        await db.password_reset_tokens.create_index("expiresAt")
+        # TTL index — MongoDB auto-purges reset tokens at expiresAt
+        await db.password_reset_tokens.create_index("expiresAt", expireAfterSeconds=0)
     except Exception as e:
         logger.warning(f"Index creation: {e}")
 
