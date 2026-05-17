@@ -1,0 +1,42 @@
+{
+  "summary": "First full E2E test run of Morris construction admin SaaS. Backend: 13/13 pytest tests passed (health, signup/verify/login, profile persistence, Claude generation, documents CRUD, CIS payments CRUD, auth-required endpoints). Frontend: critical flows verified on the live preview URL — landing renders with hero + ICO + pricing; signup→OTP demo→verify→select-trade→dashboard works; login as sparky01 succeeds; sidebar search + accordion + tool navigation work; Variation Letter Claude generation produced a real UK-compliant document referencing HGCRA 1996; CIS Predictor logs payments and reflects on dashboard (£200); Mileage 50 miles → £22.50; VAT £45k → 50% progress bar; Verbal-to-Variation typed fallback generated 2619 chars; Photo-to-Document page renders; Profile UTR persists across reload; History/Favourites pages render; Mobile drawer exists via data-testid='mobile-menu-open'. No critical bugs found.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/generate", "issue": "logger is defined AFTER the route uses it (server.py line 208 references logger declared on line 288). Works only because logger isn't called unless an exception occurs and Python resolves names at call time — but a startup-time logger.exception in a different route would NameError. Move logging.basicConfig + logger = logging.getLogger(__name__) to top of file."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "(Low) Move logger initialisation to the top of /app/backend/server.py (currently defined at line 288, used at line 208).",
+    "(Low / cosmetic) Variation Letter generic tool result container does not expose a data-testid (e.g. result-content). The Verbal-to-Variation page does expose data-testid='generated-content'. Consider adding a consistent data-testid='generated-content' to the result panel in GenericToolPage.jsx for testability and for the 6 action buttons (action-save / action-copy / action-pdf / action-email / action-whatsapp-text / action-whatsapp-pdf) — they are functionally present but lack stable testids."
+  ],
+  "critical_code_review_comments": [
+    "server.py: logger is referenced at line 208 but defined at line 288. Move the logging.basicConfig + getLogger to immediately after imports.",
+    "server.py is a single 293-line module — fine for current scope but if more routes are added consider splitting into routers (auth, profile, generate, documents, cis).",
+    "Auth uses opaque tokens stored on the user document (not JWTs). This is fine for an MVP but means tokens are single-session (re-login invalidates previous token because update_one overwrites 'token'). Document this behaviour or move to JWT for multi-device support.",
+    "/api/generate always creates a NEW LlmChat instance with a fresh session_id per call — so multi-turn context is intentionally disabled. That matches the use-case (one-shot document generation), but worth a comment in the code.",
+    "Frontend: Star/favourite button in ToolHeader is labelled 'Starred' when active — verified visually in screenshot. Working as expected.",
+    "Mobile drawer correctly implemented at AppShell.jsx:94-109 with data-testid='mobile-menu-open' and data-testid='sidebar-mobile'.",
+    "VatThreshold.jsx shows progress as a width-styled bar but no numeric percentage label — consider adding a '50%' label next to 'Progress to threshold' for clarity (UX, not a bug)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/__init__.py (new, empty)",
+    "/app/backend/tests/backend_test.py (new — 13 pytest tests covering all backend routes)"
+  ],
+  "success_rate": {"backend": "100% (13/13)", "frontend": "100% on flows tested (landing, signup, OTP, login, sidebar nav, generic tool + Claude gen, CIS, Mileage, VAT, Verbal-to-Variation typed-fallback, Photo-to-Document render, Profile persistence, History, Favourites, Mobile drawer)"},
+  "test_credentials": "Existing verified user: username=sparky01 password=test1234. New signup test creates random e2e_<ts>_<rnd> users which remain in DB (cleanup not required per request).",
+  "seed_data_creation": "No new seed data beyond random test users created during signup flow tests. Test documents and CIS payments are created and deleted within the same test run.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend test suite at /app/backend/tests/backend_test.py — run with `pytest backend/tests/backend_test.py -v --junitxml=/app/test_reports/pytest/pytest_results.xml`. Uses REACT_APP_BACKEND_URL env. Existing test user sparky01/test1234 is verified and has trade=Electrician. /api/generate test takes ~10s (real Claude call). For frontend, key testids found in code: signup-username, signup-password, signup-phone, signup-submit, demo-otp-hint, otp-input, verify-otp-submit, trade-select (native select), trade-fullname, trade-company, trade-save, login-username, login-password, login-submit, sidebar-search, section-{id}, tool-{toolId}, generate-btn, tool-info-btn, mileage-miles, mileage-add, vat-turnover, vat-progress-bar, cis-date/contractor/gross/deduction/net, cis-add, transcript-textarea, mic-btn, generate-variation-btn, generated-content, mobile-menu-open, sidebar-mobile, sidebar-desktop, sidebar-close-mobile. Star button testid was not located via [data-testid='tool-star-btn'] — uses different attribute. Mileage requires clicking mileage-add to log entry (input alone doesn't update claimable). VAT shows progress as bar width only (no % text label).",
+  "rca_of_the_issue": "No bugs to RCA — application is in healthy state. Only one minor code-quality issue (logger init order in server.py) that is latent and does not currently cause failures."
+}
