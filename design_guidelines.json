@@ -1,0 +1,133 @@
+{
+  "project_info": {
+    "name": "Morris",
+    "tagline": "Built by a tradesman. For tradesmen.",
+    "slogan": "Built on the Tools.",
+    "founder": "Darren Morris",
+    "company": "Morris Construction Tech Ltd",
+    "ico_registration": "C1923529",
+    "domain": "Construction Administration SaaS"
+  },
+  "theme": {
+    "mode": "dark",
+    "archetype": "Archetype 4 (Swiss & High-Contrast) + Archetype 5 (Jewel & Luxury)",
+    "aesthetic": "Dark industrial premium (Linear meets a workshop manual)"
+  },
+  "colors": {
+    "background": {
+      "default": "#060606",
+      "surface": "#121212",
+      "surface_elevated": "#1A1A1A",
+      "overlay": "rgba(6, 6, 6, 0.8)"
+    },
+    "brand": {
+      "gold": "#E8A020",
+      "gold_gradient": "linear-gradient(135deg, #F3C465 0%, #E8A020 100%)",
+      "gold_low_opacity": "rgba(232, 160, 32, 0.15)"
+    },
+    "text": {
+      "primary": "#F0EDE8",
+      "secondary": "#A19D94",
+      "muted": "#706D66"
+    },
+    "semantic": {
+      "success": "#2E7D32",
+      "warning": "#E8A020",
+      "error": "#D32F2F",
+      "info": "#0288D1"
+    }
+  },
+  "typography": {
+    "fonts": {
+      "heading": "Bebas Neue",
+      "body": "DM Sans"
+    },
+    "scales": {
+      "h1": "text-5xl md:text-6xl tracking-tight leading-none uppercase",
+      "h2": "text-4xl md:text-5xl tracking-tight uppercase",
+      "h3": "text-2xl md:text-3xl tracking-tight uppercase",
+      "h4": "text-lg md:text-xl font-bold",
+      "body": "text-base leading-relaxed",
+      "small": "text-sm text-secondary",
+      "label": "text-xs uppercase tracking-widest font-bold"
+    }
+  },
+  "ui_elements": {
+    "cards": {
+      "background": "bg-[#121212]",
+      "border": "border border-[#E8A020]/15",
+      "radius": "rounded-lg",
+      "shadow": "shadow-lg shadow-black/50"
+    },
+    "buttons": {
+      "primary": {
+        "background": "bg-gradient-to-r from-[#F3C465] to-[#E8A020]",
+        "text": "text-[#060606] font-bold font-['DM_Sans']",
+        "radius": "rounded-md",
+        "hover": "hover:opacity-90 transition-opacity"
+      },
+      "secondary": {
+        "background": "bg-[#1A1A1A]",
+        "border": "border border-[#F0EDE8]/20",
+        "text": "text-[#F0EDE8]",
+        "hover": "hover:bg-[#F0EDE8]/10"
+      }
+    },
+    "inputs": {
+      "background": "bg-[#060606]",
+      "border": "border border-[#F0EDE8]/20",
+      "focus": "focus:border-[#E8A020] focus:ring-1 focus:ring-[#E8A020]",
+      "text": "text-[#F0EDE8]"
+    },
+    "loaders": {
+      "style": "gold spinner (border-t-[#E8A020])"
+    }
+  },
+  "layout": {
+    "spacing": "Generous spacing, use p-6 or p-8 for containers.",
+    "sidebar": "Collapsible accordion style navigation. Search at top, Recently Used, 7 accordion sections.",
+    "mobile": "Mobile-first approach. Generous tap targets, thumb-zone primary actions. Fully responsive for on-site usage.",
+    "grid": "Bento style for dashboard metrics. Pure dark surface cards with low-opacity gold borders."
+  },
+  "media": {
+    "image_urls": {
+      "hero_background": {
+        "url": "https://static.prod-images.emergentagent.com/jobs/64edf71d-3747-4105-a860-131b2bbabbfc/images/6520f329423ee4325e55202f82398164ec577f7cf4314c84a9b8b8e449e90525.png",
+        "description": "Industrial dark texture with gold light bleed, perfect for landing page hero or auth screen background."
+      },
+      "brand_logo": {
+        "url": "https://static.prod-images.emergentagent.com/jobs/64edf71d-3747-4105-a860-131b2bbabbfc/images/95940ffdc622421e7c5a5ea21fa6706c9f6031a4f1499bfb01c19f4ef7e9c95a.png",
+        "description": "Morris gold M logo for the navbar and auth screens."
+      },
+      "site_photography_1": {
+        "url": "https://images.unsplash.com/photo-1518280651110-3e80e7c84a84",
+        "description": "UK construction site high-rise, gritty dark photography. Good for marketing sections."
+      },
+      "site_photography_2": {
+        "url": "https://images.unsplash.com/photo-1646324554833-f0b6a479fa5d",
+        "description": "Tradesman working on a wooden structure. Good for the 'Built by a tradesman' founder story section."
+      }
+    }
+  },
+  "components": {
+    "icons": {
+      "library": "@phosphor-icons/react",
+      "style": "duotone or regular, gold or off-white depending on context"
+    },
+    "shadcn": {
+      "instructions": "Use Shadcn UI components but heavily override styles to match the dark industrial theme. Remove standard Vercel borders, apply #060606 backgrounds and #E8A020/15 borders."
+    }
+  },
+  "instructions_to_main_agent": [
+    "Create a fully responsive application with React, Tailwind CSS, and Shadcn UI.",
+    "Start by setting up the Tailwind config with the specified colors and fonts (Bebas Neue and DM Sans).",
+    "Implement the Marketing Landing Page with a manifesto feel, utilizing the dark industrial textures and site photography.",
+    "Implement the Auth flow (Signup, OTP, Login) featuring the gold M logo on a #060606 background.",
+    "Build the Main App Shell with a collapsible dark sidebar containing accordions for Documents, Finance, Site Tools, Price Work, Sole Trader, Contractors, Account.",
+    "Create the Trade Selection screen (32 UK trades) using a custom dropdown after login.",
+    "Design the Generic Tool Page with form fields on the left and a generated document output on the right, including Save, Copy, Download PDF, Email, WhatsApp buttons.",
+    "Build custom UI for the three 'wow' features: Verbal to Variation (mic recorder), Photo to Document (camera capture), and CIS Refund Predictor (dashboard with running total).",
+    "Ensure all interactive elements have 'data-testid' attributes for testing.",
+    "Keep styling consistently gritty, premium, and industrial—no standard SaaS gradients or soft shadows. Use the gold accent sparingly for maximum impact."
+  ]
+}
