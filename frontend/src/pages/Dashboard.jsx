@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import api from "../lib/api";
-import { TOOLS, WOW_TOOLS } from "../lib/tools-config";
+import { TOOLS, WOW_TOOLS, emojiFor } from "../lib/tools-config";
 import { Star, FileText, Mic, Camera, Calculator, ArrowRight, TrendingUp, Clock } from "lucide-react";
 
 export default function Dashboard() {
@@ -51,7 +51,7 @@ export default function Dashboard() {
           <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
             {recent.map(t => (
               <Link key={"r-" + t.id} to={t.route || `/app/tool/${t.id}`} className="card-dark p-4 hover:border-[#E8A020]/40 transition" data-testid={`dash-recent-${t.id}`}>
-                <div className="text-sm font-semibold">{t.name}</div>
+                <div className="text-sm font-semibold flex items-center gap-2"><span className="text-lg">{emojiFor(t.id)}</span> {t.name}</div>
                 <div className="text-xs text-[#706D66] mt-1 capitalize">{t.section}</div>
               </Link>
             ))}
@@ -67,7 +67,7 @@ export default function Dashboard() {
           <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
             {favs.map(t => (
               <Link key={"f-" + t.id} to={t.route || `/app/tool/${t.id}`} className="card-dark p-4 hover:border-[#E8A020]/40 transition" data-testid={`dash-fav-${t.id}`}>
-                <div className="text-sm font-semibold">{t.name}</div>
+                <div className="text-sm font-semibold flex items-center gap-2"><span className="text-lg">{emojiFor(t.id)}</span> {t.name}</div>
                 <div className="text-xs text-[#706D66] mt-1 capitalize">{t.section}</div>
               </Link>
             ))}

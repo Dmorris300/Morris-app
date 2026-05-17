@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { Outlet, Link, useNavigate, useLocation } from "react-router-dom";
 import { MorrisLogo, MorrisWordmark } from "./MorrisLogo";
-import { TOOLS, WOW_TOOLS, SECTIONS, getToolsBySection } from "../lib/tools-config";
+import { TOOLS, WOW_TOOLS, SECTIONS, getToolsBySection, emojiFor } from "../lib/tools-config";
 import { useAuth } from "../lib/auth";
 import { Search, ChevronDown, ChevronRight, Star, Clock, LogOut, Menu, X, User, FileText, History as HistoryIcon, Settings as SettingsIcon } from "lucide-react";
 
@@ -141,10 +141,11 @@ function ToolLink({ tool }) {
   return (
     <Link
       to={route}
-      className={`block px-3 py-2 rounded-md text-sm truncate ${active ? "bg-[#E8A020]/10 text-[#E8A020] border-l-2 border-[#E8A020]" : "text-[#A19D94] hover:bg-[#121212] hover:text-[#F0EDE8] border-l-2 border-transparent"}`}
+      className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm truncate ${active ? "bg-[#E8A020]/10 text-[#E8A020] border-l-2 border-[#E8A020]" : "text-[#A19D94] hover:bg-[#121212] hover:text-[#F0EDE8] border-l-2 border-transparent"}`}
       data-testid={`tool-link-${tool.id}`}
     >
-      {tool.name}
+      <span className="text-base leading-none flex-shrink-0">{emojiFor(tool.id)}</span>
+      <span className="truncate">{tool.name}</span>
     </Link>
   );
 }

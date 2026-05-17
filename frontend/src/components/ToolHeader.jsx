@@ -4,6 +4,7 @@ import { useAuth } from "../lib/auth";
 import api from "../lib/api";
 import { toast } from "sonner";
 import { downloadPdf, pdfBlobUrl, generatePdf } from "../lib/pdf";
+import { emojiFor } from "../lib/tools-config";
 
 export default function ToolHeader({ tool, infoOpen, setInfoOpen }) {
   const { user, refresh } = useAuth();
@@ -24,7 +25,10 @@ export default function ToolHeader({ tool, infoOpen, setInfoOpen }) {
       <div className="flex items-start justify-between gap-4 mb-3 flex-wrap">
         <div>
           <div className="text-[#E8A020] text-xs uppercase tracking-widest mb-2">{tool.section}</div>
-          <h1 className="font-display text-4xl md:text-5xl tracking-tight">{tool.name}</h1>
+          <h1 className="font-display text-4xl md:text-5xl tracking-tight flex items-center gap-3">
+            <span className="text-3xl md:text-4xl">{emojiFor(tool.id)}</span>
+            <span>{tool.name}</span>
+          </h1>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => setInfoOpen(!infoOpen)} className="btn-secondary flex items-center gap-2" data-testid="tool-info-btn">

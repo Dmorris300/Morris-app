@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "../lib/auth";
-import { TOOLS, WOW_TOOLS } from "../lib/tools-config";
+import { TOOLS, WOW_TOOLS, emojiFor } from "../lib/tools-config";
 import { Star } from "lucide-react";
 
 export default function Favourites() {
@@ -21,7 +21,7 @@ export default function Favourites() {
           {favs.map(t => (
             <Link key={t.id} to={t.route || `/app/tool/${t.id}`} className="card-dark p-4 hover:border-[#E8A020]/40 transition" data-testid={`fav-${t.id}`}>
               <div className="flex items-center justify-between">
-                <div className="font-semibold">{t.name}</div>
+                <div className="font-semibold flex items-center gap-2"><span className="text-lg">{emojiFor(t.id)}</span> {t.name}</div>
                 <Star size={14} className="text-[#E8A020]" fill="#E8A020" />
               </div>
               <div className="text-xs text-[#706D66] mt-1 capitalize">{t.section}</div>

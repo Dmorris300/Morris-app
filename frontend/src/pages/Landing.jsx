@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { MorrisLogo, MorrisWordmark } from "../components/MorrisLogo";
 import { ArrowRight, Mic, Camera, Calculator, ShieldCheck, FileText, HardHat, PoundSterling, CheckCircle2 } from "lucide-react";
-import { TOOLS, SECTIONS } from "../lib/tools-config";
+import { TOOLS, SECTIONS, emojiFor } from "../lib/tools-config";
 
 const HERO_BG = "https://static.prod-images.emergentagent.com/jobs/64edf71d-3747-4105-a860-131b2bbabbfc/images/6520f329423ee4325e55202f82398164ec577f7cf4314c84a9b8b8e449e90525.png";
 const SITE_PHOTO = "https://images.unsplash.com/photo-1518280651110-3e80e7c84a84?auto=format&fit=crop&w=1600&q=70";
@@ -102,7 +102,7 @@ export default function Landing() {
                     <h3 className="font-display text-2xl tracking-wide">{s.label}</h3>
                   </div>
                   <ul className="space-y-2 text-sm text-[#A19D94]">
-                    {list.map(t => <li key={t.id} className="flex items-start gap-2"><span className="w-1 h-1 mt-2 bg-[#E8A020] rounded-full" /> {t.name}</li>)}
+                    {list.map(t => <li key={t.id} className="flex items-start gap-2"><span className="text-sm leading-tight">{emojiFor(t.id)}</span> {t.name}</li>)}
                     {TOOLS.filter(t => t.section === s.id).length > 8 && (
                       <li className="text-[#706D66] italic pt-1">+ {TOOLS.filter(t => t.section === s.id).length - 8} more</li>
                     )}

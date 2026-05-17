@@ -241,6 +241,44 @@ export function getToolById(id) {
   return TOOLS.find(t => t.id === id) || WOW_TOOLS.find(t => t.id === id);
 }
 
+// Emoji per tool — single source of truth so every render site is consistent
+export const TOOL_EMOJI = {
+  // Documents
+  "variation-letter": "✉️", "rams": "🛡️", "site-diary": "📔", "quote-builder": "💷",
+  "cis-invoice": "🧾", "delay-notice": "⏰", "handover-certificate": "🤝", "subcontract-letter": "📑",
+  "complaint-letter": "⚠️", "timesheet": "⏱️", "daywork-sheet": "📋", "application-for-payment": "💰",
+  "retention-chaser": "🔒", "final-account": "📊", "contra-charge-dispute": "⚔️", "eot-claim": "📅",
+  "lds-dispute": "🛑", "progress-report": "📈", "novation-letter": "🔄", "bad-debt-letter": "🚨",
+  // Finance
+  "payment-chaser": "📮", "cis-calculator": "🧮", "self-assessment-prep": "📒", "price-work-quote": "💵",
+  "earnings-dashboard": "📊", "mileage-tracker": "🚐", "vat-threshold": "📏", "cis-refund-predictor": "💸",
+  // Site tools
+  "photo-evidence-log": "📷", "verbal-instruction-recorder": "🎙️", "contract-review": "🔍",
+  "dispute-timeline": "🗓️", "incident-report": "🚑", "reminders": "🔔", "toolbox-talk": "🛠️",
+  "asbestos-record": "☣️", "snagging-list": "✅", "site-access-permit": "🪪", "measurement-record": "📐",
+  "weather-log": "☁️", "prestart-meeting": "🗒️", "meeting-notes": "📝", "delivery-record": "📦",
+  "tool-register": "🧰", "procurement-schedule": "🛒", "risk-register": "⚠️", "variation-instruction-log": "🗂️",
+  "coshh": "🧪", "noise-assessment": "🔊", "manual-handling": "💪", "working-at-height-rescue": "🪜",
+  // Price work
+  "scope-of-works": "📜", "pricework-variation-tracker": "📊", "standing-time-calculator": "⏳", "pricework-profit": "💹",
+  // Sole trader
+  "hmrc-correspondence": "🏛️", "reference-letter": "⭐", "rate-increase-letter": "📈", "apprentice-manager": "🎓",
+  // Contractors
+  "subbie-mgmt": "👷", "variation-tracker": "📊", "rams-library": "📚", "contract-mgmt": "📂",
+  "multiuser-site-diary": "👥", "payment-tracker": "💳", "incident-log": "🚨", "labour-allocation": "🗺️",
+  "purchase-order": "🛒", "subbie-payment-cert": "🧾", "hs-policy": "🦺", "subbie-compliance": "✔️",
+  "commercial-report": "📊", "defects-tracker": "🔧", "new-starter-pack": "🆕", "hire-agreement": "🏗️",
+  "tender-letter": "📨",
+  // Wow
+  "verbal-to-variation": "🎙️", "photo-to-document": "📸",
+  // Account
+  "favourites": "⭐", "history": "🗃️", "profile": "👤", "offline-mode": "📴",
+};
+
+export function emojiFor(id) {
+  return TOOL_EMOJI[id] || "🔧";
+}
+
 export function getToolsBySection(sectionId) {
   if (sectionId === "account") {
     return [
