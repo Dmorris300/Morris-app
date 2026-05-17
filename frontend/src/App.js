@@ -7,6 +7,8 @@ import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import VerifyOtp from "./pages/VerifyOtp";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import SelectTrade from "./pages/SelectTrade";
 import AppShell from "./components/AppShell";
 import Dashboard from "./pages/Dashboard";
@@ -48,6 +50,8 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/verify-otp" element={<VerifyOtp />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/select-trade" element={<Protected><SelectTrade /></Protected>} />
 
           <Route path="/app" element={<TradeGate><AppShell /></TradeGate>}>

@@ -9,6 +9,7 @@ export default function Profile() {
   const [f, setF] = useState({
     fullName: user?.fullName || "",
     companyName: user?.companyName || "",
+    email: user?.email || "",
     address: user?.address || "",
     utr: user?.utr || "",
     vatNumber: user?.vatNumber || "",
@@ -39,6 +40,7 @@ export default function Profile() {
           </select>
         </Row>
         <Row label="Full name"><input className="input-base" value={f.fullName} onChange={(e) => setF({ ...f, fullName: e.target.value })} data-testid="profile-name" /></Row>
+        <Row label="Email"><input type="email" className="input-base" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} placeholder="you@email.com" data-testid="profile-email" /></Row>
         <Row label="Company name"><input className="input-base" value={f.companyName} onChange={(e) => setF({ ...f, companyName: e.target.value })} data-testid="profile-company" /></Row>
         <Row label="Address"><textarea rows={3} className="input-base" value={f.address} onChange={(e) => setF({ ...f, address: e.target.value })} data-testid="profile-address" /></Row>
         <Row label="UTR"><input className="input-base" value={f.utr} onChange={(e) => setF({ ...f, utr: e.target.value })} data-testid="profile-utr" /></Row>

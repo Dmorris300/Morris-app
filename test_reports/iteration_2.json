@@ -1,0 +1,48 @@
+{
+  "summary": "Iteration 2 testing of Morris — email field on signup/profile + password reset flow. Backend: 26/26 pytest tests pass (13 new email/reset tests + 13 regression tests, including signup_verify_login updated to send email). Frontend: full E2E verified — signup with 4 fields (username/email/password/phone) -> OTP demo -> verify -> select-trade -> /app; Forgot password link on /login; /forgot-password returns demo reset link panel; clicking anchor navigates to /reset-password?token=... with token-input HIDDEN (auto-populated from URL); password mismatch + <6char errors both shown via toast; reset succeeds -> /login; login with NEW password succeeds; /reset-password without ?token shows manual token input; Profile email field shows email, save persists across reload. No critical bugs found in the iteration 2 changes.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/auth/signup", "issue": "Successful signup returns OTP in `body.otp` plain text — by design (DEMO MODE) per /app/memory/test_credentials.md. Production must remove this and integrate Twilio."},
+      {"endpoint": "/api/auth/forgot-password", "issue": "DEMO MODE returns reset token+link in API response (intentional). Production must replace with email send (Resend) and stop returning token."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/reset-password", "issues": ["Update password button has gold gradient that looks slightly washed-out / muted when token is empty (disabled state). Cosmetic, not a bug."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/backend/tests/test_email_password_reset.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "(Documentation) Update /app/memory/test_credentials.md context for next agent: VerifyOtp page testid is 'otp-submit' (not 'verify-otp-submit'); SelectTrade page testid is 'trade-submit' (not 'trade-save'). The iteration-1 context note had the wrong names.",
+    "(Low) Consider adding inline form-validation hints on /reset-password (e.g., 'minimum 6 characters' helper text under New password) — currently only surfaced via toast on submit."
+  ],
+  "critical_code_review_comments": [
+    "server.py /api/auth/forgot-password: existing-email path returns demoResetToken; non-existing path does NOT — this is the desired privacy-vs-demo split per the spec. Documented and verified by test_forgot_password_nonexistent_email_no_token_leak.",
+    "server.py /api/auth/reset-password: correctly $unset's user.token on successful reset, invalidating the existing session. Verified by test_reset_password_full_flow_and_session_invalidation.",
+    "server.py password_reset_tokens collection: token TTL stored as ISO string in `expiresAt`. MongoDB index created on expiresAt at startup — but it is NOT a TTL index (no expireAfterSeconds). Old used/expired records will accumulate forever. Suggest: create_index('expiresAt', expireAfterSeconds=0) with expiresAt as BSON Date (not ISO string) for automatic cleanup, OR run a periodic purge.",
+    "server.py: email uniqueness is enforced both at app-level (await db.users.find_one({email})) and DB-level (unique sparse index on email). Good belt-and-braces.",
+    "server.py SignupReq uses pydantic EmailStr — validates format; tested both 422 on missing + 422 on bad format.",
+    "Profile.jsx: email field is type='email' but does NOT have client-side required attr — relies on server EmailStr. Acceptable since blanks can be intentional for users who haven't set it.",
+    "ResetPassword.jsx: when initialToken present, the hidden state still passes token to disabled-check (button disabled when !token). Correct UX.",
+    "ForgotPassword.jsx: demoResetLink rendered as a relative <Link to={...}> which works because react-router parses /reset-password?token=… into pathname+search. Verified working end-to-end."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test.py (updated signup tests to include email field — was failing without it as iteration-1 test was pre-email)",
+    "/app/backend/tests/test_email_password_reset.py (new — 13 tests covering signup-with-email validation, forgot-password demo/privacy behaviour, reset-password full flow + single-use + invalid-token + min-length + session invalidation, profile email update persistence)"
+  ],
+  "success_rate": {"backend": "100% (26/26)", "frontend": "100% on all iteration-2 flows tested (signup-with-email -> OTP -> verify, forgot-password link visible on login, forgot submit -> demo link panel, anchor -> /reset-password?token, hidden token input, mismatch toast, short-password toast, reset success -> /login, login with new password -> /app, manual token input visible without ?token, profile email prefilled + saved + persisted across reload)"},
+  "test_credentials": "Existing verified user with email + new password (post-reset): username=e2e2_1779059445, email=updated_1779059534@morrisapp.co.uk, password=newpass456. Pre-iteration user sparky01/test1234 still works (no email set). For new tests, use the helper _signup_and_verify in test_email_password_reset.py which creates a fresh verified user with email.",
+  "seed_data_creation": "No deliberate seed data created. Random e2e_<ts> and reset_<hex>, prof_<hex>, fp_<hex>, rp_<hex>, dupe1_<hex>, dupe2_<hex>, emailcase_<hex>, bademail_<hex>, noemail_<hex> users were created during pytest + playwright runs and remain in DB. Each pytest run creates ~12 new users — cleanup not required per build behaviour established in iteration 1.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All iteration-2 changes verified. Backend test file split: /app/backend/tests/backend_test.py = regression suite (health, signup-with-email, profile-baseline, generate, documents, cis, auth-required); /app/backend/tests/test_email_password_reset.py = iteration-2 suite (signup email validation, forgot, reset, profile-email). Run both: `pytest backend/tests/ -v --junitxml=/app/test_reports/pytest/pytest_results.xml`. Total ~30s including Claude /generate call. IMPORTANT testid corrections vs iteration-1 notes: VerifyOtp submit = 'otp-submit' (NOT 'verify-otp-submit'). SelectTrade submit = 'trade-submit' (NOT 'trade-save'). Profile email field = 'profile-email'. ForgotPassword anchor = 'demo-reset-link-anchor' (inside 'demo-reset-link' container). ResetPassword token input is conditionally rendered — only present when ?token is not in URL; key is 'reset-token'. password/confirm = 'reset-new-password' / 'reset-confirm-password'. Submit = 'reset-submit'. Login 'Forgot password?' link = 'link-forgot-password'.",
+  "mocked_apis_verified": ["SMS/OTP delivery — DEMO MODE confirmed (OTP returned in /api/auth/signup body)", "Email/password-reset delivery — DEMO MODE confirmed (demoResetToken + demoResetLink returned only for existing users in /api/auth/forgot-password body)"],
+  "rca_of_the_issue": "No bugs found; all changes work as specified."
+}

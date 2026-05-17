@@ -31,6 +31,9 @@ export default function Login() {
       <form onSubmit={onSubmit} className="space-y-4" data-testid="login-form">
         <Field label="Username" value={form.username} onChange={(v) => setForm({ ...form, username: v })} testId="login-username" />
         <Field label="Password" type="password" value={form.password} onChange={(v) => setForm({ ...form, password: v })} testId="login-password" />
+        <div className="flex justify-end -mt-1">
+          <Link to="/forgot-password" className="text-xs text-[#A19D94] hover:text-[#E8A020]" data-testid="link-forgot-password">Forgot password?</Link>
+        </div>
         <button type="submit" className="btn-primary w-full" disabled={loading} data-testid="login-submit">
           {loading ? "Logging in…" : "Log in"}
         </button>

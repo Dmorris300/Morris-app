@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 export default function Signup() {
   const nav = useNavigate();
-  const [form, setForm] = useState({ username: "", password: "", phone: "" });
+  const [form, setForm] = useState({ username: "", email: "", password: "", phone: "" });
   const [loading, setLoading] = useState(false);
 
   const onSubmit = async (e) => {
@@ -21,16 +21,18 @@ export default function Signup() {
       sessionStorage.setItem("morris_signup_otp_demo", r.data.otp);
       nav("/verify-otp");
     } catch (err) {
-      toast.error(err?.response?.data?.detail || "Signup failed");
+      const d = err?.response?.data?.detail;
+      toast.error(typeof d === "string" ? d : Array.isArray(d) ? d.map(x => x.msg || "").join(" ") : "Signup failed");
     } finally { setLoading(false); }
   };
 
   return (
     <AuthShell>
       <h2 className="font-display text-4xl mb-2">Get on the tools.</h2>
-      <p className="text-sm text-[#A19D94] mb-8">Three fields and you're in. We'll send an OTP to your phone.</p>
+      <p className="text-sm text-[#A19D94] mb-8">Four fields and you're in. We'll send an OTP to your phone.</p>
       <form onSubmit={onSubmit} className="space-y-4" data-testid="signup-form">
         <Field label="Username" value={form.username} onChange={(v) => setForm({ ...form, username: v })} testId="signup-username" />
+        <Field label="Email" type="email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} placeholder="you@email.com" testId="signup-email" />
         <Field label="Password" type="password" value={form.password} onChange={(v) => setForm({ ...form, password: v })} testId="signup-password" />
         <Field label="Phone number" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} placeholder="07…" testId="signup-phone" />
         <button type="submit" className="btn-primary w-full" disabled={loading} data-testid="signup-submit">

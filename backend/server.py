@@ -5,12 +5,13 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 import random
+import secrets
 import uuid
 import bcrypt
 from pathlib import Path
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, EmailStr
 from typing import List, Optional, Dict, Any
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
@@ -32,6 +33,7 @@ api_router = APIRouter(prefix="/api")
 # ---------- Models ----------
 class SignupReq(BaseModel):
     username: str
+    email: EmailStr
     password: str
     phone: str
 
@@ -43,6 +45,13 @@ class LoginReq(BaseModel):
     username: str
     password: str
 
+class ForgotPasswordReq(BaseModel):
+    email: EmailStr
+
+class ResetPasswordReq(BaseModel):
+    token: str
+    newPassword: str
+
 class ProfileUpdate(BaseModel):
     trade: Optional[str] = None
     companyName: Optional[str] = None
@@ -51,6 +60,7 @@ class ProfileUpdate(BaseModel):
     utr: Optional[str] = None
     vatNumber: Optional[str] = None
     cisStatus: Optional[str] = None
+    email: Optional[EmailStr] = None
     favourites: Optional[List[str]] = None
     recentlyUsed: Optional[List[str]] = None
 
@@ -98,14 +108,17 @@ async def get_user(token: Optional[str]) -> dict:
 # ---------- Auth ----------
 @api_router.post("/auth/signup")
 async def signup(req: SignupReq):
-    existing = await db.users.find_one({"username": req.username.lower()}, {"_id": 0})
-    if existing:
+    email_lower = req.email.lower()
+    if await db.users.find_one({"username": req.username.lower()}, {"_id": 0}):
         raise HTTPException(400, "Username already exists")
+    if await db.users.find_one({"email": email_lower}, {"_id": 0}):
+        raise HTTPException(400, "Email already registered")
     otp = f"{random.randint(100000, 999999)}"
     user_id = str(uuid.uuid4())
     doc = {
         "id": user_id,
         "username": req.username.lower(),
+        "email": email_lower,
         "password": hash_pw(req.password),
         "phone": req.phone,
         "verified": False,
@@ -122,7 +135,6 @@ async def signup(req: SignupReq):
         "createdAt": datetime.now(timezone.utc).isoformat(),
     }
     await db.users.insert_one(doc)
-    # Return OTP in response (demo mode — real app would SMS this)
     return {"ok": True, "userId": user_id, "otp": otp, "message": "OTP sent. (Demo: shown here.)"}
 
 @api_router.post("/auth/verify-otp")
@@ -158,6 +170,53 @@ async def me(authorization: Optional[str] = Header(None)):
     token = authorization.replace("Bearer ", "") if authorization else None
     user = await get_user(token)
     return user
+
+@api_router.post("/auth/forgot-password")
+async def forgot_password(req: ForgotPasswordReq):
+    email_lower = req.email.lower()
+    user = await db.users.find_one({"email": email_lower}, {"_id": 0})
+    # Always respond ok — don't leak whether the email exists. But for DEMO MODE we return the link if user exists.
+    if not user:
+        return {"ok": True, "message": "If that email is registered, a reset link has been sent."}
+    reset_token = secrets.token_urlsafe(32)
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
+    await db.password_reset_tokens.insert_one({
+        "token": reset_token,
+        "userId": user["id"],
+        "email": email_lower,
+        "expiresAt": expires_at.isoformat(),
+        "used": False,
+        "createdAt": datetime.now(timezone.utc).isoformat(),
+    })
+    return {
+        "ok": True,
+        "message": "Reset link generated. (Demo: shown here.)",
+        "demoResetToken": reset_token,
+        "demoResetLink": f"/reset-password?token={reset_token}",
+    }
+
+@api_router.post("/auth/reset-password")
+async def reset_password(req: ResetPasswordReq):
+    if len(req.newPassword) < 6:
+        raise HTTPException(400, "Password must be at least 6 characters")
+    record = await db.password_reset_tokens.find_one({"token": req.token}, {"_id": 0})
+    if not record:
+        raise HTTPException(400, "Invalid reset token")
+    if record.get("used"):
+        raise HTTPException(400, "This reset link has already been used")
+    expires_at = datetime.fromisoformat(record["expiresAt"])
+    if datetime.now(timezone.utc) > expires_at:
+        raise HTTPException(400, "Reset link has expired")
+    # Update password, invalidate existing session token, mark reset token used
+    await db.users.update_one(
+        {"id": record["userId"]},
+        {"$set": {"password": hash_pw(req.newPassword)}, "$unset": {"token": ""}},
+    )
+    await db.password_reset_tokens.update_one(
+        {"token": req.token},
+        {"$set": {"used": True, "usedAt": datetime.now(timezone.utc).isoformat()}},
+    )
+    return {"ok": True, "message": "Password updated. Please log in."}
 
 @api_router.post("/profile/update")
 async def update_profile(update: ProfileUpdate, authorization: Optional[str] = Header(None)):
@@ -286,6 +345,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.on_event("startup")
+async def on_startup():
+    try:
+        await db.users.create_index("username", unique=True)
+        await db.users.create_index("email", unique=True, sparse=True)
+        await db.password_reset_tokens.create_index("token", unique=True)
+        await db.password_reset_tokens.create_index("expiresAt")
+    except Exception as e:
+        logger.warning(f"Index creation: {e}")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

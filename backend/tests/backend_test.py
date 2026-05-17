@@ -44,11 +44,12 @@ def test_health(s):
 class TestAuthFlow:
     def test_signup_verify_login_full_flow(self, s):
         username = f"test_{uuid.uuid4().hex[:8]}"
+        email = f"{username}@morrisapp.co.uk"
         phone = "07700900222"
         password = "Pass1234!"
 
         # Signup
-        r = s.post(f"{API}/auth/signup", json={"username": username, "password": password, "phone": phone}, timeout=20)
+        r = s.post(f"{API}/auth/signup", json={"username": username, "email": email, "password": password, "phone": phone}, timeout=20)
         assert r.status_code == 200, r.text
         body = r.json()
         assert body["ok"] is True
@@ -57,7 +58,7 @@ class TestAuthFlow:
         otp = body["otp"]
 
         # Duplicate signup
-        r2 = s.post(f"{API}/auth/signup", json={"username": username, "password": password, "phone": phone}, timeout=15)
+        r2 = s.post(f"{API}/auth/signup", json={"username": username, "email": email, "password": password, "phone": phone}, timeout=15)
         assert r2.status_code == 400
 
         # Verify OTP — wrong first
@@ -93,7 +94,7 @@ class TestAuthFlow:
     def test_login_unverified_account(self, s):
         # Create a fresh unverified user
         username = f"unv_{uuid.uuid4().hex[:8]}"
-        s.post(f"{API}/auth/signup", json={"username": username, "password": "Pass1234!", "phone": "07700900333"}, timeout=15)
+        s.post(f"{API}/auth/signup", json={"username": username, "email": f"{username}@morrisapp.co.uk", "password": "Pass1234!", "phone": "07700900333"}, timeout=15)
         r = s.post(f"{API}/auth/login", json={"username": username, "password": "Pass1234!"}, timeout=15)
         assert r.status_code == 403
 
