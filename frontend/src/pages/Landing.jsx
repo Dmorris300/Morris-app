@@ -133,26 +133,19 @@ export default function Landing() {
 
       {/* FOUNDER */}
       <section id="founder" className="border-b border-[#F0EDE8]/5">
-        <div className="max-w-7xl mx-auto px-6 py-24 grid md:grid-cols-12 gap-12 items-center">
-          <div className="md:col-span-5">
-            <div className="card-dark p-1">
-              <div className="aspect-[4/5] bg-cover bg-center rounded-md" style={{ backgroundImage: `url(${FOUNDER_PHOTO})` }} />
-            </div>
-          </div>
-          <div className="md:col-span-7">
-            <div className="text-[#E8A020] text-xs uppercase tracking-widest mb-4">Founder</div>
-            <h2 className="font-display text-5xl md:text-6xl mb-6">Built by Darren.<br/>A duct fitter.</h2>
-            <p className="text-lg text-[#A19D94] leading-relaxed mb-4">
-              Darren Morris is a UK duct fitter who spent two decades on commercial sites watching tradesmen
-              lose thousands every year because of bad paperwork. verbal instructions never confirmed, retention
-              never chased, variations never priced, CIS refunds never claimed.
-            </p>
-            <p className="text-lg text-[#A19D94] leading-relaxed">
-              Morris is the app he wished he had in his van. It speaks our language. It knows the law.
-              And it's been built from the dust up. by someone who's actually held a torque wrench.
-            </p>
-            <p className="mt-6 font-display text-3xl text-[#E8A020]">Built on the Tools.</p>
-          </div>
+        <div className="max-w-4xl mx-auto px-6 py-24 text-center">
+          <div className="text-[#E8A020] text-xs uppercase tracking-widest mb-4">Founder</div>
+          <h2 className="font-display text-5xl md:text-6xl mb-6">Built by Darren.<br/>A duct fitter.</h2>
+          <p className="text-lg text-[#A19D94] leading-relaxed mb-4">
+            Darren Morris is a UK duct fitter who spent two decades on commercial sites watching tradesmen
+            lose thousands every year because of bad paperwork. Verbal instructions never confirmed, retention
+            never chased, variations never priced, CIS refunds never claimed.
+          </p>
+          <p className="text-lg text-[#A19D94] leading-relaxed">
+            Morris is the app he wished he had in his van. It speaks our language. It knows the law.
+            And it's been built from the dust up by someone who's actually held a torque wrench.
+          </p>
+          <p className="mt-6 font-display text-3xl text-[#E8A020]">Built on the Tools.</p>
         </div>
       </section>
 
