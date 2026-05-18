@@ -9,7 +9,7 @@ const TOOL = {
   id: "verbal-to-variation",
   name: "Verbal to Variation",
   section: "documents",
-  info: "Record yourself describing a verbal instruction you received on site (who said it, what they asked you to do, when). Morris transcribes it and converts it into a formal variation letter — ready to send before you've left site.",
+  info: "Record yourself describing a verbal instruction you received on site (who said it, what they asked you to do, when). Morris transcribes it and converts it into a formal variation letter. ready to send before you've left site.",
 };
 
 export default function VerbalToVariation() {
@@ -71,7 +71,7 @@ export default function VerbalToVariation() {
             >
               {recording ? <MicOff size={36} /> : <Mic size={36} />}
             </button>
-            <div className="mt-4 text-sm text-[#A19D94]">{recording ? "Recording… tap to stop" : (supported ? "Tap to record" : "Voice not supported — type below")}</div>
+            <div className="mt-4 text-sm text-[#A19D94]">{recording ? "Recording… tap to stop" : (supported ? "Tap to record" : "Voice not supported. type below")}</div>
           </div>
           <div className="text-xs uppercase tracking-widest text-[#A19D94] mb-2 mt-4">Transcript</div>
           <textarea
@@ -93,7 +93,7 @@ export default function VerbalToVariation() {
           {result && (
             <>
               <div className="tool-result text-sm" data-testid="generated-content">{result}</div>
-              <ResultActions title="Verbal Instruction — Variation Letter" content={result} toolId={TOOL.id} />
+              <ResultActions title="Verbal Instruction. Variation Letter" content={result} toolId={TOOL.id} />
             </>
           )}
         </div>

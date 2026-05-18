@@ -21,7 +21,7 @@ export default function VerifyOtp() {
       persist(r.data.user, r.data.token);
       sessionStorage.removeItem("morris_signup_username");
       sessionStorage.removeItem("morris_signup_otp_demo");
-      toast.success("Verified — let's pick your trade");
+      toast.success("Verified. let's pick your trade");
       nav("/select-trade");
     } catch (err) {
       toast.error(err?.response?.data?.detail || "Verification failed");
@@ -34,7 +34,7 @@ export default function VerifyOtp() {
       <p className="text-sm text-[#A19D94] mb-2">We sent a 6-digit code to your number.</p>
       {demoOtp && (
         <p className="text-xs text-[#E8A020] mb-6 font-mono border border-[#E8A020]/30 rounded px-3 py-2 inline-block" data-testid="demo-otp-hint">
-          DEMO MODE — your code is: <span className="font-bold">{demoOtp}</span>
+          DEMO MODE. your code is: <span className="font-bold">{demoOtp}</span>
         </p>
       )}
       <form onSubmit={onSubmit} className="space-y-4 mt-4" data-testid="otp-form">

@@ -45,7 +45,7 @@ export default function VatThreshold() {
           </div>
         </div>
 
-        <p className="mt-6 text-xs text-[#706D66]">Note: if your taxable turnover exceeds £90,000 in any rolling 12-month period — or you expect to in the next 30 days — you must register for VAT. Voluntary registration available below the threshold.</p>
+        <p className="mt-6 text-xs text-[#706D66]">Note: if your taxable turnover exceeds £90,000 in any rolling 12-month period. or you expect to in the next 30 days. you must register for VAT. Voluntary registration available below the threshold.</p>
       </div>
     </div>
   );

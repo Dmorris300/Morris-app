@@ -3,7 +3,7 @@ import api from "../lib/api";
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-// Local-only mileage tracker (stored in localStorage) — uses HMRC's 45p/mile rate
+// Local-only mileage tracker (stored in localStorage). uses HMRC's 45p/mile rate
 const RATE_FIRST = 0.45;
 const RATE_ABOVE = 0.25;
 

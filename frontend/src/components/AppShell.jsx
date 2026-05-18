@@ -109,12 +109,12 @@ export default function AppShell() {
         <div className="w-6" />
       </div>
 
-      {/* Sidebar — desktop */}
+      {/* Sidebar. desktop */}
       <aside className="hidden md:flex flex-col w-72 fixed inset-y-0 left-0 z-20" data-testid="sidebar-desktop">
         {sidebarContent}
       </aside>
 
-      {/* Sidebar — mobile drawer */}
+      {/* Sidebar. mobile drawer */}
       {mobileOpen && (
         <div className="md:hidden fixed inset-0 z-40">
           <div className="absolute inset-0 bg-black/60" onClick={() => setMobileOpen(false)} />

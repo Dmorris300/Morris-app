@@ -29,7 +29,7 @@ export default function Login() {
       <h2 className="font-display text-4xl mb-2">Welcome back.</h2>
       <p className="text-sm text-[#A19D94] mb-8">Log in to your Morris toolbox.</p>
       <form onSubmit={onSubmit} className="space-y-4" data-testid="login-form">
-        <Field label="Username" value={form.username} onChange={(v) => setForm({ ...form, username: v })} testId="login-username" />
+        <Field label="Username or email" value={form.username} onChange={(v) => setForm({ ...form, username: v })} testId="login-username" placeholder="username or you@email.com" />
         <Field label="Password" type="password" value={form.password} onChange={(v) => setForm({ ...form, password: v })} testId="login-password" />
         <div className="flex justify-end -mt-1">
           <Link to="/forgot-password" className="text-xs text-[#A19D94] hover:text-[#E8A020]" data-testid="link-forgot-password">Forgot password?</Link>

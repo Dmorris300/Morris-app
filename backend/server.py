@@ -42,14 +42,17 @@ class VerifyOtpReq(BaseModel):
     otp: str
 
 class LoginReq(BaseModel):
-    username: str
+    username: str  # accepts username OR email
     password: str
 
 class ForgotPasswordReq(BaseModel):
-    email: EmailStr
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = None
 
 class ResetPasswordReq(BaseModel):
-    token: str
+    token: Optional[str] = None
+    phone: Optional[str] = None
+    code: Optional[str] = None
     newPassword: str
 
 class ProfileUpdate(BaseModel):
@@ -154,7 +157,11 @@ async def verify_otp(req: VerifyOtpReq):
 
 @api_router.post("/auth/login")
 async def login(req: LoginReq):
-    user = await db.users.find_one({"username": req.username.lower()}, {"_id": 0})
+    ident = req.username.lower().strip()
+    user = await db.users.find_one(
+        {"$or": [{"username": ident}, {"email": ident}]},
+        {"_id": 0},
+    )
     if not user or not check_pw(req.password, user["password"]):
         raise HTTPException(401, "Invalid credentials")
     if not user.get("verified"):
@@ -173,35 +180,80 @@ async def me(authorization: Optional[str] = Header(None)):
 
 @api_router.post("/auth/forgot-password")
 async def forgot_password(req: ForgotPasswordReq):
-    email_lower = req.email.lower()
-    user = await db.users.find_one({"email": email_lower}, {"_id": 0})
-    # Always respond ok — don't leak whether the email exists. But for DEMO MODE we return the link if user exists.
+    if not req.email and not req.phone:
+        raise HTTPException(400, "Provide an email or phone number")
+
+    if req.email:
+        email_lower = req.email.lower()
+        user = await db.users.find_one({"email": email_lower}, {"_id": 0})
+        if not user:
+            return {"ok": True, "message": "If that email is registered, a reset link has been sent."}
+        reset_token = secrets.token_urlsafe(32)
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
+        await db.password_reset_tokens.insert_one({
+            "token": reset_token,
+            "userId": user["id"],
+            "method": "email",
+            "email": email_lower,
+            "expiresAt": expires_at,
+            "used": False,
+            "createdAt": datetime.now(timezone.utc),
+        })
+        return {
+            "ok": True,
+            "method": "email",
+            "message": "Reset link generated. (Demo: shown here.)",
+            "demoResetToken": reset_token,
+            "demoResetLink": f"/reset-password?token={reset_token}",
+        }
+
+    # Phone path — issue a 6-digit code
+    phone = req.phone.strip()
+    user = await db.users.find_one({"phone": phone}, {"_id": 0})
     if not user:
-        return {"ok": True, "message": "If that email is registered, a reset link has been sent."}
-    reset_token = secrets.token_urlsafe(32)
+        return {"ok": True, "message": "If that phone number is registered, a reset code has been sent."}
+    code = f"{random.randint(100000, 999999)}"
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
+    # Hash-free demo storage — code lives in the same collection alongside email tokens
     await db.password_reset_tokens.insert_one({
-        "token": reset_token,
+        "token": f"sms_{secrets.token_urlsafe(12)}",
         "userId": user["id"],
-        "email": email_lower,
-        "expiresAt": expires_at,  # stored as BSON Date so TTL index can purge
+        "method": "phone",
+        "phone": phone,
+        "code": code,
+        "expiresAt": expires_at,
         "used": False,
         "createdAt": datetime.now(timezone.utc),
     })
     return {
         "ok": True,
-        "message": "Reset link generated. (Demo: shown here.)",
-        "demoResetToken": reset_token,
-        "demoResetLink": f"/reset-password?token={reset_token}",
+        "method": "phone",
+        "message": "Reset code generated. (Demo: shown here.)",
+        "demoResetCode": code,
     }
 
 @api_router.post("/auth/reset-password")
 async def reset_password(req: ResetPasswordReq):
     if len(req.newPassword) < 6:
         raise HTTPException(400, "Password must be at least 6 characters")
-    record = await db.password_reset_tokens.find_one({"token": req.token}, {"_id": 0})
-    if not record:
-        raise HTTPException(400, "Invalid reset token")
+
+    # Email-token path
+    if req.token:
+        record = await db.password_reset_tokens.find_one({"token": req.token}, {"_id": 0})
+        if not record:
+            raise HTTPException(400, "Invalid reset token")
+    # Phone-code path
+    elif req.phone and req.code:
+        record = await db.password_reset_tokens.find_one(
+            {"phone": req.phone.strip(), "code": req.code, "method": "phone"},
+            {"_id": 0},
+            sort=[("createdAt", -1)],
+        )
+        if not record:
+            raise HTTPException(400, "Invalid phone or code")
+    else:
+        raise HTTPException(400, "Provide either a reset token or a phone + code")
+
     if record.get("used"):
         raise HTTPException(400, "This reset link has already been used")
     expires_at = record["expiresAt"]
@@ -211,13 +263,13 @@ async def reset_password(req: ResetPasswordReq):
         expires_at = expires_at.replace(tzinfo=timezone.utc)
     if datetime.now(timezone.utc) > expires_at:
         raise HTTPException(400, "Reset link has expired")
-    # Update password, invalidate existing session token, mark reset token used
+
     await db.users.update_one(
         {"id": record["userId"]},
         {"$set": {"password": hash_pw(req.newPassword)}, "$unset": {"token": ""}},
     )
     await db.password_reset_tokens.update_one(
-        {"token": req.token},
+        {"token": record["token"]},
         {"$set": {"used": True, "usedAt": datetime.now(timezone.utc)}},
     )
     return {"ok": True, "message": "Password updated. Please log in."}

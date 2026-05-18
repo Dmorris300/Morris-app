@@ -7,7 +7,7 @@ const TOOL = {
   id: "cis-refund-predictor",
   name: "CIS Refund Predictor",
   section: "finance",
-  info: "Log every CIS payment a contractor pays you throughout the year — gross, deduction and net. Morris keeps a running total so you can see exactly how much HMRC owes you back at year end.",
+  info: "Log every CIS payment a contractor pays you throughout the year. gross, deduction and net. Morris keeps a running total so you can see exactly how much HMRC owes you back at year end.",
 };
 
 export default function CISRefundPredictor() {
@@ -43,7 +43,7 @@ export default function CISRefundPredictor() {
   return (
     <div className="p-6 md:p-10 max-w-7xl mx-auto" data-testid="page-cis-refund-predictor">
       <div className="mb-6">
-        <div className="text-[#E8A020] text-xs uppercase tracking-widest mb-2">FINANCE — Wow Feature</div>
+        <div className="text-[#E8A020] text-xs uppercase tracking-widest mb-2">FINANCE. Wow Feature</div>
         <h1 className="font-display text-4xl md:text-5xl">CIS Refund Predictor</h1>
         <p className="text-[#A19D94] mt-3 max-w-3xl">{TOOL.info}</p>
       </div>
@@ -57,7 +57,7 @@ export default function CISRefundPredictor() {
           <Stat label="CIS deducted" value={`£${totalDeduction.toLocaleString("en-GB", { minimumFractionDigits: 2 })}`} />
           <Stat label="Net received" value={`£${totalNet.toLocaleString("en-GB", { minimumFractionDigits: 2 })}`} />
         </div>
-        <div className="text-xs text-[#706D66] mt-4">Estimate: assumes Personal Allowance £12,570 and 20% basic tax. Doesn't include NI, expenses or higher-rate bands — use as a guide, not a tax return.</div>
+        <div className="text-xs text-[#706D66] mt-4">Estimate: assumes Personal Allowance £12,570 and 20% basic tax. Doesn't include NI, expenses or higher-rate bands. use as a guide, not a tax return.</div>
       </div>
 
       <div className="grid md:grid-cols-3 gap-6">

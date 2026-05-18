@@ -15,7 +15,7 @@ export default function Favourites() {
         <p className="text-[#A19D94] mt-2">Your starred tools, one click away.</p>
       </div>
       {favs.length === 0 ? (
-        <div className="card-dark p-6 text-sm text-[#706D66]">Nothing here yet — open a tool and tap the star.</div>
+        <div className="card-dark p-6 text-sm text-[#706D66]">Nothing here yet. open a tool and tap the star.</div>
       ) : (
         <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
           {favs.map(t => (

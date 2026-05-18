@@ -97,7 +97,7 @@ export default function PhotoToDocument() {
           {result && (
             <>
               <div className="tool-result text-sm" data-testid="generated-content">{result}</div>
-              <ResultActions title={`Photo to Document — ${docType}`} content={result} toolId={TOOL.id} />
+              <ResultActions title={`Photo to Document. ${docType}`} content={result} toolId={TOOL.id} />
             </>
           )}
         </div>

@@ -24,7 +24,7 @@ export default function History() {
         <p className="text-[#A19D94] mt-2">Everything you've generated and saved.</p>
       </div>
       {loading ? <div className="text-[#706D66]">Loading…</div> : (
-        docs.length === 0 ? <div className="card-dark p-6 text-sm text-[#706D66]">Nothing saved yet — generate a document and hit Save.</div> :
+        docs.length === 0 ? <div className="card-dark p-6 text-sm text-[#706D66]">Nothing saved yet. generate a document and hit Save.</div> :
         <div className="space-y-3">
           {docs.map(d => (
             <div key={d.id} className="card-dark p-4" data-testid={`history-item-${d.id}`}>
