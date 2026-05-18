@@ -1,0 +1,56 @@
+{
+  "summary": "Iteration 3 testing of Morris — Stripe-mock billing, 3-day trial, free-tier enforcement (3 tools/5 docs per month), Resend email on forgot-password. Backend: 36/36 pytest (10 new iteration-3 + 26 regression). Frontend: full E2E billing flow verified — Landing pricing CTAs link to /signup, Enterprise = mailto, founder photo removed; /app/billing renders with current-plan-card, trial-cta, 4-plan grid, sidebar tool-link-billing visible under expanded section-account; Start 3-day trial activates plan='trial' and shows 'Trial ends in 3 days'; Choose Solo → /app/billing/mock-checkout?session_id=…&plan=solo; mock-pay-btn → POST mock-complete → redirect to /app/billing?session_id=… → plan card shows 'Solo / Renews in 30 days'. sparky01 was reset to plan=free, trialUsed=false at end as requested.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/billing/status", "issue": "When plan is on trial, response returns plan='trial' but does NOT expose trialPlanTarget (e.g. 'solo'). Frontend therefore shows generic 'Free trial (trial)' instead of 'Free trial (Solo)' as spec'd. Add trialPlanTarget to status response (already stored on user doc by /start-trial)."},
+      {"endpoint": "/api/billing/status/{session_id}", "issue": "Calls real StripeCheckout.get_checkout_status() unconditionally — returns 500 for mock_ sessions because they don't exist in Stripe. Frontend poll triggers 3x 500s in console after mock-pay redirect. Activation still works (mock-complete handles plan flip), but the polling endpoint should short-circuit when session_id starts with 'mock_'. Cosmetic — no functional impact."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Billing.jsx current-plan-card (trial state)", "issue": "Shows 'Free trial (trial)' instead of 'Free trial (Solo)' because status API doesn't expose trialPlanTarget. Cosmetic only.", "selector": "[data-testid=\"current-plan-card\"]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/backend/tests/test_email_password_reset.py",
+    "/app/backend/tests/test_billing_and_limits.py",
+    "/app/test_reports/pytest/pytest_results.xml",
+    "/app/test_reports/pytest/iteration_3.xml"
+  ],
+  "action_items": [
+    "(LOW) Add trialPlanTarget to /api/billing/status response so UI can show 'Free trial (Solo)' instead of 'Free trial (trial)'.",
+    "(LOW) Short-circuit /api/billing/status/{session_id} when session_id starts with 'mock_' (currently 500s — non-functional but pollutes console)."
+  ],
+  "critical_code_review_comments": [
+    "billing.py STRIPE_LIVE detection is correct: sk_test_emergent → mock mode; sk_test_<anything else> → real Stripe. ✓",
+    "billing.py mock-complete is idempotent via status check ('alreadyProcessed' return). ✓ Verified by test_mock_complete_activates_plan_idempotent.",
+    "billing.py check_can_generate uses fresh DB read AFTER reset_usage_if_new_month — avoids stale user dict. ✓",
+    "billing.py record_usage uses $addToSet for usageTools — no duplicates even if same tool called repeatedly. ✓",
+    "billing.py effective_plan correctly handles ISO-string and tz-naive datetime expiresAt — defensive code is good.",
+    "server.py forgot-password: emailSent flag added correctly, wrapped in try/except so Resend failures don't 500 the endpoint. ✓",
+    "server.py signup welcome email: fire-and-forget with try/except — won't block signup if Resend is unreachable. ✓",
+    "email_helper.py: uses asyncio.to_thread(resend.Emails.send, params) — correct way to call sync Resend SDK from async FastAPI. ✓",
+    "Mock-checkout polling: Billing.jsx after redirect from mock-pay correctly re-fetches /api/billing/status (NOT /status/{session_id}) so the UI updates even though the per-session poll 500s. Acceptable but should be cleaned up.",
+    "billing.py /status/{session_id} call to stripe.get_checkout_status for a mock_ session id will throw → 500. Suggest: if session_id.startswith('mock_') OR record.get('mock'): return cached record without calling Stripe.",
+    "Sidebar tool-link-billing is conditionally rendered — only mounts when the 'account' SidebarGroup is expanded (openSections.account defaults to false). This is per-design but means automated tests need to expand the group first. Not a bug."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_billing_and_limits.py (new — 10 tests covering /billing/plans, /billing/status, start-trial happy + double-call 400, mock checkout URL shape, mock-complete plan activation + idempotency, paid user bypass of free-tier wall, 3-tool + 4th-blocked enforcement, 5-doc + 6th-blocked enforcement with repeated tool, forgot-password emailSent flag, no-token-leak for unknown email)"
+  ],
+  "success_rate": {"backend": "100% (36/36 — 10 new iteration-3 + 26 regression)", "frontend": "100% on all iteration-3 flows (landing CTAs, founder photo removed, /app/billing renders 4-plan grid + trial CTA, sidebar tool-link-billing, trial activation flips plan to 'trial' with 3-day expiry, upgrade-solo navigates to mock checkout with session_id+plan in query, mock-pay-btn → mock-complete → redirect → plan flips to Solo)"},
+  "test_credentials": "sparky01 / test1234 — reset to plan=free, trialUsed=false, usageDocs=0, usageTools=[] at end of testing as the developer requested.",
+  "seed_data_creation": "Each pytest run creates ~7 fresh signup users (stat_, trial_, chk_, mc_, paid_, ftool_, fdoc_, fpe_). Each is verified via DEMO OTP and (where relevant) put on a mock-paid plan. No cleanup performed — consistent with iterations 1+2. Plus payment_transactions entries from mock checkouts.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All iteration-3 backend + frontend flows verified. Free-tier enforcement: /api/generate returns 402 with messages 'Free plan is limited to 3 different tools per month.' OR 'Free plan is limited to 5 documents per month.' — both verified. Mock checkout URL pattern: /app/billing/mock-checkout?session_id=mock_<hex>&plan=<solo|pro|business>. Mock session ids start with 'mock_'. Sidebar billing testid 'tool-link-billing' only renders when section-account SidebarGroup is expanded (collapsed by default). Test files: backend_test.py (regression, includes Claude /generate test ~80s), test_email_password_reset.py (iteration-2, 13 tests), test_billing_and_limits.py (iteration-3, 10 tests, ~80s due to multiple real /generate calls inside free-tier enforcement tests). Total suite ~2min. Run: `pytest /app/backend/tests/ -v --junitxml=/app/test_reports/pytest/pytest_results.xml`. To reset sparky01 manually: `db.users.update_one({'username':'sparky01'}, {'$set':{'plan':'free','trialUsed':False,'usageDocs':0,'usageTools':[]}, '$unset':{'planExpiresAt':'','trialPlanTarget':'','trialStartedAt':'','lastPaymentAt':''}})`.",
+  "mocked_apis_verified": [
+    "Stripe Checkout — MOCK MODE confirmed (STRIPE_API_KEY='sk_test_emergent' → STRIPE_LIVE=False → /api/billing/checkout returns {mock:true, url:'/app/billing/mock-checkout?session_id=mock_<hex>&plan=<id>'} and /api/billing/mock-complete activates plan with +30 day expiry)",
+    "SMS/OTP — DEMO MODE confirmed (OTP still returned in /api/auth/signup body)",
+    "Resend email — REAL but emailSent flag exposes whether it actually went out (typically false for unverified domains on Resend's free tier — this is expected, NOT a bug, the demoResetLink is the fallback)"
+  ],
+  "rca_of_the_issue": "No critical bugs. Two minor improvements identified: (1) billing/status should include trialPlanTarget so UI labels show 'Free trial (Solo)' instead of 'Free trial (trial)'; (2) billing/status/{session_id} should bypass Stripe API call for mock_ session ids to avoid 500s after mock-pay redirect (no functional impact — Billing.jsx also calls the plain /status endpoint which works fine)."
+}

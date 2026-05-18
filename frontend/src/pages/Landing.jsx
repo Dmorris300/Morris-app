@@ -122,11 +122,11 @@ export default function Landing() {
             <h2 className="font-display text-5xl md:text-6xl">No nonsense. Pay monthly.</h2>
           </div>
           <div className="grid md:grid-cols-5 gap-4">
-            <PriceCard tier="Free" price="£0" period="forever" features={["3 tools", "5 documents per month", "Get a feel for Morris"]} cta="Start free" />
-            <PriceCard tier="Solo" price="£12.99" period="per month" features={["All tools", "Unlimited documents", "1 user"]} cta="Choose Solo" highlight />
-            <PriceCard tier="Pro" price="£24.99" period="per month" features={["Everything in Solo", "3 users", "Shared document history"]} cta="Choose Pro" />
-            <PriceCard tier="Business" price="£59.99" period="per month" features={["Everything in Pro", "10 users", "Multi-site management"]} cta="Choose Business" />
-            <PriceCard tier="Enterprise" price="£299+" period="per month" features={["Unlimited users", "White label available", "Priority support"]} cta="Contact us" />
+            <PriceCard tier="Free" price="£0" period="forever" features={["3 tools", "5 documents per month", "Get a feel for Morris"]} cta="Start free" ctaTo="/signup" />
+            <PriceCard tier="Solo" price="£12.99" period="per month" features={["All tools", "Unlimited documents", "1 user"]} cta="Choose Solo" highlight ctaTo="/signup" />
+            <PriceCard tier="Pro" price="£24.99" period="per month" features={["Everything in Solo", "3 users", "Shared document history"]} cta="Choose Pro" ctaTo="/signup" />
+            <PriceCard tier="Business" price="£59.99" period="per month" features={["Everything in Pro", "10 users", "Multi-site management"]} cta="Choose Business" ctaTo="/signup" />
+            <PriceCard tier="Enterprise" price="£299+" period="per month" features={["Unlimited users", "White label available", "Priority support"]} cta="Contact us" ctaTo="mailto:hello@morrisapp.co.uk?subject=Morris Enterprise" external />
           </div>
         </div>
       </section>
@@ -199,7 +199,7 @@ function WowCard({ icon, title, desc }) {
   );
 }
 
-function PriceCard({ tier, price, period, features, cta, highlight }) {
+function PriceCard({ tier, price, period, features, cta, highlight, ctaTo, external }) {
   return (
     <div className={`card-dark p-6 flex flex-col ${highlight ? "border-[#E8A020]/60" : ""}`} data-testid={`pricing-${tier.toLowerCase()}`}>
       <div className="text-xs uppercase tracking-widest text-[#E8A020] mb-2">{tier}</div>
@@ -208,7 +208,7 @@ function PriceCard({ tier, price, period, features, cta, highlight }) {
       <ul className="space-y-2 text-sm text-[#A19D94] mb-6 flex-1">
         {features.map((f) => <li key={f} className="flex items-start gap-2"><CheckCircle2 size={14} className="text-[#E8A020] mt-1 flex-shrink-0" /> {f}</li>)}
       </ul>
-      <a href="/signup" className={highlight ? "btn-primary text-center" : "btn-secondary text-center"}>{cta}</a>
+      <a href={ctaTo || "/signup"} className={highlight ? "btn-primary text-center" : "btn-secondary text-center"} target={external ? "_blank" : undefined} rel={external ? "noreferrer" : undefined}>{cta}</a>
     </div>
   );
 }

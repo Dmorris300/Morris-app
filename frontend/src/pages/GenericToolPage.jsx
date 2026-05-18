@@ -48,7 +48,14 @@ export default function GenericToolPage() {
       await refresh();
       toast.success("Document generated");
     } catch (err) {
-      toast.error(err?.response?.data?.detail || "Generation failed");
+      const status = err?.response?.status;
+      const detail = err?.response?.data?.detail;
+      if (status === 402) {
+        toast.error(typeof detail === "string" ? detail : "Free plan limit reached");
+        nav("/app/billing");
+      } else {
+        toast.error(typeof detail === "string" ? detail : "Generation failed");
+      }
     } finally { setGenerating(false); }
   };
 

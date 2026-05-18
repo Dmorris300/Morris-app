@@ -272,7 +272,7 @@ export const TOOL_EMOJI = {
   // Wow
   "verbal-to-variation": "🎙️", "photo-to-document": "📸",
   // Account
-  "favourites": "⭐", "history": "🗃️", "profile": "👤", "offline-mode": "📴",
+"favourites": "⭐", "history": "🗃️", "billing": "💳", "profile": "👤", "offline-mode": "📴",
 };
 
 export function emojiFor(id) {
@@ -284,8 +284,9 @@ export function getToolsBySection(sectionId) {
     return [
       { id: "favourites", name: "Favourites", section: "account", route: "/app/favourites", info: "Your starred tools, one click away." },
       { id: "history", name: "Document History", section: "account", route: "/app/history", info: "Every document you've generated, saved and ready to re-download." },
-      { id: "profile", name: "My Profile", section: "account", route: "/app/profile", info: "Your company details. used to personalise every document Morris generates." },
-      { id: "offline-mode", name: "Offline Mode", section: "account", info: "Generate documents offline. synced when you're back in signal. (Coming soon.)" },
+      { id: "billing", name: "Plan & Billing", section: "account", route: "/app/billing", info: "Your current plan, usage and upgrades." },
+      { id: "profile", name: "My Profile", section: "account", route: "/app/profile", info: "Your company details. Used to personalise every document Morris generates." },
+      { id: "offline-mode", name: "Offline Mode", section: "account", info: "Generate documents offline. Synced when you're back in signal. (Coming soon.)" },
     ];
   }
   const docTools = TOOLS.filter(x => x.section === sectionId);

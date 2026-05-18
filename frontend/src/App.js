@@ -22,6 +22,8 @@ import Earnings from "./pages/Earnings";
 import Profile from "./pages/Profile";
 import Favourites from "./pages/Favourites";
 import History from "./pages/History";
+import Billing from "./pages/Billing";
+import MockCheckout from "./pages/MockCheckout";
 
 function Protected({ children }) {
   const { user, loading } = useAuth();
@@ -66,6 +68,8 @@ function App() {
             <Route path="profile" element={<Profile />} />
             <Route path="favourites" element={<Favourites />} />
             <Route path="history" element={<History />} />
+            <Route path="billing" element={<Billing />} />
+            <Route path="billing/mock-checkout" element={<MockCheckout />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

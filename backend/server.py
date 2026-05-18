@@ -14,6 +14,8 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone, timedelta
 
 from emergentintegrations.llm.chat import LlmChat, UserMessage
+from email_helper import send_password_reset, send_welcome, send_subscription_receipt
+from billing import build_router as build_billing_router, build_webhook_router, check_can_generate, record_usage, effective_plan
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -138,6 +140,11 @@ async def signup(req: SignupReq):
         "createdAt": datetime.now(timezone.utc).isoformat(),
     }
     await db.users.insert_one(doc)
+    # Fire-and-forget welcome email (won't block signup if Resend is unreachable)
+    try:
+        await send_welcome(email_lower, req.username)
+    except Exception as e:
+        logger.warning(f"Welcome email failed: {e}")
     return {"ok": True, "userId": user_id, "otp": otp, "message": "OTP sent. (Demo: shown here.)"}
 
 @api_router.post("/auth/verify-otp")
@@ -199,12 +206,21 @@ async def forgot_password(req: ForgotPasswordReq):
             "used": False,
             "createdAt": datetime.now(timezone.utc),
         })
+        # Send the real email (falls back to demo if Resend not configured)
+        app_url = os.environ.get("APP_URL", "https://morrisapp.co.uk")
+        reset_link = f"{app_url}/reset-password?token={reset_token}"
+        email_sent = False
+        try:
+            email_sent = await send_password_reset(email_lower, reset_link)
+        except Exception as e:
+            logger.warning(f"Reset email failed: {e}")
         return {
             "ok": True,
             "method": "email",
-            "message": "Reset link generated. (Demo: shown here.)",
+            "message": "Reset link generated.",
             "demoResetToken": reset_token,
             "demoResetLink": f"/reset-password?token={reset_token}",
+            "emailSent": email_sent,
         }
 
     # Phone path — issue a 6-digit code
@@ -290,6 +306,9 @@ async def generate(req: GenerateReq, authorization: Optional[str] = Header(None)
     token = authorization.replace("Bearer ", "") if authorization else None
     user = await get_user(token)
 
+    # Tier-gate: free users get FREE_TOOL_LIMIT distinct tools / FREE_DOC_LIMIT docs per month
+    await check_can_generate(db, user, req.toolId)
+
     trade = req.trade or user.get("trade") or "tradesperson"
     company = req.companyName or user.get("companyName") or "[Your Company]"
     full_name = req.fullName or user.get("fullName") or user.get("username")
@@ -321,6 +340,7 @@ async def generate(req: GenerateReq, authorization: Optional[str] = Header(None)
             system_message=system_prompt,
         ).with_model("anthropic", "claude-sonnet-4-5-20250929")
         response = await chat.send_message(UserMessage(text=user_msg))
+        await record_usage(db, user, req.toolId)
         return {"ok": True, "content": response}
     except Exception as e:
         logger.exception("Generate failed")
@@ -393,6 +413,10 @@ async def root():
     return {"app": "Morris API", "status": "ok"}
 
 app.include_router(api_router)
+
+# Billing routes (Stripe checkout, trial, status) + public webhook
+app.include_router(build_billing_router(db, get_user, send_subscription_receipt))
+app.include_router(build_webhook_router(db, send_subscription_receipt))
 
 app.add_middleware(
     CORSMiddleware,
