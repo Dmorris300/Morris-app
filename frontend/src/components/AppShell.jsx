@@ -3,7 +3,8 @@ import { Outlet, Link, useNavigate, useLocation } from "react-router-dom";
 import { MorrisLogo, MorrisWordmark } from "./MorrisLogo";
 import { TOOLS, WOW_TOOLS, SECTIONS, getToolsBySection, emojiFor } from "../lib/tools-config";
 import { useAuth } from "../lib/auth";
-import { Search, ChevronDown, ChevronRight, Star, Clock, LogOut, Menu, X, User, FileText, History as HistoryIcon, Settings as SettingsIcon } from "lucide-react";
+import { Search, ChevronDown, ChevronRight, Star, Clock, LogOut, Menu, X, User, FileText, History as HistoryIcon, Settings as SettingsIcon, HardHat } from "lucide-react";
+import { TradeSwitcher } from "./TradeSwitcher";
 
 export default function AppShell() {
   const { user, logout } = useAuth();
@@ -11,6 +12,7 @@ export default function AppShell() {
   const loc = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [tradeSwitchOpen, setTradeSwitchOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [openSections, setOpenSections] = useState({ documents: true, finance: true, site: false, pricework: false, soletrader: false, contractors: false, account: false });
 
@@ -83,7 +85,17 @@ export default function AppShell() {
           </div>
           <button onClick={onLogout} className="hover:text-[#E8A020]" title="Log out" data-testid="sidebar-logout"><LogOut size={14} /></button>
         </div>
-        <div>{user?.trade || "No trade set"}</div>
+        <button
+          onClick={() => setTradeSwitchOpen(true)}
+          className="w-full text-left flex items-center justify-between gap-2 px-2 py-1.5 rounded-md hover:bg-[#121212] transition-colors group"
+          data-testid="sidebar-trade-switch"
+        >
+          <span className="flex items-center gap-2 truncate">
+            <HardHat size={12} className="text-[#E8A020]" />
+            <span className="truncate text-[#A19D94] group-hover:text-[#F0EDE8]">{user?.trade || "No trade set"}</span>
+          </span>
+          <span className="text-[10px] uppercase tracking-widest text-[#706D66] group-hover:text-[#E8A020]">Switch</span>
+        </button>
       </div>
     </div>
   );
@@ -114,6 +126,8 @@ export default function AppShell() {
       <main className="flex-1 md:ml-72 pt-14 md:pt-0 min-h-screen">
         <Outlet />
       </main>
+
+      <TradeSwitcher open={tradeSwitchOpen} onClose={() => setTradeSwitchOpen(false)} />
     </div>
   );
 }

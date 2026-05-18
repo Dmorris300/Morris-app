@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import api from "../lib/api";
-import { TOOLS, WOW_TOOLS, emojiFor } from "../lib/tools-config";
-import { Star, FileText, Mic, Camera, Calculator, ArrowRight, TrendingUp, Clock } from "lucide-react";
+import { TOOLS, WOW_TOOLS, emojiFor, getToolById } from "../lib/tools-config";
+import { recommendationsFor } from "../lib/trade-recommendations";
+import { Star, FileText, Mic, Camera, Calculator, ArrowRight, TrendingUp, Clock, HardHat } from "lucide-react";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -17,6 +18,8 @@ export default function Dashboard() {
 
   const favs = (user?.favourites || []).map(id => [...TOOLS, ...WOW_TOOLS].find(t => t.id === id)).filter(Boolean);
   const recent = (user?.recentlyUsed || []).map(id => [...TOOLS, ...WOW_TOOLS].find(t => t.id === id)).filter(Boolean);
+  const recIds = recommendationsFor(user?.trade);
+  const recommended = recIds.map(id => getToolById(id)).filter(Boolean);
 
   const totalDeduction = cis.reduce((a, x) => a + (x.deduction || 0), 0);
 
@@ -44,6 +47,24 @@ export default function Dashboard() {
           <BigCard to="/app/cis-predictor" icon={<Calculator size={24} />} title="CIS Refund Predictor" desc="See what HMRC owes you." testId="dash-wow-cis" />
         </div>
       </div>
+
+      {user?.trade && recommended.length > 0 && (
+        <div className="mb-10" data-testid="dash-recommendations">
+          <div className="flex items-end justify-between flex-wrap gap-2 mb-4">
+            <h2 className="font-display text-3xl flex items-center gap-3"><HardHat size={20} className="text-[#E8A020]" /> Recommended for {user.trade}</h2>
+            <p className="text-xs text-[#706D66]">The paperwork most tradesmen in your trade reach for.</p>
+          </div>
+          <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-3">
+            {recommended.slice(0, 8).map(t => (
+              <Link key={"rec-" + t.id} to={t.route || `/app/tool/${t.id}`} className="card-dark p-4 hover:border-[#E8A020]/40 transition" data-testid={`dash-rec-${t.id}`}>
+                <div className="text-2xl mb-2">{emojiFor(t.id)}</div>
+                <div className="text-sm font-semibold leading-tight">{t.name}</div>
+                <div className="text-xs text-[#706D66] mt-1 capitalize">{t.section}</div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {recent.length > 0 && (
         <div className="mb-10">
