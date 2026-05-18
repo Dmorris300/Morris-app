@@ -127,6 +127,7 @@ def build_router(db, get_user, send_subscription_receipt):
         return {
             "plan": plan,
             "rawPlan": fresh.get("plan") or "free",
+            "trialPlanTarget": fresh.get("trialPlanTarget"),
             "planExpiresAt": expires,
             "trialUsed": fresh.get("trialUsed", False),
             "usageMonth": fresh.get("usageMonth"),
@@ -264,6 +265,22 @@ def build_router(db, get_user, send_subscription_receipt):
     async def checkout_status(session_id: str, request: Request, authorization: Optional[str] = Header(None)):
         token = authorization.replace("Bearer ", "") if authorization else None
         user = await get_user(token)
+        record = await db.payment_transactions.find_one({"sessionId": session_id}, {"_id": 0})
+        if not record:
+            raise HTTPException(404, "Session not found")
+        if record["userId"] != user["id"]:
+            raise HTTPException(403, "Not your session")
+
+        # MOCK session — short-circuit, no Stripe API call
+        if session_id.startswith("mock_") or record.get("mock"):
+            return {
+                "status": record.get("status", "initiated"),
+                "paymentStatus": record.get("paymentStatus", "pending"),
+                "amountTotal": int(record.get("amount", 0) * 100),
+                "currency": record.get("currency", "gbp"),
+                "metadata": {"planId": record.get("planId"), "mock": True},
+            }
+
         host_url = str(request.base_url).rstrip("/")
         stripe = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=f"{host_url}/api/webhook/stripe")
         try:
@@ -271,12 +288,6 @@ def build_router(db, get_user, send_subscription_receipt):
         except Exception as e:
             logger.exception("Stripe status check failed")
             raise HTTPException(500, f"Stripe status error: {e}")
-
-        record = await db.payment_transactions.find_one({"sessionId": session_id}, {"_id": 0})
-        if not record:
-            raise HTTPException(404, "Session not found")
-        if record["userId"] != user["id"]:
-            raise HTTPException(403, "Not your session")
 
         already_processed = record.get("status") == "complete"
         await db.payment_transactions.update_one(

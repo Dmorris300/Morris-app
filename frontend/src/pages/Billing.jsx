@@ -80,7 +80,7 @@ export default function Billing() {
 
   if (!status) return <div className="p-10 text-[#A19D94]">Loading.</div>;
 
-  const planLabel = status.plan === "free" ? "Free" : status.plan === "trial" ? `Free trial (${status.rawPlan || "Solo"})` : (PLAN_META[status.plan]?.name || status.plan);
+  const planLabel = status.plan === "free" ? "Free" : status.plan === "trial" ? `Free trial (${PLAN_META[status.trialPlanTarget || "solo"]?.name || "Solo"})` : (PLAN_META[status.plan]?.name || status.plan);
   const onPaid = status.plan !== "free" && status.plan !== "trial";
   const expiresAt = status.planExpiresAt ? new Date(status.planExpiresAt) : null;
   const daysLeft = expiresAt ? Math.max(0, Math.ceil((expiresAt - new Date()) / (1000 * 60 * 60 * 24))) : null;
