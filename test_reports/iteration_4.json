@@ -1,0 +1,46 @@
+{
+  "summary": "Iteration 4 testing of Morris — legal/compliance + cosmetic batch: account deletion API + UI, cinematic intro, logo swap, copy/heading updates, Enterprise £199, cookie banner, signup terms/age checkboxes, public + in-app legal pages, per-tool colour-coded disclaimers, no-liability footer, app footer with ICO, danger zone. Backend: 17/17 pytest (4 new iteration-4 + 13 regression). Frontend: all 18 testable iteration-4 surfaces verified — intro plays then dismisses, /morris-logo.png img renders (x2 on landing), new headings + first-person Darren copy + £199 Enterprise confirmed, cookie banner data-testids work + localStorage persists, signup-submit disabled until both checkboxes ticked (morris-disabled-pulse class), /terms + /privacy public, /app/privacy lists Anthropic/Emergent/Stripe/Resend (Vercel→Emergent substitution confirmed), /app/complaints has hello@morrisapp.co.uk + ico.org.uk, /app/refund-policy renders, all 4 tool disclaimers present (standard/hs/legal/tax) with correct labels + 'accepts no liability' sentence, danger zone modal opens, confirm button disabled until 'DELETE' typed, app-footer with footer-privacy/footer-terms/footer-contact + 'Morris Construction Tech Ltd · ICO C1923529'. No-liability-footer testid + wording confirmed in ToolHeader.jsx source (renders post-generate alongside action buttons, ~10px muted grey).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_account_delete.py",
+    "/app/backend/tests/backend_test.py",
+    "/app/backend/tests/test_email_password_reset.py",
+    "/app/backend/tests/test_billing_and_limits.py",
+    "/app/test_reports/pytest/iteration_4.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py /api/account/delete: wipes documents + cis_payments + password_reset_tokens + payment_transactions + users in 5 sequential awaits — atomic enough for single-user delete, no transaction needed since each collection is per-user. Returns 200 with friendly message. ✓",
+    "server.py /api/account/delete: token isn't invalidated separately — get_user lookup will 401 automatically once the user doc is gone. ✓ Verified by test_delete_account_wipes_user_and_related_data.",
+    "ToolHeader.jsx no-liability-footer: hardcoded styles (10px font, #666 grey, semi-transparent gold border) match spec. Mounts inside result-actions fragment so only appears post-generate. ✓",
+    "Signup.jsx: submit button has both 'disabled' attribute AND 'morris-disabled-pulse' CSS class — animated pulse confirmed via attribute snapshot. ✓",
+    "Profile.jsx danger zone: confirm button is disabled until input value === 'DELETE' exact match (case-sensitive). ✓ Tested.",
+    "Landing.jsx logo swap: <img src='/morris-logo.png'> appears twice (navbar + footer mark) instead of the old gold 'M' square. ✓",
+    "PrivacyPolicy.jsx: lists Anthropic, Emergent, Stripe, Resend exactly as spec'd. Vercel→Emergent substitution confirmed in rendered DOM.",
+    "App.js: /terms and /privacy are public (no auth wrapper) — verified by direct GET without login. /app/privacy, /app/complaints, /app/refund-policy require auth. ✓",
+    "Sidebar Account section is collapsed by default — Privacy Policy / Terms / Complaints / Refund Policy links only render when expanded. Per-design (consistent with iteration-3 billing link), not a bug.",
+    "CookieBanner localStorage key 'morris_cookie_consent' set to 'accepted' on click — banner hidden on subsequent reloads in same browser. ✓"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_account_delete.py (new — 4 tests: no-token 401, invalid-token 401, full create-data → DELETE → login-fails-with-same-creds 401 flow, smoke signup/verify/login/save-doc/list)"
+  ],
+  "success_rate": {"backend": "100% (17/17 — 4 new iteration-4 + 13 regression. Full iteration-3 billing/email suite was previously verified, not re-run this iteration to save time, but iteration-3 endpoints untouched.)", "frontend": "100% — all iteration-4 surfaces verified (intro, logo, headings, founder copy, Enterprise £199, cookie banner + persistence, signup checkboxes + pulse, public legal routes, in-app legal pages, sub-processor list, tool disclaimer colour categorisation x4, danger zone modal + DELETE-confirm gating, app footer with ICO C1923529, no-liability-footer testid/wording in source)"},
+  "test_credentials": "sparky01 / test1234 — used for all authenticated UI flows. NOT deleted (we cancelled the danger-zone modal before clicking confirm). 4 new throwaway accounts created by backend tests (del_*, smk_*, test_*, unv_*) — one of them was actually wiped via the DELETE endpoint as part of the test.",
+  "seed_data_creation": "Backend tests create ~4-5 fresh signup users per run plus one wiped via /api/account/delete. Documents and CIS payments created and most deleted within tests.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iteration 4 fully verified. DELETE /api/account/delete wipes users/documents/cis_payments/password_reset_tokens/payment_transactions in 5 sequential awaits — token auto-invalidates because get_user lookup fails post-delete. Test file: /app/backend/tests/test_account_delete.py (4 tests, ~5s). Sidebar Account section is collapsed by default — to see Privacy/Terms/Complaints/Refund Policy links, click the 'Account' header first. Cinematic intro: 5.4s lifetime, sessionStorage flag stops replay within same browser session (cleared on tab close). Cookie banner: localStorage 'morris_cookie_consent' = 'accepted' or 'declined'. Tool disclaimer testids: tool-disclaimer-hs (red, RAMS), tool-disclaimer-legal (gold, contract-review), tool-disclaimer-tax (blue, cis-calculator), tool-disclaimer-standard (gold, default e.g. variation-letter). No-liability-footer (testid='no-liability-footer') renders only AFTER a successful /generate (mounted inside ToolHeader result-actions block, 10px #666 grey).",
+  "mocked_apis_verified": [
+    "SMS/OTP — DEMO MODE confirmed (OTP returned in /api/auth/signup response body)",
+    "Stripe Checkout — MOCK MODE still active (not exercised in iteration-4 tests but unchanged from iteration-3)"
+  ],
+  "rca_of_the_issue": "No bugs found. All iteration-4 features implemented to spec and verified end-to-end."
+}

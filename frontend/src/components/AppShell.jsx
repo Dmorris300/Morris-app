@@ -5,6 +5,8 @@ import { TOOLS, WOW_TOOLS, SECTIONS, getToolsBySection, emojiFor } from "../lib/
 import { useAuth } from "../lib/auth";
 import { Search, ChevronDown, ChevronRight, Star, Clock, LogOut, Menu, X, User, FileText, History as HistoryIcon, Settings as SettingsIcon, HardHat } from "lucide-react";
 import { TradeSwitcher } from "./TradeSwitcher";
+import AppFooter from "./AppFooter";
+import SessionTimeout from "./SessionTimeout";
 
 export default function AppShell() {
   const { user, logout } = useAuth();
@@ -123,11 +125,13 @@ export default function AppShell() {
       )}
 
       {/* Main */}
-      <main className="flex-1 md:ml-72 pt-14 md:pt-0 min-h-screen">
-        <Outlet />
+      <main className="flex-1 md:ml-72 pt-14 md:pt-0 min-h-screen flex flex-col">
+        <div className="flex-1"><Outlet /></div>
+        <AppFooter />
       </main>
 
       <TradeSwitcher open={tradeSwitchOpen} onClose={() => setTradeSwitchOpen(false)} />
+      <SessionTimeout />
     </div>
   );
 }

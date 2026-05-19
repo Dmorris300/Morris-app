@@ -300,6 +300,18 @@ async def update_profile(update: ProfileUpdate, authorization: Optional[str] = H
     updated = await db.users.find_one({"id": user["id"]}, {"_id": 0, "password": 0, "otp": 0})
     return updated
 
+@api_router.delete("/account/delete")
+async def delete_account(authorization: Optional[str] = Header(None)):
+    token = authorization.replace("Bearer ", "") if authorization else None
+    user = await get_user(token)
+    uid = user["id"]
+    await db.documents.delete_many({"userId": uid})
+    await db.cis_payments.delete_many({"userId": uid})
+    await db.password_reset_tokens.delete_many({"userId": uid})
+    await db.payment_transactions.delete_many({"userId": uid})
+    await db.users.delete_one({"id": uid})
+    return {"ok": True, "message": "Account and all data deleted."}
+
 # ---------- Claude generate ----------
 @api_router.post("/generate")
 async def generate(req: GenerateReq, authorization: Optional[str] = Header(None)):

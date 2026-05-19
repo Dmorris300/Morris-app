@@ -1,11 +1,17 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import api from "../lib/api";
 import { TRADES } from "../lib/tools-config";
 import { toast } from "sonner";
+import { AlertTriangle, Trash2 } from "lucide-react";
 
 export default function Profile() {
-  const { user, refresh } = useAuth();
+  const { user, refresh, logout } = useAuth();
+  const nav = useNavigate();
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteWord, setDeleteWord] = useState("");
+  const [deleting, setDeleting] = useState(false);
   const [f, setF] = useState({
     fullName: user?.fullName || "",
     companyName: user?.companyName || "",
@@ -52,6 +58,77 @@ export default function Profile() {
         </Row>
         <button className="btn-primary" disabled={saving} data-testid="profile-save">{saving ? "Saving…" : "Save profile"}</button>
       </form>
+
+      {/* DANGER ZONE */}
+      <div
+        className="mt-10 p-6 rounded"
+        style={{ border: "1px solid rgba(224,80,80,0.25)", background: "rgba(224,80,80,0.04)" }}
+        data-testid="danger-zone"
+      >
+        <div className="flex items-center gap-2 mb-2">
+          <AlertTriangle size={16} style={{ color: "#E05050" }} />
+          <h2 className="font-display text-2xl" style={{ color: "#E05050" }}>Danger zone</h2>
+        </div>
+        <p className="text-sm text-[#A19D94] mb-4">
+          Permanently delete your account, your documents, your CIS payment log and all data Morris holds about you. This cannot be undone.
+        </p>
+        <button
+          onClick={() => setConfirmDelete(true)}
+          className="text-sm font-semibold px-4 py-2 rounded transition-colors"
+          style={{ background: "#0d0d0d", color: "#E05050", border: "1px solid rgba(224,80,80,0.4)" }}
+          data-testid="delete-account-btn"
+        >
+          <Trash2 size={14} className="inline mr-2 -mt-0.5" /> Delete My Account and All Data
+        </button>
+      </div>
+
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" data-testid="delete-modal">
+          <div className="absolute inset-0 bg-black/70" onClick={() => !deleting && setConfirmDelete(false)} />
+          <div className="relative card-dark p-6 md:p-7 max-w-md w-full" style={{ borderColor: "rgba(224,80,80,0.4)" }}>
+            <h3 className="font-display text-2xl mb-2" style={{ color: "#E05050" }}>Delete account?</h3>
+            <p className="text-sm text-[#F0EDE8] mb-4">This will permanently remove your account, profile, documents, CIS payments and reset tokens. There is no recovery.</p>
+            <p className="text-sm text-[#A19D94] mb-2">Type <strong className="text-[#E05050] font-mono">DELETE</strong> to confirm:</p>
+            <input
+              value={deleteWord}
+              onChange={(e) => setDeleteWord(e.target.value)}
+              className="input-base mb-4"
+              placeholder="DELETE"
+              data-testid="delete-confirm-input"
+              disabled={deleting}
+            />
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setConfirmDelete(false)} className="btn-secondary text-sm" disabled={deleting}>Cancel</button>
+              <button
+                onClick={async () => {
+                  setDeleting(true);
+                  try {
+                    await api.delete("/account/delete");
+                    Object.keys(localStorage).filter(k => k.startsWith("morris_")).forEach(k => localStorage.removeItem(k));
+                    logout();
+                    toast.success("Your account and all data has been deleted.");
+                    nav("/login", { replace: true });
+                  } catch {
+                    toast.error("Could not delete account");
+                    setDeleting(false);
+                  }
+                }}
+                disabled={deleteWord !== "DELETE" || deleting}
+                className="text-sm font-semibold px-4 py-2 rounded"
+                style={{
+                  background: deleteWord === "DELETE" && !deleting ? "#E05050" : "#1A0606",
+                  color: deleteWord === "DELETE" && !deleting ? "#0d0d0d" : "#E05050",
+                  opacity: deleteWord === "DELETE" && !deleting ? 1 : 0.55,
+                  border: "1px solid rgba(224,80,80,0.5)",
+                }}
+                data-testid="delete-confirm-btn"
+              >
+                {deleting ? "Deleting." : "Delete permanently"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

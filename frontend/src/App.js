@@ -24,6 +24,11 @@ import Favourites from "./pages/Favourites";
 import History from "./pages/History";
 import Billing from "./pages/Billing";
 import MockCheckout from "./pages/MockCheckout";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsConditions from "./pages/TermsConditions";
+import Complaints from "./pages/Complaints";
+import RefundPolicy from "./pages/RefundPolicy";
+import CookieBanner from "./components/CookieBanner";
 
 function Protected({ children }) {
   const { user, loading } = useAuth();
@@ -47,6 +52,7 @@ function App() {
         <Toaster theme="dark" position="top-right" toastOptions={{
           style: { background: "#121212", color: "#F0EDE8", border: "1px solid rgba(232,160,32,0.25)" },
         }} />
+        <CookieBanner />
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
@@ -54,6 +60,8 @@ function App() {
           <Route path="/verify-otp" element={<VerifyOtp />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/terms" element={<TermsConditions />} />
           <Route path="/select-trade" element={<Protected><SelectTrade /></Protected>} />
 
           <Route path="/app" element={<TradeGate><AppShell /></TradeGate>}>
@@ -70,6 +78,10 @@ function App() {
             <Route path="history" element={<History />} />
             <Route path="billing" element={<Billing />} />
             <Route path="billing/mock-checkout" element={<MockCheckout />} />
+            <Route path="privacy" element={<PrivacyPolicy />} />
+            <Route path="terms" element={<TermsConditions />} />
+            <Route path="complaints" element={<Complaints />} />
+            <Route path="refund-policy" element={<RefundPolicy />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

@@ -1,5 +1,7 @@
 import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
 import { MorrisLogo, MorrisWordmark } from "../components/MorrisLogo";
+import CinematicIntro from "../components/CinematicIntro";
 import { ArrowRight, Mic, Camera, Calculator, ShieldCheck, FileText, HardHat, PoundSterling, CheckCircle2 } from "lucide-react";
 import { TOOLS, SECTIONS, emojiFor } from "../lib/tools-config";
 
@@ -8,8 +10,22 @@ const SITE_PHOTO = "https://images.unsplash.com/photo-1518280651110-3e80e7c84a84
 const FOUNDER_PHOTO = "https://images.unsplash.com/photo-1646324554833-f0b6a479fa5d?auto=format&fit=crop&w=1400&q=70";
 
 export default function Landing() {
+  const [showIntro, setShowIntro] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && !sessionStorage.getItem("morris_intro_shown")) {
+      setShowIntro(true);
+    }
+  }, []);
+
+  const dismissIntro = () => {
+    sessionStorage.setItem("morris_intro_shown", "1");
+    setShowIntro(false);
+  };
+
   return (
     <div className="min-h-screen bg-[#060606] text-[#F0EDE8] font-body" data-testid="landing-page">
+      {showIntro && <CinematicIntro onDone={dismissIntro} />}
       {/* NAV */}
       <nav className="sticky top-0 z-40 bg-[#060606]/90 backdrop-blur border-b border-[#F0EDE8]/5">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
@@ -72,7 +88,7 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto px-6 py-24">
           <div className="max-w-3xl mb-14">
             <div className="text-[#E8A020] text-xs uppercase tracking-widest mb-4">Three things no other admin app does</div>
-            <h2 className="font-display text-5xl md:text-6xl">The Wow features.</h2>
+            <h2 className="font-display text-5xl md:text-6xl">What sets Morris apart.</h2>
           </div>
           <div className="grid md:grid-cols-3 gap-6">
             <WowCard icon={<Mic size={28} />} title="Verbal to Variation" desc="Talk into your phone. Morris turns 'the foreman told me to add another riser' into a formal variation letter you can send before you get back to the van." />
@@ -119,14 +135,14 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto px-6 py-24">
           <div className="text-center mb-14">
             <div className="text-[#E8A020] text-xs uppercase tracking-widest mb-3">Pricing</div>
-            <h2 className="font-display text-5xl md:text-6xl">No nonsense. Pay monthly.</h2>
+            <h2 className="font-display text-5xl md:text-6xl">Simple pricing. Pay monthly.</h2>
           </div>
           <div className="grid md:grid-cols-5 gap-4">
             <PriceCard tier="Free" price="£0" period="forever" features={["3 tools", "5 documents per month", "Get a feel for Morris"]} cta="Start free" ctaTo="/signup" />
             <PriceCard tier="Solo" price="£12.99" period="per month" features={["All tools", "Unlimited documents", "1 user"]} cta="Choose Solo" highlight ctaTo="/signup" />
             <PriceCard tier="Pro" price="£24.99" period="per month" features={["Everything in Solo", "3 users", "Shared document history"]} cta="Choose Pro" ctaTo="/signup" />
             <PriceCard tier="Business" price="£59.99" period="per month" features={["Everything in Pro", "10 users", "Multi-site management"]} cta="Choose Business" ctaTo="/signup" />
-            <PriceCard tier="Enterprise" price="£299+" period="per month" features={["Unlimited users", "White label available", "Priority support"]} cta="Contact us" ctaTo="mailto:hello@morrisapp.co.uk?subject=Morris Enterprise" external />
+            <PriceCard tier="Enterprise" price="£199" period="per month" features={["Unlimited users", "White label available", "Priority support"]} cta="Contact us" ctaTo="mailto:hello@morrisapp.co.uk?subject=Morris Enterprise" external />
           </div>
         </div>
       </section>
@@ -135,13 +151,16 @@ export default function Landing() {
       <section id="founder" className="border-b border-[#F0EDE8]/5">
         <div className="max-w-4xl mx-auto px-6 py-24 text-center">
           <div className="text-[#E8A020] text-xs uppercase tracking-widest mb-4">Founder</div>
-          <h2 className="font-display text-5xl md:text-6xl mb-6">Built by Dexter.<br/>A duct fitter.</h2>
+          <h2 className="font-display text-5xl md:text-6xl mb-6">Built by Darren.<br/>A duct fitter.</h2>
           <p className="text-lg text-[#A19D94] leading-relaxed mb-4">
-            Dexter is a UK duct fitter who got tired of watching good tradesmen get shafted by bad paperwork.
-            Verbal instructions never confirmed, variations never priced, CIS refunds never claimed.
+            I'm Darren, a UK duct fitter. I got tired of watching good tradesmen get shafted by bad paperwork.
+            Verbal instructions were never confirmed, variations were never priced, CIS refunds were never claimed.
+          </p>
+          <p className="text-lg text-[#A19D94] leading-relaxed mb-4">
+            I built Morris to fix the problems I saw every day on site.
           </p>
           <p className="text-lg text-[#A19D94] leading-relaxed">
-            Morris is the app he wished he had in his van. Built by someone who's actually been on site.
+            Built by someone who's actually been on site.
           </p>
           <p className="mt-6 font-display text-3xl text-[#E8A020]">Built on the Tools.</p>
         </div>
