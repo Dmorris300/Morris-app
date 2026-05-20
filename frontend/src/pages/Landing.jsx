@@ -11,10 +11,15 @@ const FOUNDER_PHOTO = "https://images.unsplash.com/photo-1646324554833-f0b6a479f
 
 export default function Landing() {
   const [showIntro, setShowIntro] = useState(false);
+  const [landingVisible, setLandingVisible] = useState(true);
 
   useEffect(() => {
     if (typeof window !== "undefined" && !sessionStorage.getItem("morris_intro_shown")) {
       setShowIntro(true);
+      setLandingVisible(false);
+      // Start landing fade-in at 4.5s (same moment the intro starts fading out)
+      const t = setTimeout(() => setLandingVisible(true), 4500);
+      return () => clearTimeout(t);
     }
   }, []);
 
@@ -26,6 +31,7 @@ export default function Landing() {
   return (
     <div className="min-h-screen bg-[#060606] text-[#F0EDE8] font-body" data-testid="landing-page">
       {showIntro && <CinematicIntro onDone={dismissIntro} />}
+      <div style={{ opacity: landingVisible ? 1 : 0, transition: "opacity 1.5s ease" }}>
       {/* NAV */}
       <nav className="sticky top-0 z-40 bg-[#060606]/90 backdrop-blur border-b border-[#F0EDE8]/5">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
@@ -35,7 +41,7 @@ export default function Landing() {
           </Link>
           <div className="hidden md:flex items-center gap-8 text-sm text-[#A19D94]">
             <a href="#tools" className="hover:text-[#F0EDE8]">Tools</a>
-            <a href="#wow" className="hover:text-[#F0EDE8]">Wow Features</a>
+            <a href="#wow" className="hover:text-[#F0EDE8]">What Morris Offers</a>
             <a href="#pricing" className="hover:text-[#F0EDE8]">Pricing</a>
             <a href="#founder" className="hover:text-[#F0EDE8]">Founder</a>
           </div>
@@ -177,7 +183,7 @@ export default function Landing() {
             <div className="text-xs uppercase tracking-widest text-[#E8A020] mb-3">Product</div>
             <ul className="space-y-2 text-sm text-[#A19D94]">
               <li><a href="#tools">Tools</a></li>
-              <li><a href="#wow">Wow Features</a></li>
+              <li><a href="#wow">What Morris Offers</a></li>
               <li><a href="#pricing">Pricing</a></li>
             </ul>
           </div>

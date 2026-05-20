@@ -43,7 +43,7 @@ export default function CISRefundPredictor() {
   return (
     <div className="p-6 md:p-10 max-w-7xl mx-auto" data-testid="page-cis-refund-predictor">
       <div className="mb-6">
-        <div className="text-[#E8A020] text-xs uppercase tracking-widest mb-2">FINANCE. Wow Feature</div>
+        <div className="text-[#E8A020] text-xs uppercase tracking-widest mb-2">FINANCE</div>
         <h1 className="font-display text-4xl md:text-5xl">CIS Refund Predictor</h1>
         <p className="text-[#A19D94] mt-3 max-w-3xl">{TOOL.info}</p>
       </div>

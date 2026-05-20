@@ -40,7 +40,7 @@ export default function Dashboard() {
       </div>
 
       <div className="mb-10">
-        <h2 className="font-display text-3xl mb-4">Wow features</h2>
+        <h2 className="font-display text-3xl mb-4">What Morris offers</h2>
         <div className="grid md:grid-cols-3 gap-4">
           <BigCard to="/app/wow/verbal-to-variation" icon={<Mic size={24} />} title="Verbal to Variation" desc="Talk it. Send it." testId="dash-wow-verbal" />
           <BigCard to="/app/wow/photo-to-document" icon={<Camera size={24} />} title="Photo to Document" desc="Snap a scribble. Get a doc." testId="dash-wow-photo" />

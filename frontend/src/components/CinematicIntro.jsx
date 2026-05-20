@@ -1,96 +1,180 @@
 import { useEffect, useState } from "react";
 
 /**
- * Cinematic intro — full black screen, two lines of Bebas Neue gold text appear
- * left-to-right with a metallic gold shimmer sweep. Holds on screen, then calls onDone()
- * which removes it so the landing page underneath becomes visible.
- *
- * Total runtime: ~5 seconds (line 1 sweep 2s, 600ms gap, line 2 sweep 2s, 1.4s hold).
+ * Cinematic intro — full-screen black overlay sitting on top of the landing page.
+ * Total timeline:
+ *   0.0s  : black screen visible
+ *   0.2s  : small "MORRIS CONSTRUCTION TECH" subhead fades up
+ *   0.5s  : main slogan fades up (dim #3A2800)
+ *   1.0s  : gold sweep beam crosses the slogan over 2s
+ *   2.8s  : thin gold rule expands from centre (0 → 200px over 0.8s)
+ *   3.2s  : "MORRIS" footer mark fades in
+ *   4.5s  : intro begins fading out over 1.5s + landing fades in over the same 1.5s
+ *   6.0s  : intro removed from DOM, scroll unlocked
  */
 export default function CinematicIntro({ onDone }) {
-  const [stage, setStage] = useState(0);
+  const [fadingOut, setFadingOut] = useState(false);
+  const [removed, setRemoved] = useState(false);
 
   useEffect(() => {
-    const t1 = setTimeout(() => setStage(1), 80);      // start line 1 sweep
-    const t2 = setTimeout(() => setStage(2), 2200);    // line 2 begins
-    const t3 = setTimeout(() => onDone && onDone(), 5400); // finish
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+    // lock scroll
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const t1 = setTimeout(() => setFadingOut(true), 4500);
+    const t2 = setTimeout(() => {
+      document.body.style.overflow = prevOverflow || "";
+      setRemoved(true);
+      if (onDone) onDone();
+    }, 6000);
+
+    return () => {
+      clearTimeout(t1); clearTimeout(t2);
+      document.body.style.overflow = prevOverflow || "";
+    };
   }, [onDone]);
+
+  if (removed) return null;
 
   return (
     <div
-      className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center"
       data-testid="cinematic-intro"
-      style={{ background: "#000000" }}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 999,
+        background: "#000000",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        opacity: fadingOut ? 0 : 1,
+        transition: "opacity 1.5s ease",
+        pointerEvents: fadingOut ? "none" : "auto",
+        padding: "16px",
+      }}
     >
       <style>{`
-        @keyframes morris-sweep-reveal {
-          0%   { clip-path: inset(0 100% 0 0); }
-          100% { clip-path: inset(0 0 0 0); }
+        @keyframes morris-fade-up {
+          0%   { opacity: 0; transform: translateY(8px); }
+          100% { opacity: var(--target-opacity, 1); transform: translateY(0); }
         }
-        @keyframes morris-beam {
-          0%   { transform: translateX(-110%); opacity: 0; }
-          15%  { opacity: 1; }
-          85%  { opacity: 1; }
-          100% { transform: translateX(110%); opacity: 0; }
+        @keyframes morris-rule-grow {
+          0%   { width: 0; opacity: 0; }
+          100% { width: 200px; opacity: 1; }
         }
-        .morris-intro-line {
+        @keyframes morris-sweep {
+          0%   { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
+        }
+
+        .morris-intro-subhead {
           font-family: 'Bebas Neue', sans-serif;
-          background-image: linear-gradient(90deg,
-            #8A6820 0%,
-            #C9972B 20%,
-            #F0C84A 40%,
-            #FFF8DC 50%,
-            #F0C84A 60%,
-            #C9972B 80%,
-            #8A6820 100%);
-          background-clip: text;
-          -webkit-background-clip: text;
-          color: transparent;
-          background-size: 200% 100%;
-          animation: morris-sweep-reveal 2s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+          font-size: 10px;
+          letter-spacing: 5px;
+          color: #E8A020;
+          opacity: 0;
+          animation: morris-fade-up 0.8s ease-out 0.2s forwards;
+          --target-opacity: 0.25;
+        }
+        .morris-intro-slogan-wrap {
           position: relative;
-          display: inline-block;
+          margin-top: 18px;
+          opacity: 0;
+          animation: morris-fade-up 0.8s ease-out 0.5s forwards;
+          --target-opacity: 1;
           line-height: 1.05;
         }
-        .morris-intro-beam {
-          position: absolute;
-          top: 0;
-          bottom: 0;
-          left: 0;
-          width: 60%;
-          background: linear-gradient(90deg, transparent 0%, rgba(255,248,220,0.0) 30%, rgba(255,248,220,0.55) 50%, rgba(255,248,220,0.0) 70%, transparent 100%);
-          mix-blend-mode: screen;
-          animation: morris-beam 2s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+        .morris-intro-slogan-base {
+          font-family: 'Bebas Neue', sans-serif;
+          font-weight: 700;
+          font-size: clamp(32px, 7vw, 88px);
+          letter-spacing: 6px;
+          color: #3A2800;
+          white-space: nowrap;
+          display: inline-block;
+        }
+        .morris-intro-slogan-sweep {
+          position: absolute; inset: 0;
+          font-family: 'Bebas Neue', sans-serif;
+          font-weight: 700;
+          font-size: clamp(32px, 7vw, 88px);
+          letter-spacing: 6px;
+          white-space: nowrap;
+          color: transparent;
+          background-image: linear-gradient(90deg,
+            transparent 0%,
+            rgba(244,200,80,0.0) 30%,
+            #F4C850 45%,
+            #FFD700 50%,
+            #E8A020 55%,
+            rgba(244,200,80,0.0) 70%,
+            transparent 100%);
+          background-size: 200% 100%;
+          background-position: -200% 0;
+          background-repeat: no-repeat;
+          -webkit-background-clip: text;
+          background-clip: text;
+          -webkit-text-fill-color: transparent;
+          animation: morris-sweep 2s cubic-bezier(0.65, 0, 0.35, 1) 1s forwards;
           pointer-events: none;
+        }
+        .morris-intro-slogan-glow {
+          position: absolute; inset: 0;
+          font-family: 'Bebas Neue', sans-serif;
+          font-weight: 700;
+          font-size: clamp(32px, 7vw, 88px);
+          letter-spacing: 6px;
+          white-space: nowrap;
+          color: transparent;
+          background-image: linear-gradient(90deg,
+            transparent 0%,
+            rgba(244,200,80,0.0) 30%,
+            #F4C850 45%,
+            #FFD700 50%,
+            #E8A020 55%,
+            rgba(244,200,80,0.0) 70%,
+            transparent 100%);
+          background-size: 200% 100%;
+          background-position: -200% 0;
+          background-repeat: no-repeat;
+          -webkit-background-clip: text;
+          background-clip: text;
+          -webkit-text-fill-color: transparent;
+          filter: blur(8px);
+          animation: morris-sweep 2s cubic-bezier(0.65, 0, 0.35, 1) 1s forwards;
+          pointer-events: none;
+        }
+        .morris-intro-rule {
+          margin-top: 28px;
+          height: 1px;
+          width: 0;
+          background: #E8A020;
+          box-shadow: 0 0 14px rgba(232,160,32,0.7), 0 0 28px rgba(232,160,32,0.35);
+          animation: morris-rule-grow 0.8s ease-out 2.8s forwards;
+        }
+        .morris-intro-mark {
+          margin-top: 16px;
+          font-family: 'Bebas Neue', sans-serif;
+          font-size: 11px;
+          letter-spacing: 6px;
+          color: #E8A020;
+          opacity: 0;
+          animation: morris-fade-up 0.8s ease-out 3.2s forwards;
+          --target-opacity: 0.30;
         }
       `}</style>
 
-      <div className="w-full px-6 max-w-[90vw] text-center">
-        {/* Line 1 — large */}
-        <div className="relative inline-block">
-          {stage >= 1 && (
-            <>
-              <span className="morris-intro-line block" style={{ fontSize: "clamp(36px, 6.5vw, 96px)", letterSpacing: "0.02em" }}>
-                Built By A Tradesman, For Tradesmen
-              </span>
-              <span className="morris-intro-beam" />
-            </>
-          )}
-        </div>
+      <div className="morris-intro-subhead">MORRIS CONSTRUCTION TECH</div>
 
-        {/* Line 2 — smaller, spaced */}
-        <div className="relative inline-block mt-8 md:mt-10">
-          {stage >= 2 && (
-            <>
-              <span className="morris-intro-line block" style={{ fontSize: "clamp(18px, 2.6vw, 36px)", letterSpacing: "0.34em" }}>
-                The Paperwork Sorted. You Stay On The Tools.
-              </span>
-              <span className="morris-intro-beam" />
-            </>
-          )}
-        </div>
+      <div className="morris-intro-slogan-wrap">
+        <span className="morris-intro-slogan-glow" aria-hidden="true">BUILT BY A TRADESMAN. FOR TRADESMEN.</span>
+        <span className="morris-intro-slogan-base">BUILT BY A TRADESMAN. FOR TRADESMEN.</span>
+        <span className="morris-intro-slogan-sweep" aria-hidden="true">BUILT BY A TRADESMAN. FOR TRADESMEN.</span>
       </div>
+
+      <div className="morris-intro-rule" />
+      <div className="morris-intro-mark">MORRIS</div>
     </div>
   );
 }
