@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /**
  * Cinematic intro — full-screen black overlay sitting on top of the landing page.
@@ -15,6 +15,9 @@ import { useEffect, useState } from "react";
 export default function CinematicIntro({ onDone }) {
   const [fadingOut, setFadingOut] = useState(false);
   const [removed, setRemoved] = useState(false);
+  const onDoneRef = useRef(onDone);
+  // keep latest onDone in ref without retriggering the timeline effect
+  useEffect(() => { onDoneRef.current = onDone; }, [onDone]);
 
   useEffect(() => {
     // lock scroll
@@ -25,14 +28,15 @@ export default function CinematicIntro({ onDone }) {
     const t2 = setTimeout(() => {
       document.body.style.overflow = prevOverflow || "";
       setRemoved(true);
-      if (onDone) onDone();
+      if (onDoneRef.current) onDoneRef.current();
     }, 6000);
 
     return () => {
       clearTimeout(t1); clearTimeout(t2);
       document.body.style.overflow = prevOverflow || "";
     };
-  }, [onDone]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (removed) return null;
 

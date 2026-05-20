@@ -48,6 +48,13 @@ Dark-themed construction administration SaaS for UK tradespeople and sole trader
 - "Favourite" label (was "Starred")
 - Tool emojis next to every tool name
 
+### Iteration 5 (Feb 2026 — Cinematic intro + CIS disclaimer)
+- 4.5s cinematic intro overlay on Landing (CinematicIntro.jsx): subhead 0.2s → slogan 0.5s → gold sweep 1s → rule 2.8s → MORRIS mark 3.2s → fade-out 4.5s over 1.5s → DOM removal at 6s. Scroll-locked during intro then released. Replays only once per session via `sessionStorage.morris_intro_shown`.
+- Landing fades in at 4.5s to overlap with intro fade-out for seamless transition.
+- Fixed critical timer-restart bug in CinematicIntro: useEffect dep changed to `[]` with an `onDoneRef` so parent re-renders no longer clear the 6s timer.
+- "Wow Features" → "What Morris Offers" rename across nav + footer.
+- CIS Refund Predictor: added Info `i` + Favourite star buttons in header. Info opens a modal popup overlay (#0D0D0D bg, gold border) with "What this tool does" copy and a blue-bordered Tax Notice box (🧮 calculator emoji) clarifying the estimate-only nature of the prediction. Favourite toggle wired to `/api/profile/update`.
+
 ## Verified (Testing Agent iterations 1+2+3)
 - Backend: 36/36 pytest pass (auth + generate + documents + CIS + billing + free-tier + email)
 - Frontend: full E2E happy path verified — signup → OTP → trade → tool generation → mock checkout → plan activation → free-tier 402 cascade
