@@ -49,9 +49,8 @@ Dark-themed construction administration SaaS for UK tradespeople and sole trader
 - Tool emojis next to every tool name
 
 ### Iteration 5 (Feb 2026 — Cinematic intro + CIS disclaimer)
-- 4.5s cinematic intro overlay on Landing (CinematicIntro.jsx): subhead 0.2s → slogan 0.5s → gold sweep 1s → rule 2.8s → MORRIS mark 3.2s → fade-out 4.5s over 1.5s → DOM removal at 6s. Scroll-locked during intro then released. Replays only once per session via `sessionStorage.morris_intro_shown`.
-- Landing fades in at 4.5s to overlap with intro fade-out for seamless transition.
-- Fixed critical timer-restart bug in CinematicIntro: useEffect dep changed to `[]` with an `onDoneRef` so parent re-renders no longer clear the 6s timer.
+- Cinematic intro overlay on Landing (CinematicIntro.jsx): two-line gold shimmer sweep — "Built By A Tradesman, For Tradesmen" (large, 2s sweep) + "The Paperwork Sorted. You Stay On The Tools." (smaller, sweeps in at 2.2s). ~5.4s total runtime, scroll-locked then released. Replays only once per session via `sessionStorage.morris_intro_shown`. (User reverted from the alternate 4.5s "MORRIS / slogan / rule / mark" design back to this original 2-line shimmer intro.)
+- Fixed critical timer-restart bug in CinematicIntro: useEffect dep changed to `[]` with an `onDoneRef` so parent re-renders no longer clear the dismiss timer.
 - "Wow Features" → "What Morris Offers" rename across nav + footer.
 - CIS Refund Predictor: added Info `i` + Favourite star buttons in header. Info opens a modal popup overlay (#0D0D0D bg, gold border) with "What this tool does" copy and a blue-bordered Tax Notice box (🧮 calculator emoji) clarifying the estimate-only nature of the prediction. Favourite toggle wired to `/api/profile/update`.
 
