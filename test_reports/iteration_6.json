@@ -1,0 +1,57 @@
+{
+  "summary": "Phase 1A + 1B verification. Backend: all 8 new pytest cases pass — admin unlimited bypass, refNumber TYPE-INITIALS-YYMMDD-NNN format, DOCUMENT REFERENCE/DATE/REVIEW DATE header, no em/en dashes, auto-save to /api/documents with autoSaved=true, free-tier (sparky-style fresh signup) still capped at 3 tools and isUnlimited=false. Frontend partially verified: Enterprise £199.99 on landing, 4 yellow asterisks (rgb(232,160,32)) on RAMS, Generate button disabled when empty / enabled when filled, code-level confirmation of SMS action button (data-testid='action-sms') + new disclaimer wording in ToolHeader.jsx. Visual E2E of result panel (REF badge, SMS button, disclaimer, toast) is BLOCKED because the Emergent LLM budget is exhausted (Max budget 0.4 reached) — /api/generate returns 500 from the chat layer for live UI clicks. Site Diary date prefill is BROKEN: tools-config.js line 49 declares the date field as type='text' (default), so autoDefaultFor() never fires and the field stays empty.",
+
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "/api/generate", "issue": "Emergent LLM budget exhausted (budget_exceeded, current 0.440718 > max 0.4). All live UI generations now return 500 / 502 with ChatError. Backend logic itself is correct (test_phase1ab_admin_refnumber.py passed all 8 cases when budget was available). Either bump the budget for this preview env or document this in the test report. This blocks all subsequent E2E Generate flows.", "priority": "HIGH"}
+    ],
+    "minor": []
+  },
+
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "GenericToolPage / tools-config Site Diary", "issue": "Site Diary 'date' field is declared as f('date','Date') in /app/frontend/src/lib/tools-config.js line 49, which defaults to type='text'. autoDefaultFor() only injects today when field.type==='date', so the field renders empty instead of today's ISO date. Same issue likely affects multiuser-site-diary (line 217) and quote-builder validUntil (line 54). Fix: change to f('date','Date','date') OR widen autoDefaultFor() to also key off field.name (e.g. /date|review/) regardless of type.", "selector": "[data-testid='field-date']", "priority": "HIGH"},
+      {"component": "Review request selector mismatch", "issue": "Review request says data-testid='generate-button' but the actual rendered testid on the Generate button is 'generate-btn'. Documentation/spec drift — not a code bug, but future tests should use 'generate-btn'.", "selector": "[data-testid='generate-btn']", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "RAMS Generate → result panel", "issue": "Could not visually verify REF badge ('REF: <number>'), DOCUMENT REFERENCE header in result, SMS/Email/WhatsApp action buttons, 'Saved to your Vault' toast, or new disclaimer wording on screen — every live click on Generate returns 500 due to the exhausted Emergent LLM budget. Code-level inspection confirms ToolHeader.jsx renders action-sms (line 135) and the exact disclaimer text (line 143); GenericToolPage.jsx renders refNumber on a passing API response and emits the success toast.", "affected_selectors": ["[data-testid='action-sms']","[data-testid='action-email']","[data-testid='action-whatsapp-text']","[data-testid='action-whatsapp-pdf']"]}
+    ],
+    "design_issues": []
+  },
+
+  "test_report_links": [
+    "/app/backend/tests/test_phase1ab_admin_refnumber.py",
+    "/app/test_reports/pytest/iter6_phase1ab.xml"
+  ],
+
+  "action_items": [
+    "URGENT: Bump or reset Emergent LLM budget for this preview env — /api/generate currently 500s from the chat layer (budget_exceeded). All E2E Generate flows are blocked.",
+    "FIX: Site Diary date auto-prefill — change /app/frontend/src/lib/tools-config.js line 49 to f('date','Date','date') so GenericToolPage.autoDefaultFor() injects today. Audit any other 'date' / 'review' / 'validUntil' fields declared without explicit type='date' (multiuser-site-diary line 217, quote-builder line 54).",
+    "After LLM budget is restored, re-run the frontend E2E for: REF badge in result header, DOCUMENT REFERENCE / DATE / REVIEW DATE at top of result content, SMS action button visible alongside Email + WhatsApp, the new global disclaimer text under the actions, and the 'Document generated. Saved to your Vault.' toast.",
+    "Update the spec doc / review_request to reflect the real Generate button testid: 'generate-btn' (not 'generate-button')."
+  ],
+
+  "critical_code_review_comments": [
+    "tools-config.js field helper f(name,label,type='text',...) silently defaults date-named fields to text — easy footgun. Suggest a stricter helper d(name,label) for date fields or auto-promote field.name matching /date|review|validUntil/i to type='date' in the helper.",
+    "GenericToolPage.autoDefaultFor() only checks field.type. Defensive improvement: also key on field.name pattern (date|review|validUntil) so a misconfigured field still gets a sensible default.",
+    "ChatError in /api/generate currently bubbles up as a 500 from the backend (server.py:430). Could be wrapped to return a friendlier 503 / structured error so the UI toast can surface 'AI service temporarily unavailable' instead of the generic 'Generation failed'."
+  ],
+
+  "updated_files": [
+    "/app/backend/tests/test_phase1ab_admin_refnumber.py (new)"
+  ],
+
+  "success_rate": {"backend": "100% (8/8 pytest cases pre-budget-exhaustion)", "frontend": "60% (verified pricing £199.99, yellow asterisks, disabled→enabled gate, code-level SMS button & disclaimer; blocked on live Generate due to LLM budget)"},
+
+  "test_credentials": "Admin darrenhustle300 / hustle1234 verified working (200, isAdmin=true, isUnlimited=true via /auth/me; plan=unlimited via /billing/status). Fresh signup flow used for free-tier isolation tests (sparky01 credentials not directly used because sparky01 likely already burned through its 3-tool cap from earlier iterations; the test instead provisions a brand-new free user per run to assert the cap still triggers).",
+
+  "seed_data_creation": "Two fresh free users created during fresh-signup tier-isolation tests (prefix isolim_* and iso3t_*). They occupied 3 distinct tool slots each. Two admin-side documents auto-saved into Darren's Vault with RAMS-DM-260525-NNN refNumbers.",
+
+  "retest_needed": true,
+
+  "should_main_agent_self_test": false,
+
+  "context_for_next_testing_agent": "Backend Phase 1A/1B regression suite is /app/backend/tests/test_phase1ab_admin_refnumber.py — 8 cases, ~48s when LLM budget healthy. Re-run with: pytest /app/backend/tests/test_phase1ab_admin_refnumber.py -v. The Generate button testid is 'generate-btn' (NOT 'generate-button'). To do an E2E UI run, login via API and inject localStorage.setItem('morris_token', <token>); also set sessionStorage.setItem('morris_intro_shown','1') and localStorage.setItem('morris_cookies_consent','accepted') to clear the intro + cookie banner overlays which intercept clicks. The cookie banner Accept button must be clicked before scrolling to Generate. Site Diary's date field bug confirmed in tools-config.js line 49.",
+
+  "rca of the issue": "Bug 1 (Site Diary date not prefilled): root cause is f('date','Date') in tools-config.js line 49 inheriting the default type='text' from the helper signature; GenericToolPage.autoDefaultFor (line 20-25) gates today's ISO injection behind field.type==='date', so the field is never seeded. Reproduction: navigate to /app/tool/site-diary while authenticated → inspect input[data-testid='field-date'] → value is empty string. Fix: change to f('date','Date','date') OR loosen autoDefaultFor to also match field.name. Bug 2 (Generate 500/502 via UI): root cause is litellm budget_exceeded — Emergent LLM key has hit its 0.4 USD cap. Reproduction: any authenticated POST /api/generate with valid payload now raises emergentintegrations.llm.chat.ChatError which server.py:430 lets bubble to a 500. Mitigation: top up / reset the Emergent LLM budget; wrap ChatError into a 503 with friendlier message."
+}

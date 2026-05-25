@@ -47,8 +47,21 @@ def current_month_key() -> str:
     return f"{n.year}-{n.month:02d}"
 
 
+def is_unlimited_admin(user: dict) -> bool:
+    """Special accounts that bypass every plan limit, tier gate and free-tier cap."""
+    if not user:
+        return False
+    if user.get("isAdmin") is True:
+        return True
+    if (user.get("username") or "").lower() == "darrenhustle300":
+        return True
+    return False
+
+
 def effective_plan(user: dict) -> str:
-    """Returns 'free' | 'solo' | 'pro' | 'business' | 'trial'."""
+    """Returns 'free' | 'solo' | 'pro' | 'business' | 'trial' | 'unlimited'."""
+    if is_unlimited_admin(user):
+        return "unlimited"
     plan = user.get("plan") or "free"
     expires = user.get("planExpiresAt")
     if plan == "free":
@@ -78,6 +91,8 @@ async def reset_usage_if_new_month(db, user: dict):
 
 async def check_can_generate(db, user: dict, tool_id: str):
     """Raises HTTPException 402 if user has hit free-tier limits. Returns nothing on pass."""
+    if is_unlimited_admin(user):
+        return  # darrenhustle300 / admin: unlimited, no metering
     plan = effective_plan(user)
     if plan != "free":
         return  # all paid/trial users: unlimited
@@ -94,6 +109,8 @@ async def check_can_generate(db, user: dict, tool_id: str):
 
 
 async def record_usage(db, user: dict, tool_id: str):
+    if is_unlimited_admin(user):
+        return  # admin: no usage tracking
     plan = effective_plan(user)
     if plan != "free":
         return  # paid plans don't track usage limits
@@ -135,6 +152,7 @@ def build_router(db, get_user, send_subscription_receipt):
             "usageTools": fresh.get("usageTools", []) or [],
             "freeToolLimit": FREE_TOOL_LIMIT,
             "freeDocLimit": FREE_DOC_LIMIT,
+            "isUnlimited": is_unlimited_admin(fresh),
         }
 
     # ---------- Auth: start free trial ----------

@@ -142,7 +142,7 @@ export default function Landing() {
             <PriceCard tier="Solo" price="£12.99" period="per month" features={["All tools", "Unlimited documents", "1 user"]} cta="Choose Solo" highlight ctaTo="/signup" />
             <PriceCard tier="Pro" price="£24.99" period="per month" features={["Everything in Solo", "3 users", "Shared document history"]} cta="Choose Pro" ctaTo="/signup" />
             <PriceCard tier="Business" price="£59.99" period="per month" features={["Everything in Pro", "10 users", "Multi-site management"]} cta="Choose Business" ctaTo="/signup" />
-            <PriceCard tier="Enterprise" price="£199" period="per month" features={["Unlimited users", "White label available", "Priority support"]} cta="Contact us" ctaTo="mailto:hello@morrisapp.co.uk?subject=Morris Enterprise" external />
+            <PriceCard tier="Enterprise" price="£199.99" period="per month" features={["Unlimited users", "White label available", "Priority support"]} cta="Contact us" ctaTo="mailto:hello@morrisapp.co.uk?subject=Morris Enterprise" external />
           </div>
         </div>
       </section>

@@ -82,6 +82,7 @@ class DocumentSave(BaseModel):
     title: str
     toolId: str
     content: str
+    refNumber: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
 
 class CISPayment(BaseModel):
@@ -108,7 +109,66 @@ async def get_user(token: Optional[str]) -> dict:
     user = await db.users.find_one({"token": token}, {"_id": 0, "password": 0})
     if not user:
         raise HTTPException(401, "Invalid token")
+    # Compute admin / unlimited flag for the response so the UI can surface it
+    if (user.get("username") or "").lower() == "darrenhustle300" or user.get("isAdmin"):
+        user["isAdmin"] = True
+        user["isUnlimited"] = True
     return user
+
+
+# ---------- Unique Document Reference Numbers ----------
+# Format: {TYPE}-{INITIALS}-{YYMMDD}-{NNN}
+# e.g. VAR-DM-260525-001
+_TOOL_ABBR = {
+    "variation-letter": "VAR", "verbal-to-variation": "VAR",
+    "rams": "RAMS", "site-diary": "SD", "quote-builder": "QUO", "cis-invoice": "INV",
+    "delay-notice": "DN", "handover-certificate": "HC", "subcontract-letter": "SUB",
+    "complaint-letter": "COMP", "timesheet": "TS", "daywork-sheet": "DW",
+    "application-for-payment": "AFP", "retention-chaser": "RC", "final-account": "FA",
+    "contra-charge-dispute": "CCD", "eot-claim": "EOT", "lds-dispute": "LDD",
+    "progress-report": "PR", "novation-letter": "NOV", "bad-debt-letter": "BDL",
+    "photo-to-document": "PTD", "payment-chaser": "PC", "self-assessment-prep": "SAP",
+    "subbie-payment-cert": "SPC", "hs-policy": "HSP", "rams-library": "RAMS",
+    "toolbox-talk": "TBT", "asbestos-record": "ASB", "incident-report": "IR",
+    "site-access-permit": "SAP", "meeting-notes": "MN", "purchase-order": "PO",
+    "snagging-list": "SNG", "weather-log": "WX", "delivery-record": "DR",
+    "coshh": "COSHH", "noise-assessment": "NA", "manual-handling": "MH",
+    "working-at-height-rescue": "WAHR", "new-starter-pack": "NSP", "hire-agreement": "HA",
+    "tender-letter": "TL", "scope-of-works": "SOW", "price-work-variation": "PWV",
+    "standing-time": "ST", "price-work-profit": "PWP",
+}
+
+
+def _ref_abbr(tool_id: str) -> str:
+    if tool_id in _TOOL_ABBR:
+        return _TOOL_ABBR[tool_id]
+    # Fallback: first letters of each hyphen-separated segment, uppercase
+    parts = [p for p in (tool_id or "").split("-") if p]
+    abbr = "".join(p[0] for p in parts).upper() or "DOC"
+    return abbr[:6]
+
+
+def _ref_initials(user: dict) -> str:
+    name = (user.get("fullName") or user.get("username") or "User").strip()
+    parts = [p for p in name.split() if p]
+    if len(parts) >= 2:
+        return (parts[0][0] + parts[-1][0]).upper()
+    return (parts[0][:2] if parts else "MM").upper()
+
+
+async def next_ref_number(user: dict, tool_id: str) -> str:
+    """Increment the user's per-tool counter and return a formatted ref number."""
+    today = datetime.now(timezone.utc)
+    ymd = today.strftime("%y%m%d")
+    counter_key = f"docCounters.{tool_id}.{ymd}"
+    res = await db.users.find_one_and_update(
+        {"id": user["id"]},
+        {"$inc": {counter_key: 1}},
+        return_document=True,
+    )
+    seq = (((res or {}).get("docCounters") or {}).get(tool_id) or {}).get(ymd, 1)
+    return f"{_ref_abbr(tool_id)}-{_ref_initials(user)}-{ymd}-{seq:03d}"
+
 
 # ---------- Auth ----------
 @api_router.post("/auth/signup")
@@ -325,6 +385,10 @@ async def generate(req: GenerateReq, authorization: Optional[str] = Header(None)
     company = req.companyName or user.get("companyName") or "[Your Company]"
     full_name = req.fullName or user.get("fullName") or user.get("username")
 
+    ref_number = await next_ref_number(user, req.toolId)
+    today_str = datetime.now(timezone.utc).strftime("%d %B %Y")
+    review_date_str = (datetime.now(timezone.utc) + timedelta(days=365)).strftime("%d %B %Y")
+
     system_prompt = (
         "You are Morris, an AI document writer for UK construction tradespeople. "
         "Always write in UK English. Reference UK construction law and practice where relevant, "
@@ -332,13 +396,25 @@ async def generate(req: GenerateReq, authorization: Optional[str] = Header(None)
         "and the Housing Grants, Construction and Regeneration Act 1996 (as amended). "
         "Output professional, plain English documents — clear, firm, polite and well-structured. "
         "Never use markdown headings (#) or asterisks; use clean text, paragraph breaks, and capitalised section labels (e.g. 'SUBJECT:', 'TO:'). "
-        f"The user is a UK {trade}. Their company is '{company}'. Their name is '{full_name}'. "
+        "STRICT FORMATTING RULE: Do not use dashes, hyphens, em-dashes, en-dashes or any similar punctuation anywhere in the output unless the user has typed them in themselves as part of their own input. Use clean spacing, line breaks and capitalised section labels instead. "
+        "STRICT PLACEHOLDER RULE: Never output placeholder text such as '[Your Company]', '[Insert Date]', 'TBC' or anything in square brackets. If you do not have a value, use the value supplied in the user details below, leave it out entirely, or use the auto-populated profile data provided. "
+        "DOCUMENT HEADER RULE: Every document MUST begin with a header block in this exact format:\n"
+        "DOCUMENT REFERENCE: {ref}\n"
+        "DATE: {today}\n"
+        "If this is a compliance, RAMS, COSHH, H&S or assessment document also include:\n"
+        "REVIEW DATE: {review}\n"
+        "Then a blank line and the document body.\n"
+        .format(ref=ref_number, today=today_str, review=review_date_str)
+        + f"The user is a UK {trade}. Their company is '{company}'. Their name is '{full_name}'. "
         "Personalise the document to their trade and details. Do not include placeholder bracketed fields unless asked."
     )
 
     inputs_text = "\n".join(f"- {k}: {v}" for k, v in req.userInputs.items() if v)
     user_msg = (
         f"Tool: {req.toolName}\n"
+        f"Document reference (use this in the header): {ref_number}\n"
+        f"Today's date: {today_str}\n"
+        f"Review date (if applicable): {review_date_str}\n"
         f"Trade: {trade}\n"
         f"User details:\n{inputs_text or '(none provided)'}\n\n"
         f"Instructions: {req.promptTemplate}\n\n"
@@ -352,8 +428,26 @@ async def generate(req: GenerateReq, authorization: Optional[str] = Header(None)
             system_message=system_prompt,
         ).with_model("anthropic", "claude-sonnet-4-5-20250929")
         response = await chat.send_message(UserMessage(text=user_msg))
+        # Safety net: strip any en-dashes / em-dashes the model might still emit.
+        # We deliberately keep ASCII hyphens because legitimate inputs (postcodes,
+        # phone numbers, double-barrelled names) may contain them.
+        cleaned = (response or "").replace("\u2014", " ").replace("\u2013", " ")
         await record_usage(db, user, req.toolId)
-        return {"ok": True, "content": response}
+        # Auto-save every generated document to the user's Document Vault
+        try:
+            await db.documents.insert_one({
+                "id": str(uuid.uuid4()),
+                "userId": user["id"],
+                "title": req.toolName,
+                "toolId": req.toolId,
+                "refNumber": ref_number,
+                "content": cleaned,
+                "autoSaved": True,
+                "createdAt": datetime.now(timezone.utc),
+            })
+        except Exception:
+            logger.exception("Auto-save to vault failed (non-fatal)")
+        return {"ok": True, "content": cleaned, "refNumber": ref_number}
     except Exception as e:
         logger.exception("Generate failed")
         raise HTTPException(500, f"Generation failed: {str(e)}")
@@ -368,6 +462,7 @@ async def save_document(d: DocumentSave, authorization: Optional[str] = Header(N
         "userId": user["id"],
         "title": d.title,
         "toolId": d.toolId,
+        "refNumber": d.refNumber,
         "content": d.content,
         "metadata": d.metadata or {},
         "createdAt": datetime.now(timezone.utc).isoformat(),
