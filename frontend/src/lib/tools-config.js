@@ -65,8 +65,38 @@ export const TOOLS = [
   ),
   t("rams", "RAMS", "documents",
     "Risk Assessment and Method Statement. a legal requirement on most UK sites under HSE / CDM 2015. Identifies hazards, controls and a safe method of work.",
-    [f("task", "Task / Activity"), f("location", "Location"), ta("hazards", "Known hazards"), ta("ppe", "PPE required")],
-    "Produce a UK RAMS document with sections: Scope, Persons at Risk, Hazard / Risk Matrix (likelihood x severity 1–5), Control Measures, PPE, Step-by-Step Method, Emergency Procedures. CDM 2015 and HSE compliant."
+    [
+      f("clientName", "Client name"),
+      f("principalContractor", "Principal Contractor name"),
+      ta("siteAddress", "Full site address (including postcode)"),
+      f("task", "Task / activity"),
+      f("operativesCount", "Number of operatives", "number"),
+      f("firstAiderName", "First Aider name on site"),
+      f("assemblyPoint", "Assembly point location"),
+      ta("plantEquipment", "Plant and equipment being used"),
+      tao("hazardousSubstances", "Any hazardous substances in use (leave blank if none)"),
+      sel("workAtHeight", "Work at height", ["No", "Yes"]),
+      f("estimatedDuration", "Estimated duration of works"),
+      ta("hazards", "Known hazards (additional to the standard set above)"),
+      ta("ppe", "PPE required"),
+    ],
+    `Produce a full UK RAMS (Risk Assessment and Method Statement) document. Use the user's profile for company name, address, contact and trade (auto-populated). Include all of the following sections, each clearly labelled:
+1. DOCUMENT CONTROL — document reference (use the supplied reference), version number (Version 1, increments each reissue), issue date (today), review date (today + 12 months), prepared by (full name from profile), client name, principal contractor name, full site address.
+2. SCOPE OF WORKS — task, estimated duration, number of operatives, work at height yes/no.
+3. LEGISLATION — explicitly cite ALL of: Management of Health and Safety at Work Regulations 1999; Manual Handling Operations Regulations 1992; COSHH Regulations 2002; PUWER 1998; Personal Protective Equipment at Work Regulations 1992; Work at Height Regulations 2005; Control of Noise at Work Regulations 2005; CDM 2015.
+4. PERSONS AT RISK.
+5. HAZARD AND RISK MATRIX — for each identified hazard show Likelihood (1-5), Severity (1-5), Risk Score (LxS), Control Measures, Residual Score.
+6. CONTROL MEASURES AND PPE — list the PPE required.
+7. STEP-BY-STEP SAFE METHOD OF WORK.
+8. PLANT AND EQUIPMENT — list every item to be used. State: 'All plant and equipment listed above has been inspected and is in date.'
+9. COSHH — list any hazardous substances in use and state: 'COSHH assessments are available on request.' If none, write 'No hazardous substances in use on this task.'
+10. WORK AT HEIGHT — if yes, summarise rescue plan, harness inspection regime and reference to a separate Working at Height Rescue Plan document. If no, write 'No work at height activities on this task.'
+11. WELFARE ARRANGEMENTS — toilets, washing facilities, rest area, drinking water location on site.
+12. ENVIRONMENTAL CONSIDERATIONS — waste disposal method, dust and noise impact, working hours, spill management.
+13. EMERGENCY PROCEDURES — first aider name on site, assembly point location, nearest A&E, 999 contact.
+14. BRIEFING AND SIGN-OFF — table for each operative to print name, sign and date confirming they have been briefed on this RAMS.
+Close with a 'PREPARED BY' block (full name from profile, company, signature line, today's date) and a 'REVIEWED BY' block.
+Use only UK English. Do not use placeholder text. Use today's date and the auto-populated profile values throughout.`
   ),
   t("site-diary", "Site Diary", "documents",
     "A daily record of works carried out. weather, labour, plant, deliveries, delays, instructions. Vital evidence for disputes and payment claims.",
