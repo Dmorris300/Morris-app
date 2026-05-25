@@ -51,8 +51,8 @@ export default function Dashboard() {
   const [cis, setCis] = useState([]);
 
   useEffect(() => {
-    api.get("/documents").then(r => setDocs(r.data)).catch((e) => console.error("Documents load failed", e));
-    api.get("/cis/payments").then(r => setCis(r.data)).catch((e) => console.error("CIS payments load failed", e));
+    api.get("/documents").then(r => setDocs(r.data)).catch((e) => { if (process.env.NODE_ENV !== "production") console.error("Documents load failed", e); });
+    api.get("/cis/payments").then(r => setCis(r.data)).catch((e) => { if (process.env.NODE_ENV !== "production") console.error("CIS payments load failed", e); });
   }, []);
 
   const favs = (user?.favourites || []).map(id => [...TOOLS, ...WOW_TOOLS].find(t => t.id === id)).filter(Boolean);

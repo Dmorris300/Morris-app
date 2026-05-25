@@ -20,8 +20,8 @@ export default function TermsConditions() {
       </div>
 
       <div className="card-dark p-6 md:p-8 space-y-7">
-        {SECTIONS.map((s, i) => (
-          <div key={i}>
+        {SECTIONS.map((s) => (
+          <div key={s.h}>
             <h2 className="font-display text-2xl text-[#E8A020] mb-3">{s.h}</h2>
             <p className="text-[#F0EDE8] leading-relaxed text-sm">{s.b}</p>
           </div>

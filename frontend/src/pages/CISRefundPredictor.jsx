@@ -45,7 +45,7 @@ export default function CISRefundPredictor() {
       load(); toast.success("Logged");
     } catch { toast.error("Could not save"); }
   };
-  const onDelete = async (id) => { try { await api.delete(`/cis/payments/${id}`); load(); } catch (e) { console.error("CIS payment delete failed", e); } };
+  const onDelete = async (id) => { try { await api.delete(`/cis/payments/${id}`); load(); } catch (e) { if (process.env.NODE_ENV !== "production") console.error("CIS payment delete failed", e); } };
 
   const totalGross = items.reduce((a, x) => a + (x.gross || 0), 0);
   const totalDeduction = items.reduce((a, x) => a + (x.deduction || 0), 0);

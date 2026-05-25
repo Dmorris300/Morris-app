@@ -23,7 +23,7 @@ export default function Billing() {
   const cancelled = params.get("cancelled");
 
   const load = async () => {
-    try { const r = await api.get("/billing/status"); setStatus(r.data); } catch (e) { console.error("Billing status load failed", e); }
+    try { const r = await api.get("/billing/status"); setStatus(r.data); } catch (e) { if (process.env.NODE_ENV !== "production") console.error("Billing status load failed", e); }
   };
 
   useEffect(() => { load(); }, []);
@@ -44,7 +44,7 @@ export default function Billing() {
             nav("/app/billing", { replace: true });
             return;
           }
-        } catch (e) { console.warn("Billing poll attempt failed", e); }
+        } catch (e) { if (process.env.NODE_ENV !== "production") console.warn("Billing poll attempt failed", e); }
         await new Promise(r => setTimeout(r, 2000));
       }
     };
@@ -80,7 +80,16 @@ export default function Billing() {
 
   if (!status) return <div className="p-10 text-[#A19D94]">Loading.</div>;
 
-  const planLabel = status.plan === "free" ? "Free" : status.plan === "trial" ? `Free trial (${PLAN_META[status.trialPlanTarget || "solo"]?.name || "Solo"})` : (PLAN_META[status.plan]?.name || status.plan);
+  // Compute a friendly label for the current plan tier
+  let planLabel;
+  if (status.plan === "free") {
+    planLabel = "Free";
+  } else if (status.plan === "trial") {
+    const targetName = PLAN_META[status.trialPlanTarget || "solo"]?.name || "Solo";
+    planLabel = `Free trial (${targetName})`;
+  } else {
+    planLabel = PLAN_META[status.plan]?.name || status.plan;
+  }
   const onPaid = status.plan !== "free" && status.plan !== "trial";
   const expiresAt = status.planExpiresAt ? new Date(status.planExpiresAt) : null;
   const daysLeft = expiresAt ? Math.max(0, Math.ceil((expiresAt - new Date()) / (1000 * 60 * 60 * 24))) : null;
