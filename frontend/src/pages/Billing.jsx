@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { CheckCircle2, Loader2, Sparkles, Zap, Crown, Building2, Mail, ArrowRight } from "lucide-react";
 
 const PLAN_META = {
-  solo: { name: "Solo", price: "£12.99", period: "per month", desc: "All tools, unlimited documents, 1 user.", icon: Zap, features: ["All 90+ tools", "Unlimited documents", "1 user", "PDF + WhatsApp + Email"] },
+  solo: { name: "Solo", price: "£12.99", period: "per month", desc: "All tools, unlimited documents, 1 user.", icon: Zap, features: ["All 88+ tools", "Unlimited documents", "1 user", "PDF + WhatsApp + Email"] },
   pro: { name: "Pro", price: "£24.99", period: "per month", desc: "Everything in Solo + multi-user.", icon: Sparkles, features: ["Everything in Solo", "3 users", "Shared document history"], highlight: true },
   business: { name: "Business", price: "£59.99", period: "per month", desc: "Bigger crews. Multi-site.", icon: Crown, features: ["Everything in Pro", "10 users", "Multi-site management"] },
   enterprise: { name: "Enterprise", price: "£199.99", period: "per month", desc: "Unlimited users + white-label.", icon: Building2, features: ["Unlimited users", "White label available", "Priority support"], contact: true },
@@ -121,7 +121,7 @@ export default function Billing() {
             <div>
               <div className="text-xs uppercase tracking-widest text-[#E8A020] mb-2">3-day free trial</div>
               <div className="font-display text-3xl mb-2">Try every tool. No card needed.</div>
-              <p className="text-[#A19D94] text-sm">Unlocks all 90+ tools and unlimited documents for 3 days. After that, pick a plan or drop back to Free.</p>
+              <p className="text-[#A19D94] text-sm">Unlocks all 88+ tools and unlimited documents for 3 days. After that, pick a plan or drop back to Free.</p>
             </div>
             <button onClick={startTrial} className="btn-primary flex items-center gap-2" disabled={busy === "trial"} data-testid="start-trial-btn">
               {busy === "trial" ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
