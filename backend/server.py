@@ -62,9 +62,13 @@ class ProfileUpdate(BaseModel):
     companyName: Optional[str] = None
     fullName: Optional[str] = None
     address: Optional[str] = None
+    contactNumber: Optional[str] = None
     utr: Optional[str] = None
     vatNumber: Optional[str] = None
+    vatRegistered: Optional[bool] = None
     cisStatus: Optional[str] = None
+    insuranceExpiry: Optional[str] = None
+    cscsExpiry: Optional[str] = None
     email: Optional[EmailStr] = None
     favourites: Optional[List[str]] = None
     recentlyUsed: Optional[List[str]] = None
@@ -382,12 +386,39 @@ async def generate(req: GenerateReq, authorization: Optional[str] = Header(None)
     await check_can_generate(db, user, req.toolId)
 
     trade = req.trade or user.get("trade") or "tradesperson"
-    company = req.companyName or user.get("companyName") or "[Your Company]"
-    full_name = req.fullName or user.get("fullName") or user.get("username")
+    company = req.companyName or user.get("companyName") or ""
+    full_name = req.fullName or user.get("fullName") or user.get("username") or ""
+    address = user.get("address") or ""
+    contact_number = user.get("contactNumber") or user.get("phone") or ""
+    utr = user.get("utr") or ""
+    cis_status = user.get("cisStatus") or ""
+    vat_registered = user.get("vatRegistered")
+    vat_number = user.get("vatNumber") or ""
+    user_email = user.get("email") or ""
 
     ref_number = await next_ref_number(user, req.toolId)
     today_str = datetime.now(timezone.utc).strftime("%d %B %Y")
     review_date_str = (datetime.now(timezone.utc) + timedelta(days=365)).strftime("%d %B %Y")
+
+    # Build a clean profile block — only include fields the user has actually filled.
+    profile_lines = [f"Name: {full_name}", f"Trade: {trade}"]
+    if company:
+        profile_lines.append(f"Company: {company}")
+    if address:
+        profile_lines.append(f"Company address: {address}")
+    if contact_number:
+        profile_lines.append(f"Contact number: {contact_number}")
+    if user_email:
+        profile_lines.append(f"Email: {user_email}")
+    if utr:
+        profile_lines.append(f"UTR: {utr}")
+    if cis_status:
+        profile_lines.append(f"CIS status: {cis_status}")
+    if vat_registered is True and vat_number:
+        profile_lines.append(f"VAT registered: yes, VAT number {vat_number}")
+    elif vat_registered is False:
+        profile_lines.append("VAT registered: no")
+    profile_block = "\n".join(profile_lines)
 
     system_prompt = (
         "You are Morris, an AI document writer for UK construction tradespeople. "
@@ -397,7 +428,7 @@ async def generate(req: GenerateReq, authorization: Optional[str] = Header(None)
         "Output professional, plain English documents — clear, firm, polite and well-structured. "
         "Never use markdown headings (#) or asterisks; use clean text, paragraph breaks, and capitalised section labels (e.g. 'SUBJECT:', 'TO:'). "
         "STRICT FORMATTING RULE: Do not use dashes, hyphens, em-dashes, en-dashes or any similar punctuation anywhere in the output unless the user has typed them in themselves as part of their own input. Use clean spacing, line breaks and capitalised section labels instead. "
-        "STRICT PLACEHOLDER RULE: Never output placeholder text such as '[Your Company]', '[Insert Date]', 'TBC' or anything in square brackets. If you do not have a value, use the value supplied in the user details below, leave it out entirely, or use the auto-populated profile data provided. "
+        "STRICT PLACEHOLDER RULE: Never output placeholder text such as '[Your Company]', '[Insert Date]', 'TBC' or anything in square brackets. Use the auto-populated profile data below for every name, company, address, contact, UTR, VAT and CIS reference. If a profile field is missing, leave it out cleanly instead of using a placeholder. "
         "DOCUMENT HEADER RULE: Every document MUST begin with a header block in this exact format:\n"
         "DOCUMENT REFERENCE: {ref}\n"
         "DATE: {today}\n"
@@ -405,8 +436,9 @@ async def generate(req: GenerateReq, authorization: Optional[str] = Header(None)
         "REVIEW DATE: {review}\n"
         "Then a blank line and the document body.\n"
         .format(ref=ref_number, today=today_str, review=review_date_str)
-        + f"The user is a UK {trade}. Their company is '{company}'. Their name is '{full_name}'. "
-        "Personalise the document to their trade and details. Do not include placeholder bracketed fields unless asked."
+        + "AUTHOR PROFILE (use these exact values wherever a name, company, address, UTR, VAT or CIS reference is needed):\n"
+        + profile_block + "\n"
+        "Personalise the document to this profile. Do not invent details."
     )
 
     inputs_text = "\n".join(f"- {k}: {v}" for k, v in req.userInputs.items() if v)

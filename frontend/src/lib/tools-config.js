@@ -309,6 +309,28 @@ export function disclaimerFor(id) {
   return                          { category: "standard", label: "Notice",                    icon: "📋", body: STANDARD_BODY + LIABILITY };
 }
 
+// ---------- High-risk tools requiring mandatory review confirmation ----------
+// User must tick a checkbox confirming they have reviewed the document before
+// it can be downloaded, sent, or shared. Per Prompt 1 Global Rules.
+export const REVIEW_REQUIRED_TOOLS = new Set([
+  "hmrc-correspondence",
+  "working-at-height-rescue",
+  "subbi-compliance-checker",
+  "hs-policy",
+  "hire-agreement",
+  "subcontract-letter",
+  "coshh",
+  "noise-assessment",
+  "manual-handling",
+  "rams",
+  "new-starter-pack",
+  "apprentice-manager",
+]);
+
+export function requiresReview(toolId) {
+  return REVIEW_REQUIRED_TOOLS.has(toolId);
+}
+
 export function getToolsBySection(sectionId) {
   if (sectionId === "account") {
     return [

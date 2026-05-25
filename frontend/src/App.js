@@ -45,6 +45,29 @@ function TradeGate({ children }) {
   return children;
 }
 
+// Mandatory profile fields that must be filled before any tool can be used.
+// Admin / unlimited accounts bypass this gate.
+const PROFILE_MANDATORY = ["fullName", "companyName", "address", "contactNumber", "utr", "trade", "cisStatus", "insuranceExpiry", "cscsExpiry"];
+
+export function isProfileComplete(user) {
+  if (!user) return false;
+  if (user.isAdmin || user.isUnlimited) return true;
+  return PROFILE_MANDATORY.every((k) => {
+    const v = user[k];
+    return typeof v === "string" ? v.trim().length > 0 : !!v;
+  });
+}
+
+function ProfileGate({ children }) {
+  const { user } = useAuth();
+  // Allow the Profile page itself + a few safe areas through so the user can complete it
+  const path = typeof window !== "undefined" ? window.location.pathname : "";
+  const allowList = ["/app/profile", "/app/billing", "/app/privacy", "/app/terms", "/app/complaints", "/app/refund-policy"];
+  if (allowList.some((p) => path.startsWith(p))) return children;
+  if (!isProfileComplete(user)) return <Navigate to="/app/profile?complete=1" replace />;
+  return children;
+}
+
 function App() {
   return (
     <AuthProvider>
@@ -66,13 +89,13 @@ function App() {
 
           <Route path="/app" element={<TradeGate><AppShell /></TradeGate>}>
             <Route index element={<Dashboard />} />
-            <Route path="tool/:toolId" element={<GenericToolPage />} />
-            <Route path="wow/verbal-to-variation" element={<VerbalToVariation />} />
-            <Route path="wow/photo-to-document" element={<PhotoToDocument />} />
-            <Route path="cis-predictor" element={<CISRefundPredictor />} />
-            <Route path="mileage" element={<MileageTracker />} />
-            <Route path="vat" element={<VatThreshold />} />
-            <Route path="earnings" element={<Earnings />} />
+            <Route path="tool/:toolId" element={<ProfileGate><GenericToolPage /></ProfileGate>} />
+            <Route path="wow/verbal-to-variation" element={<ProfileGate><VerbalToVariation /></ProfileGate>} />
+            <Route path="wow/photo-to-document" element={<ProfileGate><PhotoToDocument /></ProfileGate>} />
+            <Route path="cis-predictor" element={<ProfileGate><CISRefundPredictor /></ProfileGate>} />
+            <Route path="mileage" element={<ProfileGate><MileageTracker /></ProfileGate>} />
+            <Route path="vat" element={<ProfileGate><VatThreshold /></ProfileGate>} />
+            <Route path="earnings" element={<ProfileGate><Earnings /></ProfileGate>} />
             <Route path="profile" element={<Profile />} />
             <Route path="favourites" element={<Favourites />} />
             <Route path="history" element={<History />} />

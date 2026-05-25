@@ -48,7 +48,7 @@ Dark-themed construction administration SaaS for UK tradespeople and sole trader
 - "Favourite" label (was "Starred")
 - Tool emojis next to every tool name
 
-### Iteration 6 (Feb 2026 — Global Rules Phase 1A + 1B)
+### Iteration 6 (Feb 2026 — Global Rules Phase 1A + 1B + 1C)
 **Phase 1A:**
 - Enterprise tier price updated £199 → £199.99 on Landing & Billing pages.
 - NO DASHES rule added to Claude system prompt + server-side post-process safety net stripping any em-dash/en-dash from output.
@@ -63,6 +63,13 @@ Dark-themed construction administration SaaS for UK tradespeople and sole trader
 - Yellow asterisk + required validation: every tool field defaults to required unless explicitly flagged `optional: true`. Generate button is disabled while any required field is empty. Missing-fields toast + inline red border + red message list shown on submit.
 - Auto-save to Document Vault: every successful `/api/generate` call now writes the document directly into `db.documents` with `autoSaved=true` + the refNumber, so nothing is ever lost.
 - Result panel shows the `REF: <number>` badge top-right; toast on success now reads "Document generated. Saved to your Vault."
+
+**Phase 1C:**
+- Profile model extended with `contactNumber`, `vatRegistered` (bool), `insuranceExpiry` (date), `cscsExpiry` (date). All mandatory fields on the Profile page marked with yellow asterisk.
+- New `ProfileGate` route wrapper in `App.js`. Any tool route (Generic, all 3 wow features, CIS Predictor, Mileage, VAT, Earnings) is wrapped — if the user's profile is incomplete (any of fullName/companyName/address/contactNumber/utr/trade/cisStatus/insuranceExpiry/cscsExpiry missing), they're auto-redirected to `/app/profile?complete=1` with a gold "Complete your profile to unlock the tools" banner. Admin / unlimited users bypass.
+- Claude system prompt now receives a full Author Profile block (Name, Trade, Company, Address, Contact, Email, UTR, CIS status, VAT). Documents are auto-populated with real values; "[Your Company]" / "TBC" / square-bracket placeholders are explicitly forbidden in the prompt. Verified end-to-end: a generated CIS Invoice now contains the real company name, address, contact, UTR and VAT number.
+- Mandatory review checkbox on 12 high-risk tools (`requiresReview()` in tools-config): RAMS, COSHH, Noise, Manual Handling, Working at Height Rescue, HMRC Correspondence, Subbi Compliance Checker, H&S Policy, Hire Agreement, Subcontract Letter, New Starter Pack, Apprentice Manager. All 7 action buttons (Save/Copy/PDF/Email/WhatsApp text/WhatsApp PDF/SMS) are disabled until the user ticks "I have reviewed this document". Gold-bordered alert box with checkbox renders above the actions.
+- 88+ tool count standardised everywhere — Landing hero strip, tools section H2, Billing Solo features, trial CTA.
 
 ### Iteration 5 (Feb 2026 — Cinematic intro + CIS disclaimer)
 - Cinematic intro overlay on Landing (CinematicIntro.jsx): two-line gold shimmer sweep — "Built By A Tradesman, For Tradesmen" (large, 2s sweep) + "The Paperwork Sorted. You Stay On The Tools." (smaller, sweeps in at 2.2s). ~5.4s total runtime, scroll-locked then released. Replays only once per session via `sessionStorage.morris_intro_shown`. (User reverted from the alternate 4.5s "MORRIS / slogan / rule / mark" design back to this original 2-line shimmer intro.)
