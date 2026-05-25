@@ -48,6 +48,20 @@ Dark-themed construction administration SaaS for UK tradespeople and sole trader
 - "Favourite" label (was "Starred")
 - Tool emojis next to every tool name
 
+### Iteration 7 (Feb 2026 — Command Centre Dashboard + lint cleanup)
+**Command Centre (Prompt 7's first feature):**
+- Replaced the basic Dashboard top section with a full Command Centre block. New blocks rendered above the existing "What Morris Offers"/Recommended/Favourites:
+  1. **Top stats grid (4 cards)** — Tax pot to set aside (23% of net CIS payments), CIS refund estimate (totalDeduction − basic-rate tax on profit over PA £12,570), Outstanding invoices (Coming soon — placeholder until Payment Tracker is built), Earnings YTD (sum of all logged CIS gross).
+  2. **Expiry traffic-light strip (3 cards)** — Public liability insurance, CSCS card, Self Assessment deadline (next 31 Jan). Status colours: green > 60 days, amber 30–60 days, red < 30 / expired, grey if unset. Each card is tappable and links to Profile or Self Assessment Prep tool.
+  3. **Quick actions (4 buttons)** — New invoice → /app/tool/cis-invoice; New variation → /app/tool/variation-letter; New RAMS → /app/tool/rams; Log mileage → /app/mileage. Per Prompt 7's "four most used tools available in one tap".
+  4. **Recent documents** — Last 5 documents from the Vault. Each shows its refNumber + ISO date. Tap to open History.
+- All cards live-update from `/api/documents` + `/api/cis/payments` + the user profile fields. Greeting now displays "Hello, {firstName}" with trade + company subline.
+
+**Lint / code-review cleanup:**
+- Replaced `random.randint` → `secrets.randbelow(900000) + 100000` for OTP and SMS reset code (server.py:185, 295). Removed unused `random` import. Real cryptographic security improvement.
+- Empty `catch {}` blocks → `catch (e) { console.error(...) }` in CISRefundPredictor.jsx and Billing.jsx for debuggability.
+- Pushed back on the rest of the code-review report (hardcoded test secrets / localStorage / hook deps / complexity / type hints in tests) as either false positives or out-of-scope refactors.
+
 ### Iteration 6 (Feb 2026 — Global Rules Phase 1A + 1B + 1C)
 **Phase 1A:**
 - Enterprise tier price updated £199 → £199.99 on Landing & Billing pages.
