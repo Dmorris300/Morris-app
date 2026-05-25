@@ -4,7 +4,6 @@ from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
-import random
 import secrets
 import uuid
 import bcrypt
@@ -182,7 +181,7 @@ async def signup(req: SignupReq):
         raise HTTPException(400, "Username already exists")
     if await db.users.find_one({"email": email_lower}, {"_id": 0}):
         raise HTTPException(400, "Email already registered")
-    otp = f"{random.randint(100000, 999999)}"
+    otp = f"{secrets.randbelow(900000) + 100000}"
     user_id = str(uuid.uuid4())
     doc = {
         "id": user_id,
@@ -292,7 +291,7 @@ async def forgot_password(req: ForgotPasswordReq):
     user = await db.users.find_one({"phone": phone}, {"_id": 0})
     if not user:
         return {"ok": True, "message": "If that phone number is registered, a reset code has been sent."}
-    code = f"{random.randint(100000, 999999)}"
+    code = f"{secrets.randbelow(900000) + 100000}"
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
     # Hash-free demo storage — code lives in the same collection alongside email tokens
     await db.password_reset_tokens.insert_one({

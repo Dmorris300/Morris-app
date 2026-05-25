@@ -23,7 +23,7 @@ export default function Billing() {
   const cancelled = params.get("cancelled");
 
   const load = async () => {
-    try { const r = await api.get("/billing/status"); setStatus(r.data); } catch {}
+    try { const r = await api.get("/billing/status"); setStatus(r.data); } catch (e) { console.error("Billing status load failed", e); }
   };
 
   useEffect(() => { load(); }, []);
@@ -44,7 +44,7 @@ export default function Billing() {
             nav("/app/billing", { replace: true });
             return;
           }
-        } catch {}
+        } catch (e) { console.warn("Billing poll attempt failed", e); }
         await new Promise(r => setTimeout(r, 2000));
       }
     };
