@@ -16,10 +16,13 @@ const inOneYearIso = () => {
 // A field is optional only if explicitly flagged optional:true
 const isRequired = (field) => field.optional !== true;
 
-// Auto-default value for date fields by convention
+// Auto-default value for date-style fields, keyed off either field.type='date'
+// OR field.name matching common date-ish patterns. This is a safety net so any
+// field a tool author forgot to mark as type='date' still gets a sensible default.
 const autoDefaultFor = (field) => {
-  if (field.type !== "date") return "";
   const name = (field.name || "").toLowerCase();
+  const looksLikeDate = field.type === "date" || /(^|_)(date)(s)?$/i.test(field.name) || /^(date|valid|review|start|end|expir|handover|tax(point)?|completion)/i.test(field.name);
+  if (!looksLikeDate) return "";
   if (name.includes("review")) return inOneYearIso();
   return todayIso();
 };

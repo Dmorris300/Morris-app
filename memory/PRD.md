@@ -48,6 +48,22 @@ Dark-themed construction administration SaaS for UK tradespeople and sole trader
 - "Favourite" label (was "Starred")
 - Tool emojis next to every tool name
 
+### Iteration 6 (Feb 2026 — Global Rules Phase 1A + 1B)
+**Phase 1A:**
+- Enterprise tier price updated £199 → £199.99 on Landing & Billing pages.
+- NO DASHES rule added to Claude system prompt + server-side post-process safety net stripping any em-dash/en-dash from output.
+- Strict PLACEHOLDER RULE added to system prompt (no [Your Company] / TBC / square-bracketed placeholders).
+- `darrenhustle300` is now an admin / unlimited account: `is_unlimited_admin()` helper bypasses `check_can_generate` and `record_usage`. `/api/billing/status` returns `plan='unlimited'`, `isUnlimited=true`. `/api/auth/me` returns `isAdmin=true`, `isUnlimited=true`. The account was promoted via a one-off DB update (`isAdmin: true`, password reset to `hustle1234`).
+- Global disclaimer wording on ResultActions footer replaced with the required "This tool is for guidance and estimation purposes only. It does not constitute legal, tax or financial advice…" copy.
+- SMS button added to every generated document's action row (data-testid='action-sms') alongside Email + WhatsApp text/PDF — uses `sms:?body=` URL scheme so the native messages app opens with body pre-filled.
+
+**Phase 1B:**
+- Backend Unique Reference Number system: per-user per-tool per-day counter in MongoDB. `/api/generate` issues a refNumber in format `{TYPE}-{INITIALS}-{YYMMDD}-{NNN}` (e.g. `RAMS-DM-260525-001`), injects it into the Claude prompt as a mandatory document header, and returns it in the response payload. System prompt now requires every document to start with `DOCUMENT REFERENCE: …`, `DATE: …`, and `REVIEW DATE: …` (compliance docs).
+- Auto date population: GenericToolPage auto-fills any date-style field on mount. Defensive matching by both `field.type === 'date'` and field name pattern (`date|review|valid|start|end|expir|handover|taxpoint|completion`). Review-style fields default to today + 12 months.
+- Yellow asterisk + required validation: every tool field defaults to required unless explicitly flagged `optional: true`. Generate button is disabled while any required field is empty. Missing-fields toast + inline red border + red message list shown on submit.
+- Auto-save to Document Vault: every successful `/api/generate` call now writes the document directly into `db.documents` with `autoSaved=true` + the refNumber, so nothing is ever lost.
+- Result panel shows the `REF: <number>` badge top-right; toast on success now reads "Document generated. Saved to your Vault."
+
 ### Iteration 5 (Feb 2026 — Cinematic intro + CIS disclaimer)
 - Cinematic intro overlay on Landing (CinematicIntro.jsx): two-line gold shimmer sweep — "Built By A Tradesman, For Tradesmen" (large, 2s sweep) + "The Paperwork Sorted. You Stay On The Tools." (smaller, sweeps in at 2.2s). ~5.4s total runtime, scroll-locked then released. Replays only once per session via `sessionStorage.morris_intro_shown`. (User reverted from the alternate 4.5s "MORRIS / slogan / rule / mark" design back to this original 2-line shimmer intro.)
 - Fixed critical timer-restart bug in CinematicIntro: useEffect dep changed to `[]` with an `onDoneRef` so parent re-renders no longer clear the dismiss timer.
