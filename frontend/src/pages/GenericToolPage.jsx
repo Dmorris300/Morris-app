@@ -12,18 +12,30 @@ const inOneYearIso = () => {
   const d = new Date(); d.setFullYear(d.getFullYear() + 1);
   return d.toISOString().slice(0, 10);
 };
+const inDaysIso = (n) => {
+  const d = new Date(); d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+};
 
 // A field is optional only if explicitly flagged optional:true
 const isRequired = (field) => field.optional !== true;
 
-// Auto-default value for date-style fields, keyed off either field.type='date'
-// OR field.name matching common date-ish patterns. This is a safety net so any
-// field a tool author forgot to mark as type='date' still gets a sensible default.
+// Auto-default value for date-style fields. Supports field.prefill = 'today' | 'today+Nd'.
+// Also defensive matching by field.name patterns so date inputs without explicit prefill still pre-populate.
 const autoDefaultFor = (field) => {
+  if (field.prefill === "today") return todayIso();
+  if (typeof field.prefill === "string" && field.prefill.startsWith("today+")) {
+    const m = field.prefill.match(/^today\+(\d+)d$/);
+    if (m) return inDaysIso(parseInt(m[1], 10));
+  }
   const name = (field.name || "").toLowerCase();
-  const looksLikeDate = field.type === "date" || /(^|_)(date)(s)?$/i.test(field.name) || /^(date|valid|review|start|end|expir|handover|tax(point)?|completion)/i.test(field.name);
+  const looksLikeDate = field.type === "date"
+    || /(^|_)(date)(s)?$/i.test(field.name)
+    || /^(date|valid|review|start|end|expir|handover|tax(point)?|completion|inv(oice)?|week|day)/i.test(field.name);
   if (!looksLikeDate) return "";
   if (name.includes("review")) return inOneYearIso();
+  if (name.includes("valid")) return inDaysIso(30);
+  if (name.includes("deadline")) return inDaysIso(7);
   return todayIso();
 };
 
@@ -136,6 +148,20 @@ export default function GenericToolPage() {
                       onChange={(e) => setValues({ ...values, [field.name]: e.target.value })}
                       data-testid={`field-${field.name}`}
                     />
+                  ) : field.type === "select" ? (
+                    <select
+                      className={`input-base ${isMissingFlagged ? "border-red-500" : ""}`}
+                      value={values[field.name] || ""}
+                      onChange={(e) => setValues({ ...values, [field.name]: e.target.value })}
+                      data-testid={`field-${field.name}`}
+                    >
+                      <option value="">— Choose —</option>
+                      {(field.options || []).map((opt) => {
+                        const value = typeof opt === "string" ? opt : opt.value;
+                        const label = typeof opt === "string" ? opt : opt.label;
+                        return <option key={value} value={value}>{label}</option>;
+                      })}
+                    </select>
                   ) : (
                     <input
                       type={field.type || "text"}

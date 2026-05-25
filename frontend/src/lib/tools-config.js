@@ -26,18 +26,42 @@ export const SECTIONS = [
 // Common field types
 const f = (name, label, type = "text", placeholder = "") => ({ name, label, type, placeholder });
 const ta = (name, label, placeholder = "") => ({ name, label, type: "textarea", placeholder });
+// Optional field — Generate button does not gate on this
+const fo = (name, label, type = "text", placeholder = "") => ({ name, label, type, placeholder, optional: true });
+const tao = (name, label, placeholder = "") => ({ name, label, type: "textarea", placeholder, optional: true });
+// Select dropdown — options = ["A","B"] or [{label,value}]
+const sel = (name, label, options, opts = {}) => ({ name, label, type: "select", options, ...opts });
+// Field that auto-prefills from a value generator (handled in GenericToolPage)
+// prefill: 'today' | 'today+30d' | 'profile:field' — populated on tool mount
+const fp = (name, label, prefill, type = "text") => ({ name, label, type, prefill });
 
-// Helper for tool definition
-const t = (id, name, section, info, fields, promptTemplate) => ({
-  id, name, section, info, fields, promptTemplate,
+// Helper for tool definition (now supports optional 5th arg: compute function for derived totals)
+const t = (id, name, section, info, fields, promptTemplate, extras = {}) => ({
+  id, name, section, info, fields, promptTemplate, ...extras,
 });
 
 export const TOOLS = [
   // ---------- DOCUMENTS ----------
   t("variation-letter", "Variation Letter", "documents",
     "A formal letter notifying a client or main contractor of variation works on site. Covers scope, cost and time impact. Crucial for getting paid for changes outside your original scope.",
-    [f("project", "Project / Site"), f("client", "To (Client / Main Contractor)"), ta("variation", "Variation details", "Describe the work change requested..."), f("cost", "Additional cost (£)"), f("timeImpact", "Time impact (days)")],
-    "Write a formal UK variation letter from the trade to the client/main contractor. Reference Housing Grants Construction & Regeneration Act 1996 if relevant. Confirm the variation, cost, time impact, and request written instruction to proceed."
+    [
+      f("project", "Project / Site"),
+      f("client", "To (Client / Main Contractor)"),
+      f("contractRef", "Original contract reference number"),
+      fp("contractDate", "Date of original contract", "today", "date"),
+      f("instructorName", "Name of person who gave the verbal instruction"),
+      sel("instructorRole", "Their role", ["Site Manager", "Project Manager", "Client", "Engineer", "Foreman", "Other"]),
+      fp("instructionDate", "Date and time instruction was given", "today", "datetime-local"),
+      f("instructionLocation", "Location on site where instruction was given"),
+      ta("originalScope", "Description of original agreed scope"),
+      ta("variation", "Description of what the variation adds or changes"),
+      f("labourCost", "Labour cost breakdown (£)", "number"),
+      f("materialsCost", "Materials cost breakdown (£)", "number"),
+      f("timeImpact", "Time impact (additional days required)", "number"),
+      sel("instructionMethod", "Method of original instruction", ["Verbal", "Email", "WhatsApp", "Text message", "Other"]),
+      fo("clauseRef", "Reference to original contract clause being varied"),
+    ],
+    "Write a formal UK Variation Letter from the trade to the client/main contractor. Reference the Housing Grants, Construction and Regeneration Act 1996 in the footer. Include sections for the original contract reference and date, the instructor's name and role, when and where the instruction was given, the original scope vs variation scope, an itemised cost breakdown (labour + materials with the auto-calculated total), the time impact in days, the method by which the original instruction was given, and the contract clause being varied. End with two signature blocks: an 'ISSUED BY' block using the user's profile (full name, company, today's date) and a 'CLIENT ACCEPTANCE' block with printed name, company, signature line and date. Close with: 'To confirm acceptance of this variation please sign and return a copy or reply in writing.'"
   ),
   t("rams", "RAMS", "documents",
     "Risk Assessment and Method Statement. a legal requirement on most UK sites under HSE / CDM 2015. Identifies hazards, controls and a safe method of work.",
@@ -46,18 +70,62 @@ export const TOOLS = [
   ),
   t("site-diary", "Site Diary", "documents",
     "A daily record of works carried out. weather, labour, plant, deliveries, delays, instructions. Vital evidence for disputes and payment claims.",
-    [f("date", "Date"), f("site", "Site"), f("weather", "Weather"), ta("works", "Works carried out today"), ta("labour", "Labour on site"), ta("delays", "Delays / issues")],
-    "Produce a professional site diary entry with date, weather, labour, works completed, plant on site, delays, visitors, and notes. Trade-specific language."
+    [
+      fp("date", "Date", "today", "date"),
+      f("site", "Site name and address"),
+      sel("temperature", "Temperature", ["Below 0°C", "0-5°C", "5-10°C", "10-15°C", "15-20°C", "20-25°C", "Above 25°C"]),
+      sel("wind", "Wind", ["None", "Light", "Moderate", "Strong", "Severe"]),
+      sel("rain", "Rain", ["None", "Light", "Heavy", "Snow", "Hail"]),
+      f("siteManager", "Site manager present on the day"),
+      f("operativeCount", "Number of operatives on site", "number"),
+      fo("visitors", "Visitors to site that day"),
+      tao("plant", "Plant and equipment on site that day"),
+      ta("works", "Work completed today (specific description)"),
+      ta("worksTomorrow", "Work planned for tomorrow"),
+      sel("delaysToggle", "Delays experienced", ["No", "Yes"]),
+      tao("delaysReason", "If yes, reason for delays"),
+      tao("instructions", "Instructions received today (from whom and what)"),
+      tao("issues", "Issues or problems encountered"),
+      sel("photosAttached", "Photos attached", ["No", "Yes"]),
+    ],
+    "Produce a professional UK site diary entry. Show all sub-sections in order: DATE, SITE, WEATHER (Temperature / Wind / Rain), SITE MANAGER, OPERATIVES ON SITE, VISITORS, PLANT AND EQUIPMENT, WORKS COMPLETED, WORKS PLANNED TOMORROW, DELAYS, INSTRUCTIONS RECEIVED, ISSUES, PHOTOS ATTACHED. End with a COMPLETED BY block auto-populated from the user profile (full name, company, signature line, today's date)."
   ),
   t("quote-builder", "Quote Builder", "documents",
     "A professional written quote / estimate covering labour, materials and timescales. Sets clear payment terms to avoid disputes.",
-    [f("client", "Client"), f("project", "Project"), ta("scope", "Scope of works"), f("price", "Total price (£)"), f("validUntil", "Quote valid until")],
-    "Produce a professional UK trade quote with cover letter, itemised scope, exclusions, payment terms (30% deposit, balance on completion, late payment under the Late Payment of Commercial Debts Act), and quote validity period."
+    [
+      f("client", "Client full name and address"),
+      fp("validUntil", "Quote valid until", "today+30d", "date"),
+      sel("paymentTerms", "Payment terms", ["30 days", "14 days", "On completion", "50% deposit, 50% on completion"]),
+      ta("labourBreakdown", "Labour breakdown — description, hours and rate per item"),
+      ta("materialsBreakdown", "Materials breakdown — itemised list with individual costs"),
+      tao("preliminaries", "Preliminaries (travel, parking, waste disposal)"),
+      f("subtotalLabour", "Subtotal labour (£)", "number"),
+      f("subtotalMaterials", "Subtotal materials (£)", "number"),
+      fo("subtotalPrelims", "Subtotal preliminaries (£)", "number"),
+      sel("cisApplicable", "CIS applicable", ["No", "Yes"]),
+      tao("exclusions", "Exclusions — what is not included"),
+      tao("assumptions", "Assumptions the quote is based on"),
+    ],
+    "Produce a professional UK trade Quote. Use the user's profile for company name, address, contact number, email and UTR (auto-populated). Show: client details, quote reference (use the provided document reference), today's date, valid until date, payment terms, itemised labour breakdown, itemised materials breakdown, preliminaries, subtotals, total quote value, VAT line ONLY if the profile shows VAT registered (then show VAT amount and total including VAT), CIS applicability, exclusions, assumptions. End with a PREPARED BY block auto-populated from the user profile (full name, company, today's date) and a CLIENT ACCEPTANCE block (client full name printed, company, signature line, date). Close with: 'Client signature confirms acceptance of this quote and authorises the works described to proceed on the terms and exclusions stated.'"
   ),
   t("cis-invoice", "CIS Invoice", "documents",
     "An invoice formatted correctly for the Construction Industry Scheme. showing gross labour, materials, and 20% (or 30%) CIS deduction.",
-    [f("invNo", "Invoice number"), f("client", "Contractor name & UTR"), f("labour", "Labour amount (£)"), f("materials", "Materials amount (£)"), f("cisRate", "CIS rate (%)", "text", "20")],
-    "Produce a CIS-compliant invoice: header with invoice number, date, your UTR and (if applicable) VAT, contractor's details. Itemise labour and materials separately. Calculate CIS deduction on labour only. Show gross, deduction, net payable. Bank details placeholder."
+    [
+      fp("invDate", "Invoice date", "today", "date"),
+      fp("taxPointDate", "Tax point date", "today", "date"),
+      f("clientName", "Client full legal name"),
+      ta("clientAddress", "Client address"),
+      ta("worksDescription", "Description of works (specific, not generic)"),
+      f("labour", "Labour amount (£)", "number"),
+      f("materials", "Materials amount (£)", "number"),
+      sel("cisRate", "CIS deduction rate", [{ label: "20% (Net)", value: "20" }, { label: "30% (Unregistered)", value: "30" }, { label: "0% (Gross status)", value: "0" }]),
+      sel("vatApplicable", "VAT applicable (only if VAT registered in profile)", ["No", "Yes"]),
+      sel("reverseCharge", "Domestic reverse charge applicable (only if VAT registered)", ["No", "Yes"]),
+      fo("poNumber", "Purchase order number"),
+      sel("paymentTerms", "Payment terms", ["30 days", "14 days", "7 days", "On receipt"]),
+      tao("bankDetails", "Bank details (auto-populated from profile if stored)"),
+    ],
+    "Produce a UK CIS-compliant invoice. Use the user's profile for subcontractor full name, company name, address, UTR number and CIS registration status (auto-populated — never use placeholders). Show: invoice number (use the document reference provided), invoice date, tax point date, bill-to client (full legal name + address), description of works, a clear table separating Labour and Materials on the face of the invoice as HMRC CIS rules require, gross amount (auto = labour + materials), CIS rate selected, CIS deduction amount (calculated on labour only), net amount payable. If VAT applicable: VAT line at 20% on labour only (UNLESS reverse charge is yes, in which case state 'Domestic reverse charge applies — VAT to be accounted for by the recipient'). Show PO number and payment terms. End with an ISSUED BY block auto-populated from the user profile (full name printed, company name, UTR number, today's date, signature line)."
   ),
   t("delay-notice", "Delay Notice", "documents",
     "A formal written notice that the project has been delayed by matters outside your control. Protects your right to claim an Extension of Time and avoid Liquidated Damages.",
@@ -71,8 +139,26 @@ export const TOOLS = [
   ),
   t("subcontract-letter", "Subcontract Letter", "documents",
     "A short subcontract / letter of intent setting out the works, price, programme and payment terms between you and a sub-trader.",
-    [f("subbie", "Subcontractor"), ta("scope", "Scope"), f("price", "Price (£)"), f("startDate", "Start date")],
-    "Produce a UK subcontract letter referencing the main contract, scope, price, programme, payment schedule (interim valuations), CIS treatment, and notice periods."
+    [
+      f("subbieName", "Full legal name of subcontractor"),
+      fo("subbieCompany", "Subcontractor company name (if applicable)"),
+      ta("subbieAddress", "Subcontractor address"),
+      f("subbieUtr", "Subcontractor UTR number"),
+      fp("startDate", "Contract start date", "today", "date"),
+      f("endDate", "Contract end date or anticipated duration"),
+      ta("siteAndProject", "Site address and project name"),
+      ta("scope", "Scope of works (detailed description of what is included)"),
+      sel("priceBasis", "Contract sum basis", ["Fixed price", "Day rate"]),
+      f("contractValue", "Contract sum or day rate value (£)", "number"),
+      fo("estDuration", "If day rate — estimated duration (days)", "number"),
+      sel("paymentFrequency", "Payment terms (frequency and method)", ["Weekly", "Monthly", "On completion"]),
+      sel("cisRate", "CIS deduction rate applicable", [{ label: "20% (Net)", value: "20" }, { label: "30% (Unregistered)", value: "30" }, { label: "0% (Gross status)", value: "0" }]),
+      fo("retention", "Retention percentage (if applicable)", "number"),
+      f("defectsLiability", "Defects liability period (e.g. 12 months)"),
+      f("insuranceMin", "Public liability insurance minimum (£)"),
+      f("noticePeriod", "Termination clause — notice period required (days)", "number"),
+    ],
+    "Produce a UK subcontract letter (legally binding once signed). Use the user's profile for the engaging party's full name, company name, address and UTR (auto-populated). Include sections: parties, site and project, scope of works, contract sum (fixed price or day rate as selected — show estimated duration if day rate), payment frequency and method, CIS deduction rate, retention if applicable, defects liability period, insurance requirements (public liability minimum), a MANDATORY 'RIGHT OF SUBSTITUTION' clause stating the subcontractor may provide a suitably qualified substitute to perform the works (critical for establishing genuine self-employed status), termination notice period, dispute resolution via adjudication under the Housing Grants, Construction and Regeneration Act 1996, governing law: England and Wales. End with two signature blocks (CONTRACTOR and SUBCONTRACTOR) each with full name printed, company, signature line, date, position. Close with: 'This agreement becomes legally binding once signed by both parties. Both parties should retain a signed copy.'"
   ),
   t("complaint-letter", "Complaint Letter", "documents",
     "A firm, professional letter raising a complaint. late payment, defective materials, poor management. The first formal step before escalation.",
@@ -81,13 +167,43 @@ export const TOOLS = [
   ),
   t("timesheet", "Timesheet", "documents",
     "A weekly timesheet broken down by day, site, hours and tasks. used for invoicing day work or proving labour for payment applications.",
-    [f("weekEnding", "Week ending"), f("site", "Site"), ta("days", "Days worked + hours (e.g. Mon 8hrs)"), ta("tasks", "Tasks performed")],
-    "Produce a clean weekly timesheet table with Day / Date / Start / Finish / Break / Hours / Tasks. Total at the bottom."
+    [
+      fp("weekCommencing", "Week commencing date", "today", "date"),
+      f("projectName", "Project name and reference"),
+      ta("siteAddress", "Site address"),
+      fo("jobRef", "Job reference or site name"),
+      f("monStart", "Mon — start time", "time"), f("monFinish", "Mon — finish time", "time"), fo("monBreak", "Mon — break (mins)", "number"),
+      f("tueStart", "Tue — start time", "time"), f("tueFinish", "Tue — finish time", "time"), fo("tueBreak", "Tue — break (mins)", "number"),
+      f("wedStart", "Wed — start time", "time"), f("wedFinish", "Wed — finish time", "time"), fo("wedBreak", "Wed — break (mins)", "number"),
+      f("thuStart", "Thu — start time", "time"), f("thuFinish", "Thu — finish time", "time"), fo("thuBreak", "Thu — break (mins)", "number"),
+      f("friStart", "Fri — start time", "time"), f("friFinish", "Fri — finish time", "time"), fo("friBreak", "Fri — break (mins)", "number"),
+      fo("overtimeHours", "Overtime hours (if applicable)", "number"),
+      fo("overtimeRate", "Overtime rate (£/hour)", "number"),
+      f("dayOrHourlyRate", "Day rate or hourly rate (£)", "number"),
+      sel("rateBasis", "Rate basis", ["Hourly", "Day rate"]),
+      fo("poNumber", "Purchase order number (if applicable)"),
+      sel("paymentTerms", "Payment terms", ["7 days", "14 days", "30 days"]),
+    ],
+    "Produce a clean weekly Timesheet. Use the user's profile for operative full name, company name, address, UTR number and CIS deduction rate (auto-populated). Show: week commencing, project, site address, a Mon-Fri table with Day / Start / Finish / Break / Hours (auto-calculated), total hours for the week, overtime hours and rate if any, day or hourly rate, total gross earnings, CIS deduction rate from profile applied to LABOUR ONLY, CIS deduction amount, net amount due after CIS, PO number, payment terms. Add this exact note in the body: 'CIS deduction of X% has been applied in accordance with the subcontractor's registered CIS status. This rate has been auto populated from the Morris user profile. If this rate is incorrect please update your CIS status in your profile before generating this document.' (substitute X with the actual rate from profile). End with two signature blocks: an OPERATIVE block (full name printed, signature line, date submitted) and a SUPERVISOR / AUTHORISING block (full name printed, company name, signature line, date authorised). Close with: 'Operative signature confirms hours worked are accurate. Supervisor signature authorises the timesheet for payment.'"
   ),
   t("daywork-sheet", "Daywork Sheet", "documents",
     "A sheet for recording daywork (time and materials) on instructed extra work. Must be signed by the client's rep on the day.",
-    [f("date", "Date"), f("site", "Site"), ta("works", "Daywork carried out"), ta("labour", "Labour"), ta("materials", "Materials"), ta("plant", "Plant")],
-    "Produce a UK daywork sheet with labour, materials, plant on hire, overheads & profit %, and a signature box for the client's rep."
+    [
+      fp("dayworkDate", "Date of daywork", "today", "date"),
+      f("contractRef", "Contract reference"),
+      f("labourRate", "Agreed daywork labour rate (£/hour)", "number"),
+      f("uplift", "Agreed uplift % on materials and plant", "number"),
+      fo("plantRate", "Agreed plant rate (£/day or £/hour)"),
+      f("startTime", "Hours worked — start time", "time"),
+      f("finishTime", "Hours worked — finish time", "time"),
+      ta("worksDescription", "Daywork carried out (description)"),
+      ta("materialsList", "Materials used — itemised list with individual costs"),
+      ta("plantList", "Plant used — itemised list with individual costs"),
+      fo("totalMaterialsCost", "Total materials cost (£)", "number"),
+      fo("totalPlantCost", "Total plant cost (£)", "number"),
+      fo("poNumber", "Purchase order number (if applicable)"),
+    ],
+    "Produce a UK Daywork Sheet. Use the user's profile for operative name, company name, address and UTR (auto-populated). Show: daywork reference (use document reference), contract reference, date, agreed daywork rates (labour rate, uplift %, plant rate), start and finish times, total hours worked (calculate from start/finish), labour cost (= hours × rate), itemised materials with total, itemised plant with total, the agreed uplift applied to materials and plant, total daywork value including uplift, PO number. End with two signature blocks: an OPERATIVE block (full name printed, signature line, date signed) and a SITE MANAGER CONFIRMATION block (full name printed, company name, signature line, date signed). Close with: 'Site manager signature confirms the hours, materials and plant listed on this sheet are agreed. Unsigned daywork sheets may not be accepted for payment.'"
   ),
   t("application-for-payment", "Application for Payment", "documents",
     "A formal interim payment application under HGCRA 1996. Sets the value of works done and starts the statutory payment timeline.",
@@ -137,8 +253,16 @@ export const TOOLS = [
   // ---------- FINANCE ----------
   t("payment-chaser", "Payment Chaser", "finance",
     "A short, firm payment chase email. saves the awkwardness, gets results.",
-    [f("client", "Client"), f("invNo", "Invoice number"), f("amount", "Amount (£)"), f("daysOverdue", "Days overdue")],
-    "Produce a short, firm but professional payment chase email referencing the Late Payment of Commercial Debts (Interest) Act 1998."
+    [
+      f("clientName", "Client (recipient)"),
+      f("invNo", "Original invoice number being chased"),
+      fp("invDate", "Original invoice date", "today", "date"),
+      f("invAmount", "Original invoice amount (£)", "number"),
+      f("outstanding", "Amount outstanding (£)", "number"),
+      fo("previousChases", "Previous chase attempts (dates of any previous reminders sent)"),
+      fp("paymentDeadline", "Deadline for payment", "today+7d", "date"),
+    ],
+    "Produce a UK Payment Chaser letter. Use the user's profile for sender full name, company name, address, contact number and bank details (auto-populated). Show: recipient, original invoice number, original invoice date, original invoice amount, amount outstanding, days overdue (calculate from original invoice date to today's date), any previous chase attempts, deadline for payment. Include a clear reference to the Late Payment of Commercial Debts (Interest) Act 1998 and state that the sender reserves the right to charge statutory interest at 8% above the Bank of England base rate on overdue amounts, plus the £40-£100 fixed compensation per invoice under section 5A. End with an ISSUED BY block auto-populated from the user profile (full name printed, company name, today's date, signature line)."
   ),
   t("cis-calculator", "CIS Calculator", "finance",
     "Quickly works out CIS deduction at 20% or 30% on a labour amount and what your net payment will be.",

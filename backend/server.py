@@ -68,6 +68,8 @@ class ProfileUpdate(BaseModel):
     cisStatus: Optional[str] = None
     insuranceExpiry: Optional[str] = None
     cscsExpiry: Optional[str] = None
+    vehicleReg: Optional[str] = None
+    bankDetails: Optional[str] = None
     email: Optional[EmailStr] = None
     favourites: Optional[List[str]] = None
     recentlyUsed: Optional[List[str]] = None
@@ -416,6 +418,8 @@ async def generate(req: GenerateReq, authorization: Optional[str] = Header(None)
     vat_registered = user.get("vatRegistered")
     vat_number = user.get("vatNumber") or ""
     user_email = user.get("email") or ""
+    bank_details = user.get("bankDetails") or ""
+    vehicle_reg = user.get("vehicleReg") or ""
 
     ref_number = await next_ref_number(user, req.toolId)
     today_str = datetime.now(timezone.utc).strftime("%d %B %Y")
@@ -439,6 +443,10 @@ async def generate(req: GenerateReq, authorization: Optional[str] = Header(None)
         profile_lines.append(f"VAT registered: yes, VAT number {vat_number}")
     elif vat_registered is False:
         profile_lines.append("VAT registered: no")
+    if bank_details:
+        profile_lines.append(f"Bank details for payment: {bank_details}")
+    if vehicle_reg:
+        profile_lines.append(f"Vehicle registration: {vehicle_reg}")
     profile_block = "\n".join(profile_lines)
 
     system_prompt = (

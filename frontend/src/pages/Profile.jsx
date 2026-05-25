@@ -27,6 +27,8 @@ export default function Profile() {
     cisStatus: user?.cisStatus || "Net 20%",
     insuranceExpiry: user?.insuranceExpiry || "",
     cscsExpiry: user?.cscsExpiry || "",
+    vehicleReg: user?.vehicleReg || "",
+    bankDetails: user?.bankDetails || "",
     trade: user?.trade || "",
   });
   const [saving, setSaving] = useState(false);
@@ -91,6 +93,8 @@ export default function Profile() {
         </Row>
         <Row label="Public liability insurance expiry *"><input type="date" className="input-base" value={f.insuranceExpiry} onChange={(e) => setF({ ...f, insuranceExpiry: e.target.value })} data-testid="profile-insurance-expiry" /></Row>
         <Row label="CSCS card expiry *"><input type="date" className="input-base" value={f.cscsExpiry} onChange={(e) => setF({ ...f, cscsExpiry: e.target.value })} data-testid="profile-cscs-expiry" /></Row>
+        <Row label="Vehicle registration"><input className="input-base" value={f.vehicleReg} onChange={(e) => setF({ ...f, vehicleReg: e.target.value })} placeholder="e.g. AB12 CDE" data-testid="profile-vehicle" /></Row>
+        <Row label="Bank details for invoices"><textarea rows={2} className="input-base resize-y" value={f.bankDetails} onChange={(e) => setF({ ...f, bankDetails: e.target.value })} placeholder="Sort code · Account number · Bank name" data-testid="profile-bank" /></Row>
         <button className="btn-primary" disabled={saving} data-testid="profile-save">{saving ? "Saving…" : "Save profile"}</button>
       </form>
 
