@@ -80,12 +80,14 @@ class GenerateReq(BaseModel):
     trade: Optional[str] = None
     companyName: Optional[str] = None
     fullName: Optional[str] = None
+    jobId: Optional[str] = None  # link to a Job in the user's Job Tracker
 
 class DocumentSave(BaseModel):
     title: str
     toolId: str
     content: str
     refNumber: Optional[str] = None
+    jobId: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
 
 class CISPayment(BaseModel):
@@ -95,6 +97,26 @@ class CISPayment(BaseModel):
     deduction: float
     net: float
     notes: Optional[str] = ""
+
+# ---------- Jobs ----------
+JOB_STATUSES = ["active", "invoiced", "completed", "disputed"]
+
+class JobCreate(BaseModel):
+    clientName: str
+    address: Optional[str] = ""
+    contractValue: Optional[float] = 0.0
+    startDate: Optional[str] = None
+    expectedCompletion: Optional[str] = None
+    notes: Optional[str] = ""
+
+class JobUpdate(BaseModel):
+    clientName: Optional[str] = None
+    address: Optional[str] = None
+    contractValue: Optional[float] = None
+    startDate: Optional[str] = None
+    expectedCompletion: Optional[str] = None
+    status: Optional[str] = None
+    notes: Optional[str] = None
 
 # ---------- Helpers ----------
 def hash_pw(pw: str) -> str:
@@ -472,6 +494,7 @@ async def generate(req: GenerateReq, authorization: Optional[str] = Header(None)
                 "title": req.toolName,
                 "toolId": req.toolId,
                 "refNumber": ref_number,
+                "jobId": req.jobId,
                 "content": cleaned,
                 "autoSaved": True,
                 "createdAt": datetime.now(timezone.utc),
@@ -494,6 +517,7 @@ async def save_document(d: DocumentSave, authorization: Optional[str] = Header(N
         "title": d.title,
         "toolId": d.toolId,
         "refNumber": d.refNumber,
+        "jobId": d.jobId,
         "content": d.content,
         "metadata": d.metadata or {},
         "createdAt": datetime.now(timezone.utc).isoformat(),
@@ -515,6 +539,80 @@ async def delete_document(doc_id: str, authorization: Optional[str] = Header(Non
     user = await get_user(token)
     await db.documents.delete_one({"id": doc_id, "userId": user["id"]})
     return {"ok": True}
+
+# ---------- Jobs (Job Tracker) ----------
+async def _next_job_ref(user: dict) -> str:
+    """Returns JOB-{INITIALS}-{NNNN} with a per-user counter."""
+    res = await db.users.find_one_and_update(
+        {"id": user["id"]},
+        {"$inc": {"jobCounter": 1}},
+        return_document=True,
+    )
+    seq = (res or {}).get("jobCounter", 1)
+    return f"JOB-{_ref_initials(user)}-{seq:04d}"
+
+
+@api_router.post("/jobs")
+async def create_job(job: JobCreate, authorization: Optional[str] = Header(None)):
+    token = authorization.replace("Bearer ", "") if authorization else None
+    user = await get_user(token)
+    ref = await _next_job_ref(user)
+    doc = {
+        "id": str(uuid.uuid4()),
+        "userId": user["id"],
+        "ref": ref,
+        "status": "active",
+        **job.model_dump(),
+        "createdAt": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.jobs.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@api_router.get("/jobs")
+async def list_jobs(authorization: Optional[str] = Header(None)):
+    token = authorization.replace("Bearer ", "") if authorization else None
+    user = await get_user(token)
+    items = await db.jobs.find({"userId": user["id"]}, {"_id": 0}).sort("createdAt", -1).to_list(500)
+    return items
+
+
+@api_router.get("/jobs/{job_id}")
+async def get_job(job_id: str, authorization: Optional[str] = Header(None)):
+    token = authorization.replace("Bearer ", "") if authorization else None
+    user = await get_user(token)
+    job = await db.jobs.find_one({"id": job_id, "userId": user["id"]}, {"_id": 0})
+    if not job:
+        raise HTTPException(404, "Job not found")
+    docs = await db.documents.find({"userId": user["id"], "jobId": job_id}, {"_id": 0}).sort("createdAt", 1).to_list(500)
+    return {"job": job, "documents": docs}
+
+
+@api_router.patch("/jobs/{job_id}")
+async def update_job(job_id: str, update: JobUpdate, authorization: Optional[str] = Header(None)):
+    token = authorization.replace("Bearer ", "") if authorization else None
+    user = await get_user(token)
+    patch = {k: v for k, v in update.model_dump().items() if v is not None}
+    if "status" in patch and patch["status"] not in JOB_STATUSES:
+        raise HTTPException(400, f"Status must be one of {JOB_STATUSES}")
+    if patch:
+        result = await db.jobs.update_one({"id": job_id, "userId": user["id"]}, {"$set": patch})
+        if result.matched_count == 0:
+            raise HTTPException(404, "Job not found")
+    updated = await db.jobs.find_one({"id": job_id, "userId": user["id"]}, {"_id": 0})
+    return updated
+
+
+@api_router.delete("/jobs/{job_id}")
+async def delete_job(job_id: str, authorization: Optional[str] = Header(None)):
+    token = authorization.replace("Bearer ", "") if authorization else None
+    user = await get_user(token)
+    # Unlink any documents from this job so they aren't lost (just orphan them)
+    await db.documents.update_many({"userId": user["id"], "jobId": job_id}, {"$set": {"jobId": None}})
+    await db.jobs.delete_one({"id": job_id, "userId": user["id"]})
+    return {"ok": True}
+
 
 # ---------- CIS Payments ----------
 @api_router.post("/cis/payments")

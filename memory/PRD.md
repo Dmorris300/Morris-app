@@ -48,6 +48,16 @@ Dark-themed construction administration SaaS for UK tradespeople and sole trader
 - "Favourite" label (was "Starred")
 - Tool emojis next to every tool name
 
+### Iteration 8 (Feb 2026 — Job Tracker)
+- **Backend**: `db.jobs` collection + 5 routes — POST `/api/jobs` (auto-issues `JOB-{INITIALS}-{NNNN}` ref via per-user counter), GET `/api/jobs`, GET `/api/jobs/:id` (returns job + linked documents), PATCH `/api/jobs/:id` (status enum: active|invoiced|completed|disputed), DELETE `/api/jobs/:id` (orphans linked docs rather than deleting them).
+- **Documents** schema: added `jobId` field. `/api/generate` and `/api/documents/save` both accept an optional `jobId` and link the doc automatically.
+- **Frontend pages**:
+  - `/app/jobs` — list with 5 status filter chips (All / Active / Invoiced / Completed / Disputed) showing counts, empty state, gold "New job" button opening a modal form with required client name + optional address/value/dates.
+  - `/app/jobs/:jobId` — detail page with status pill, job metadata (site/value/started/expected), 4-button status switcher, list of linked documents, delete with confirm.
+- **AppShell sidebar**: pinned "Job Tracker" link at the very top of the navigation (above Recently Used).
+- **Command Centre**: Outstanding Invoices card now wired to real data — sums contract values of jobs in `invoiced` status. New "Jobs" quick-action button added (now 5 quick-actions: Jobs / New invoice / New variation / New RAMS / Log mileage).
+- Both pages are wrapped in `ProfileGate` so incomplete-profile users are redirected to /app/profile first.
+
 ### Iteration 7 (Feb 2026 — Command Centre Dashboard + lint cleanup)
 **Command Centre (Prompt 7's first feature):**
 - Replaced the basic Dashboard top section with a full Command Centre block. New blocks rendered above the existing "What Morris Offers"/Recommended/Favourites:

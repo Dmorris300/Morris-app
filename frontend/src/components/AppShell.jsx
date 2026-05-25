@@ -3,7 +3,7 @@ import { Outlet, Link, useNavigate, useLocation } from "react-router-dom";
 import { MorrisLogo, MorrisWordmark } from "./MorrisLogo";
 import { TOOLS, WOW_TOOLS, SECTIONS, getToolsBySection, emojiFor } from "../lib/tools-config";
 import { useAuth } from "../lib/auth";
-import { Search, ChevronDown, ChevronRight, Star, Clock, LogOut, Menu, X, User, FileText, History as HistoryIcon, Settings as SettingsIcon, HardHat } from "lucide-react";
+import { Search, ChevronDown, ChevronRight, Star, Clock, LogOut, Menu, X, User, FileText, History as HistoryIcon, Settings as SettingsIcon, HardHat, Briefcase } from "lucide-react";
 import { TradeSwitcher } from "./TradeSwitcher";
 import AppFooter from "./AppFooter";
 import SessionTimeout from "./SessionTimeout";
@@ -58,6 +58,17 @@ export default function AppShell() {
           </div>
         ) : (
           <>
+            <div className="px-2 mb-2" data-testid="sidebar-jobs-pinned">
+              <Link
+                to="/app/jobs"
+                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm transition ${loc.pathname.startsWith("/app/jobs") ? "bg-[#121212] text-[#E8A020]" : "text-[#A19D94] hover:bg-[#0e0e0e] hover:text-[#F0EDE8]"}`}
+                onClick={() => setMobileOpen(false)}
+                data-testid="sidebar-jobs"
+              >
+                <Briefcase size={14} className="text-[#E8A020]" />
+                <span className="font-semibold tracking-wide">Job Tracker</span>
+              </Link>
+            </div>
             {recentlyUsed.length > 0 && (
               <SidebarGroup label="Recently Used" icon={<Clock size={14} />} open={true} onToggle={() => {}}>
                 {recentlyUsed.map((id) => {

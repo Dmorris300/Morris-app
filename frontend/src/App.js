@@ -22,6 +22,8 @@ import Earnings from "./pages/Earnings";
 import Profile from "./pages/Profile";
 import Favourites from "./pages/Favourites";
 import History from "./pages/History";
+import Jobs from "./pages/Jobs";
+import JobDetail from "./pages/JobDetail";
 import Billing from "./pages/Billing";
 import MockCheckout from "./pages/MockCheckout";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
@@ -99,6 +101,8 @@ function App() {
             <Route path="profile" element={<Profile />} />
             <Route path="favourites" element={<Favourites />} />
             <Route path="history" element={<History />} />
+            <Route path="jobs" element={<ProfileGate><Jobs /></ProfileGate>} />
+            <Route path="jobs/:jobId" element={<ProfileGate><JobDetail /></ProfileGate>} />
             <Route path="billing" element={<Billing />} />
             <Route path="billing/mock-checkout" element={<MockCheckout />} />
             <Route path="privacy" element={<PrivacyPolicy />} />

@@ -4,7 +4,7 @@ import { useAuth } from "../lib/auth";
 import api from "../lib/api";
 import { TOOLS, WOW_TOOLS, emojiFor, getToolById } from "../lib/tools-config";
 import { recommendationsFor } from "../lib/trade-recommendations";
-import { Star, FileText, Mic, Camera, Calculator, ArrowRight, TrendingUp, Clock, HardHat, AlertTriangle, ShieldCheck, IdCard, PiggyBank, Receipt, Wallet, Gauge, Hammer, Plus } from "lucide-react";
+import { Star, FileText, Mic, Camera, Calculator, ArrowRight, TrendingUp, Clock, HardHat, AlertTriangle, ShieldCheck, IdCard, PiggyBank, Receipt, Wallet, Gauge, Hammer, Plus, Briefcase } from "lucide-react";
 
 // ---------- Command Centre helpers ----------
 const PERSONAL_ALLOWANCE = 12570; // 2025/26 UK Personal Allowance
@@ -49,10 +49,12 @@ export default function Dashboard() {
   const { user } = useAuth();
   const [docs, setDocs] = useState([]);
   const [cis, setCis] = useState([]);
+  const [jobs, setJobs] = useState([]);
 
   useEffect(() => {
     api.get("/documents").then(r => setDocs(r.data)).catch((e) => { if (process.env.NODE_ENV !== "production") console.error("Documents load failed", e); });
     api.get("/cis/payments").then(r => setCis(r.data)).catch((e) => { if (process.env.NODE_ENV !== "production") console.error("CIS payments load failed", e); });
+    api.get("/jobs").then(r => setJobs(r.data)).catch((e) => { if (process.env.NODE_ENV !== "production") console.error("Jobs load failed", e); });
   }, []);
 
   const favs = (user?.favourites || []).map(id => [...TOOLS, ...WOW_TOOLS].find(t => t.id === id)).filter(Boolean);
@@ -69,6 +71,12 @@ export default function Dashboard() {
   const taxableProfit = Math.max(0, totalGross - PERSONAL_ALLOWANCE);
   const estimatedTaxBill = taxableProfit * BASIC_RATE;
   const cisRefundEstimate = Math.max(0, totalDeduction - estimatedTaxBill);
+
+  // Outstanding invoices = total contract value of jobs in 'invoiced' status (i.e. invoiced but not yet completed)
+  const outstandingInvoiced = jobs
+    .filter(j => j.status === "invoiced")
+    .reduce((a, j) => a + (Number(j.contractValue) || 0), 0);
+  const activeJobs = jobs.filter(j => j.status === "active").length;
 
   const insuranceStatus = expiryStatus(user?.insuranceExpiry);
   const cscsStatus = expiryStatus(user?.cscsExpiry);
@@ -114,12 +122,12 @@ export default function Dashboard() {
         />
         <FinanceCard
           label="Outstanding invoices"
-          value={formatGBP(0)}
-          subtitle="Coming soon"
+          value={formatGBP(outstandingInvoiced)}
+          subtitle={jobs.length > 0 ? `${activeJobs} active · ${jobs.filter(j => j.status === "invoiced").length} invoiced` : "Create a job to track"}
           icon={<Wallet size={16} />}
-          to="/app/tool/payment-chaser"
+          to="/app/jobs"
           testId="cc-outstanding"
-          muted
+          muted={jobs.length === 0}
         />
         <FinanceCard
           label="Earnings YTD"
@@ -165,7 +173,8 @@ export default function Dashboard() {
       {/* ---------- Quick actions ---------- */}
       <div className="mb-10">
         <div className="text-[10px] uppercase tracking-[0.25em] text-[#706D66] mb-3">Quick actions</div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3" data-testid="command-centre-quick-actions">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3" data-testid="command-centre-quick-actions">
+          <QuickAction to="/app/jobs" icon={<Briefcase size={18} />} label="Jobs" testId="qa-jobs" />
           <QuickAction to="/app/tool/cis-invoice" icon={<Receipt size={18} />} label="New invoice" testId="qa-invoice" />
           <QuickAction to="/app/tool/variation-letter" icon={<Plus size={18} />} label="New variation" testId="qa-variation" />
           <QuickAction to="/app/tool/rams" icon={<Hammer size={18} />} label="New RAMS" testId="qa-rams" />
