@@ -2,26 +2,43 @@
 import os
 import uuid
 import logging
+from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, HTTPException, Header, Request
 from pydantic import BaseModel
 from typing import Optional
 
+from dotenv import dotenv_values
 from emergentintegrations.payments.stripe.checkout import (
     StripeCheckout, CheckoutSessionResponse, CheckoutSessionRequest, CheckoutStatusResponse,
 )
 
 logger = logging.getLogger(__name__)
 
-STRIPE_API_KEY = os.environ.get("STRIPE_API_KEY", "")
-STRIPE_LIVE = STRIPE_API_KEY.startswith("sk_test_") and STRIPE_API_KEY != "sk_test_emergent" or STRIPE_API_KEY.startswith("sk_live_")
+# Stripe keys live in /app/backend/.env. We read them directly so the .env values
+# take precedence over any STRIPE_API_KEY=sk_test_emergent placeholder that the
+# container's shell environment may have pre-set.
+_DOTENV = dotenv_values(Path(__file__).parent / ".env")
 
-# Server-defined plans — never trust the frontend on price
-# Amounts in £ (Stripe expects float)
+def _cfg(key: str, default: str = "") -> str:
+    """Prefer the .env file value, fall back to os.environ."""
+    v = _DOTENV.get(key)
+    if v:
+        return v
+    return os.environ.get(key, default)
+
+STRIPE_API_KEY = _cfg("STRIPE_API_KEY", "")
+# A "real" Stripe key is any sk_test_... that isn't the placeholder used in dev,
+# or any sk_live_... key.
+STRIPE_LIVE = (STRIPE_API_KEY.startswith("sk_test_") and STRIPE_API_KEY != "sk_test_emergent") or STRIPE_API_KEY.startswith("sk_live_")
+
+# Server-defined plans — never trust the frontend on price.
+# Each plan has a stripePriceId for a recurring subscription product.
 PLANS = {
-    "solo":     {"name": "Solo",     "price": 12.99, "currency": "gbp"},
-    "pro":      {"name": "Pro",      "price": 24.99, "currency": "gbp"},
-    "business": {"name": "Business", "price": 59.99, "currency": "gbp"},
+    "solo":       {"name": "Solo",       "price": 12.99,  "currency": "gbp", "stripePriceId": _cfg("STRIPE_PRICE_SOLO", "")},
+    "pro":        {"name": "Pro",        "price": 24.99,  "currency": "gbp", "stripePriceId": _cfg("STRIPE_PRICE_PRO", "")},
+    "business":   {"name": "Business",   "price": 59.99,  "currency": "gbp", "stripePriceId": _cfg("STRIPE_PRICE_BUSINESS", "")},
+    "enterprise": {"name": "Enterprise", "price": 199.99, "currency": "gbp", "stripePriceId": _cfg("STRIPE_PRICE_ENTERPRISE", "")},
 }
 
 TRIAL_DAYS = 3
@@ -179,6 +196,8 @@ def build_router(db, get_user, send_subscription_receipt):
     async def create_checkout(req: CheckoutReq, request: Request, authorization: Optional[str] = Header(None)):
         token = authorization.replace("Bearer ", "") if authorization else None
         user = await get_user(token)
+        if is_unlimited_admin(user):
+            raise HTTPException(400, "Your account already has unlimited access. No subscription required.")
         if req.planId not in PLANS:
             raise HTTPException(400, "Unknown plan")
         plan = PLANS[req.planId]
@@ -205,7 +224,7 @@ def build_router(db, get_user, send_subscription_receipt):
             mock_url = f"{origin}/app/billing/mock-checkout?session_id={session_id}&plan={req.planId}"
             return {"url": mock_url, "sessionId": session_id, "mock": True}
 
-        # REAL Stripe path
+        # REAL Stripe path — use stripePriceId for a recurring subscription
         host_url = str(request.base_url).rstrip("/")
         webhook_url = f"{host_url}/api/webhook/stripe"
         stripe = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=webhook_url)
@@ -213,18 +232,33 @@ def build_router(db, get_user, send_subscription_receipt):
         success_url = f"{origin}/app/billing?session_id={{CHECKOUT_SESSION_ID}}"
         cancel_url = f"{origin}/app/billing?cancelled=1"
 
-        checkout_req = CheckoutSessionRequest(
-            amount=float(plan["price"]),
-            currency=plan["currency"],
-            success_url=success_url,
-            cancel_url=cancel_url,
-            metadata={
-                "userId": user["id"],
-                "username": user.get("username", ""),
-                "planId": req.planId,
-                "planName": plan["name"],
-            },
-        )
+        # Prefer recurring subscription via stripe_price_id when available, else fall back to one-off amount
+        if plan.get("stripePriceId"):
+            checkout_req = CheckoutSessionRequest(
+                stripe_price_id=plan["stripePriceId"],
+                quantity=1,
+                success_url=success_url,
+                cancel_url=cancel_url,
+                metadata={
+                    "userId": user["id"],
+                    "username": user.get("username", ""),
+                    "planId": req.planId,
+                    "planName": plan["name"],
+                },
+            )
+        else:
+            checkout_req = CheckoutSessionRequest(
+                amount=float(plan["price"]),
+                currency=plan["currency"],
+                success_url=success_url,
+                cancel_url=cancel_url,
+                metadata={
+                    "userId": user["id"],
+                    "username": user.get("username", ""),
+                    "planId": req.planId,
+                    "planName": plan["name"],
+                },
+            )
         try:
             session: CheckoutSessionResponse = await stripe.create_checkout_session(checkout_req)
         except Exception as e:
@@ -240,6 +274,7 @@ def build_router(db, get_user, send_subscription_receipt):
             "planId": req.planId,
             "amount": float(plan["price"]),
             "currency": plan["currency"],
+            "stripePriceId": plan.get("stripePriceId"),
             "status": "initiated",
             "paymentStatus": "pending",
             "mock": False,

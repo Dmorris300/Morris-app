@@ -9,7 +9,7 @@ const PLAN_META = {
   solo: { name: "Solo", price: "£12.99", period: "per month", desc: "All tools, unlimited documents, 1 user.", icon: Zap, features: ["All 88+ tools", "Unlimited documents", "1 user", "PDF + WhatsApp + Email"] },
   pro: { name: "Pro", price: "£24.99", period: "per month", desc: "Everything in Solo + multi-user.", icon: Sparkles, features: ["Everything in Solo", "3 users", "Shared document history"], highlight: true },
   business: { name: "Business", price: "£59.99", period: "per month", desc: "Bigger crews. Multi-site.", icon: Crown, features: ["Everything in Pro", "10 users", "Multi-site management"] },
-  enterprise: { name: "Enterprise", price: "£199.99", period: "per month", desc: "Unlimited users + white-label.", icon: Building2, features: ["Unlimited users", "White label available", "Priority support"], contact: true },
+  enterprise: { name: "Enterprise", price: "£199.99", period: "per month", desc: "Unlimited users + white-label.", icon: Building2, features: ["Unlimited users", "White label available", "Priority support"] },
 };
 
 export default function Billing() {
