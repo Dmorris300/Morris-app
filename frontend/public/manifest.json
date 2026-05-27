@@ -1,0 +1,21 @@
+{
+  "name": "Morris",
+  "short_name": "Morris",
+  "description": "Morris — the paperwork sorted. Built by a UK tradesman, for tradesmen.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#060606",
+  "theme_color": "#060606",
+  "categories": ["business", "productivity", "finance"],
+  "lang": "en-GB",
+  "icons": [
+    {
+      "src": "/morris-logo.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
