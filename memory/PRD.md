@@ -48,6 +48,14 @@ Dark-themed construction administration SaaS for UK tradespeople and sole trader
 - "Favourite" label (was "Starred")
 - Tool emojis next to every tool name
 
+### Iteration 10 (Feb 2026 — Live Stripe Subscriptions)
+- Switched `/app/backend/.env` from mock-Stripe placeholder to **real live keys** (`sk_live_…`, `pk_live_…`) plus the 4 live price IDs (Solo / Pro / Business / Enterprise). All keys are in `.env` only — never hard-coded.
+- Fixed env-var precedence bug: `STRIPE_API_KEY=sk_test_emergent` was hard-baked into the pod's shell environment and was overriding `.env`. `billing.py` now uses `dotenv_values()` to read Stripe keys directly from the `.env` file so it always wins. Other env vars (Mongo, LLM key, Resend) untouched.
+- The `emergentintegrations.payments.stripe.checkout` helper hard-codes `mode='payment'` (one-off) and cannot do subscriptions. Switched checkout creation to use the **official `stripe` SDK directly** (`stripe.checkout.Session.create` with `mode='subscription'`) for proper recurring billing. The helper is still used for status polling and webhook signature verification.
+- Added 4th plan **Enterprise £199.99** as a subscribable plan (was previously "Contact us"). Removed `contact: true` so the Enterprise card shows a real "Choose Enterprise" button.
+- Hard-block on `darrenhustle300`: `is_unlimited_admin()` check in `create_checkout` returns 400 with "Your account already has unlimited access. No subscription required." — the admin can never create a Stripe session and can never be charged.
+- Verified end-to-end on live preview: all 4 plans return real `cs_live_…` session IDs and `checkout.stripe.com` URLs. Webhook handler already wired at `POST /api/webhook/stripe` for `checkout.session.completed`, `invoice.paid`, `invoice.payment_failed`, `customer.subscription.updated`, `customer.subscription.deleted`.
+
 ### Iteration 9 (Feb 2026 — Priority Tools deep field overhaul: 9 tools)
 - **Backend**: extended Profile with `vehicleReg` and `bankDetails` fields. Both injected into Claude system prompt's Author Profile block so all generated documents auto-populate without placeholders. Bank details are now pulled into CIS invoices and Payment Chasers automatically.
 - **tools-config.js**: introduced new field helpers — `fo()` for optional fields, `sel()` for dropdowns, `fp()` for prefilled date-style fields with patterns (`today`, `today+30d`, `today+7d`). `GenericToolPage` now renders selects natively and prefills any field declared with a `prefill` pattern.

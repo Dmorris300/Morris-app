@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from typing import Optional
 
 from dotenv import dotenv_values
+import stripe as stripe_sdk
 from emergentintegrations.payments.stripe.checkout import (
     StripeCheckout, CheckoutSessionResponse, CheckoutSessionRequest, CheckoutStatusResponse,
 )
@@ -224,50 +225,55 @@ def build_router(db, get_user, send_subscription_receipt):
             mock_url = f"{origin}/app/billing/mock-checkout?session_id={session_id}&plan={req.planId}"
             return {"url": mock_url, "sessionId": session_id, "mock": True}
 
-        # REAL Stripe path — use stripePriceId for a recurring subscription
-        host_url = str(request.base_url).rstrip("/")
-        webhook_url = f"{host_url}/api/webhook/stripe"
-        stripe = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=webhook_url)
-
+        # REAL Stripe path — use the official stripe SDK directly for a recurring subscription.
+        # (The emergentintegrations helper hard-codes mode='payment', so we bypass it for checkout creation.
+        # We still use it for status polling and webhook signature verification below.)
         success_url = f"{origin}/app/billing?session_id={{CHECKOUT_SESSION_ID}}"
         cancel_url = f"{origin}/app/billing?cancelled=1"
 
-        # Prefer recurring subscription via stripe_price_id when available, else fall back to one-off amount
-        if plan.get("stripePriceId"):
-            checkout_req = CheckoutSessionRequest(
-                stripe_price_id=plan["stripePriceId"],
-                quantity=1,
-                success_url=success_url,
-                cancel_url=cancel_url,
-                metadata={
-                    "userId": user["id"],
-                    "username": user.get("username", ""),
-                    "planId": req.planId,
-                    "planName": plan["name"],
-                },
-            )
-        else:
-            checkout_req = CheckoutSessionRequest(
-                amount=float(plan["price"]),
-                currency=plan["currency"],
-                success_url=success_url,
-                cancel_url=cancel_url,
-                metadata={
-                    "userId": user["id"],
-                    "username": user.get("username", ""),
-                    "planId": req.planId,
-                    "planName": plan["name"],
-                },
-            )
+        if not plan.get("stripePriceId"):
+            raise HTTPException(500, f"Stripe price ID not configured for plan '{req.planId}'. Set STRIPE_PRICE_{req.planId.upper()} in backend .env.")
+
+        stripe_sdk.api_key = STRIPE_API_KEY
         try:
-            session: CheckoutSessionResponse = await stripe.create_checkout_session(checkout_req)
+            session_kwargs = {
+                "mode": "subscription",
+                "line_items": [{"price": plan["stripePriceId"], "quantity": 1}],
+                "success_url": success_url,
+                "cancel_url": cancel_url,
+                "metadata": {
+                    "userId": user["id"],
+                    "username": user.get("username", ""),
+                    "planId": req.planId,
+                    "planName": plan["name"],
+                },
+                # Pass the metadata down to the resulting Subscription so webhook handlers can read it
+                "subscription_data": {
+                    "metadata": {
+                        "userId": user["id"],
+                        "username": user.get("username", ""),
+                        "planId": req.planId,
+                    },
+                },
+            }
+            # Re-use the same Stripe customer for this user if we have one;
+            # in subscription mode Stripe auto-creates a customer when `customer_email` is supplied.
+            if user.get("stripeCustomerId"):
+                session_kwargs["customer"] = user["stripeCustomerId"]
+            elif user.get("email"):
+                session_kwargs["customer_email"] = user["email"]
+
+            session_obj = stripe_sdk.checkout.Session.create(**session_kwargs)
+        except stripe_sdk.error.StripeError as e:
+            logger.exception("Stripe checkout failed")
+            raise HTTPException(500, f"Stripe error: {e.user_message or str(e)}")
         except Exception as e:
             logger.exception("Stripe checkout failed")
             raise HTTPException(500, f"Stripe error: {e}")
 
         await db.payment_transactions.insert_one({
             "id": str(uuid.uuid4()),
-            "sessionId": session.session_id,
+            "sessionId": session_obj.id,
             "userId": user["id"],
             "username": user.get("username"),
             "email": user.get("email"),
@@ -280,7 +286,7 @@ def build_router(db, get_user, send_subscription_receipt):
             "mock": False,
             "createdAt": datetime.now(timezone.utc),
         })
-        return {"url": session.url, "sessionId": session.session_id, "mock": False}
+        return {"url": session_obj.url, "sessionId": session_obj.id, "mock": False}
 
     # ---------- MOCK ONLY: complete a fake checkout (no real Stripe configured) ----------
     @router.post("/mock-complete")
