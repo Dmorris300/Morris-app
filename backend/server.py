@@ -400,6 +400,46 @@ async def delete_account(authorization: Optional[str] = Header(None)):
     return {"ok": True, "message": "Account and all data deleted."}
 
 # ---------- Claude generate ----------
+class VisionExtractReq(BaseModel):
+    image: str  # base64 (without data URL prefix) or full data URL
+    hint: Optional[str] = ""
+
+@api_router.post("/vision/extract")
+async def vision_extract(req: VisionExtractReq, authorization: Optional[str] = Header(None)):
+    """Reads any text visible in an uploaded photo (handwritten notes, whiteboards,
+    drawings) and returns a clean transcription plus a brief description of the image."""
+    token = authorization.replace("Bearer ", "") if authorization else None
+    user = await get_user(token)
+
+    # Strip data URL prefix if present
+    img_b64 = req.image
+    if img_b64.startswith("data:"):
+        img_b64 = img_b64.split(",", 1)[-1]
+
+    try:
+        from emergentintegrations.llm.chat import ImageContent
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f"morris-vision-{user['id']}-{uuid.uuid4()}",
+            system_message=(
+                "You are an OCR + scene assistant for a UK tradesperson. You are given a photo from a site "
+                "(handwritten notes, whiteboards, drawings, scribbled instructions, signed documents). "
+                "Reply in UK English with exactly two sections, no preamble, no markdown:\n"
+                "TRANSCRIPTION:\n<the exact text visible in the image, line by line. If unreadable, write '(unreadable)'>\n\n"
+                "DESCRIPTION:\n<one or two sentences describing what is in the photo and any context the user should preserve>"
+            ),
+        ).with_model("anthropic", "claude-sonnet-4-5-20250929")
+        msg = UserMessage(
+            text=(req.hint or "Transcribe this photo and describe what it is."),
+            file_contents=[ImageContent(img_b64)],
+        )
+        response = await chat.send_message(msg)
+        return {"ok": True, "result": (response or "").replace("\u2014", " ").replace("\u2013", " ")}
+    except Exception as e:
+        logger.exception("Vision extract failed")
+        raise HTTPException(500, f"Vision extraction failed: {e}")
+
+
 @api_router.post("/generate")
 async def generate(req: GenerateReq, authorization: Optional[str] = Header(None)):
     token = authorization.replace("Bearer ", "") if authorization else None

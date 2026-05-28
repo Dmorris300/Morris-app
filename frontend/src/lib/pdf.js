@@ -1,6 +1,6 @@
 import { jsPDF } from "jspdf";
 
-export function generatePdf({ title, content, user }) {
+export function generatePdf({ title, content, user, photo, photoCaption }) {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 48;
@@ -53,6 +53,42 @@ export function generatePdf({ title, content, user }) {
     doc.text(line, margin, y);
     y += lineHeight;
   });
+
+  // Embed the photo at the end of the body so it appears WITH the document.
+  // Stays on the current page if there is room, otherwise pushes to a new page.
+  if (photo) {
+    const imgWidth = usable * 0.7;
+    const imgHeight = imgWidth * 0.75; // approximate aspect; jsPDF will respect the data URL's aspect after add
+    if (y + imgHeight + 40 > bottom) {
+      addFooter(doc, pageWidth, pageHeight);
+      doc.addPage();
+      y = 80;
+    } else {
+      y += 20;
+    }
+    // Photo caption (date / time / description) — single styled line above the image
+    if (photoCaption) {
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(9);
+      doc.setTextColor(110, 110, 110);
+      const captionLines = doc.splitTextToSize(photoCaption, usable);
+      captionLines.forEach((cl) => { doc.text(cl, margin, y); y += 11; });
+      y += 6;
+    }
+    try {
+      // jsPDF accepts data URLs directly. Inferring type from prefix.
+      const format = (photo.startsWith("data:image/png") ? "PNG" : "JPEG");
+      doc.addImage(photo, format, margin, y, imgWidth, imgHeight, undefined, "FAST");
+      // Gold border around photo
+      doc.setDrawColor(232, 160, 32);
+      doc.setLineWidth(0.5);
+      doc.rect(margin, y, imgWidth, imgHeight);
+      y += imgHeight + 10;
+    } catch (e) {
+      if (process.env.NODE_ENV !== "production") console.error("PDF photo embed failed", e);
+    }
+  }
+
   addFooter(doc, pageWidth, pageHeight);
 
   return doc;
@@ -68,13 +104,13 @@ function addFooter(doc, pageWidth, pageHeight) {
   doc.text("Morris Construction Tech Ltd  •  ICO C1923529", pageWidth - 48, pageHeight - 28, { align: "right" });
 }
 
-export function downloadPdf({ title, content, user }) {
-  const doc = generatePdf({ title, content, user });
+export function downloadPdf({ title, content, user, photo, photoCaption }) {
+  const doc = generatePdf({ title, content, user, photo, photoCaption });
   const safe = (title || "morris-document").toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 60);
   doc.save(`${safe}.pdf`);
 }
 
-export function pdfBlobUrl({ title, content, user }) {
-  const doc = generatePdf({ title, content, user });
+export function pdfBlobUrl({ title, content, user, photo, photoCaption }) {
+  const doc = generatePdf({ title, content, user, photo, photoCaption });
   return doc.output("bloburl");
 }
