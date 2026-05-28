@@ -13,7 +13,10 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone, timedelta
 
 from emergentintegrations.llm.chat import LlmChat, UserMessage
-from email_helper import send_password_reset, send_welcome, send_subscription_receipt
+from email_helper import (
+    send_password_reset, send_welcome, send_subscription_receipt,
+    send_admin_signup,
+)
 from billing import build_router as build_billing_router, build_webhook_router, check_can_generate, record_usage, effective_plan
 
 ROOT_DIR = Path(__file__).parent
@@ -227,11 +230,15 @@ async def signup(req: SignupReq):
         "createdAt": datetime.now(timezone.utc).isoformat(),
     }
     await db.users.insert_one(doc)
-    # Fire-and-forget welcome email (won't block signup if Resend is unreachable)
+    # Fire-and-forget welcome + admin notification (won't block signup if Resend is unreachable)
     try:
         await send_welcome(email_lower, req.username)
     except Exception as e:
         logger.warning(f"Welcome email failed: {e}")
+    try:
+        await send_admin_signup(req.username, email_lower, req.phone)
+    except Exception as e:
+        logger.warning(f"Admin signup notification failed: {e}")
     return {"ok": True, "userId": user_id, "otp": otp, "message": "OTP sent. (Demo: shown here.)"}
 
 @api_router.post("/auth/verify-otp")

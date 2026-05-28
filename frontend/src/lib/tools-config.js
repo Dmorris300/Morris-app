@@ -330,13 +330,83 @@ Use only UK English. Do not use placeholder text. Use today's date and the auto-
     ""
   ),
   // ---------- SITE TOOLS ----------
-  t("photo-evidence-log", "Photo Evidence Log", "site", "A timestamped photo evidence log of site conditions, defects, deliveries. Critical for disputes.", [ta("entries", "Entries (date, location, what the photo shows)")], "Produce a Photo Evidence Log table: Date / Time / Location / Description / Reference Number / Notes."),
-  t("verbal-instruction-recorder", "Verbal Instruction Recorder", "site", "Records verbal instructions received on site. converts to a Confirmation of Verbal Instruction (CVI) letter so you get paid for it.", [f("issuer", "Who gave the instruction"), f("date", "Date / time"), ta("instruction", "Verbal instruction received")], "Produce a UK Confirmation of Verbal Instruction (CVI) letter confirming the instruction in writing and requesting written authorisation if not provided within 48 hours."),
+  t("photo-evidence-log", "Photo Evidence Log", "site", "A timestamped photo evidence log of site conditions, defects, deliveries. Critical for disputes.", [
+      fp("logDate", "Log date", "today", "date"),
+      f("siteName", "Site name / project reference"),
+      f("loggedBy", "Logged by (name)"),
+      sel("evidenceCategory", "Evidence category", ["Defect", "Damage / pre-existing", "Delivery", "Site conditions", "Health & Safety hazard", "Progress / works in place", "Other"]),
+      f("locationOnSite", "Location on site (room / level / grid ref)"),
+      ta("entries", "Photo entries (one per line: photo reference, time, what the photo shows, action required)"),
+      sel("partOfDispute", "Is this evidence linked to a dispute or claim?", ["No", "Yes — variation", "Yes — contra charge", "Yes — extension of time", "Yes — defect"]),
+      tao("disputeReference", "Dispute / claim reference (if applicable)"),
+    ], `Produce a UK Photo Evidence Log. Use the user's profile for prepared-by (full name, company, today's date). Format as a clean table document with the following sections:
+1. HEADER — Log date, Site, Logged by, Evidence category, Location on site, Linked dispute reference (if applicable).
+2. INTRODUCTION — One short paragraph stating the purpose of the log: 'The photographs referenced below were taken at the site noted above for the purpose of contemporaneous evidence. Each entry is timestamped and described by the operative listed below.'
+3. EVIDENCE TABLE — produce a numbered table with these columns:
+   Ref / Time / Photo description / Action required / Photo reference (Photo number to attach)
+   One row per entry supplied by the user. Number them P-001, P-002, etc.
+4. CHAIN OF CUSTODY STATEMENT — 'I confirm the photographs referenced in this log were taken by me on the date stated above, are unedited, and accurately represent the conditions observed at the time of capture.'
+5. NEXT STEPS — Recommend what to do with this log (attach to a variation, raise an RFI, submit to client, raise an incident report) based on the evidence category supplied.
+End with a SIGNED block (full name printed, company, signature line, today's date).`),
+  t("verbal-instruction-recorder", "Verbal Instruction Recorder", "site", "Records verbal instructions received on site. converts to a Confirmation of Verbal Instruction (CVI) letter so you get paid for it.", [
+      f("issuerName", "Who gave the instruction (full name)"),
+      sel("issuerRole", "Their role", ["Site Manager", "Project Manager", "Client", "Engineer", "Foreman", "Quantity Surveyor", "Other"]),
+      fo("issuerCompany", "Their company"),
+      fp("instructionDateTime", "Date and time instruction was given", "today", "datetime-local"),
+      f("locationOnSite", "Location on site where instruction was given"),
+      f("siteAddress", "Site address / project reference"),
+      ta("instruction", "Verbal instruction received (exact wording where possible)"),
+      sel("scopeImpact", "Scope impact", ["Adds to scope", "Reduces from scope", "Substitution / alternative method", "Sequence / programme change", "Unsure"]),
+      sel("costImpact", "Cost impact", ["Yes — additional cost", "Yes — saving", "No cost impact", "To be agreed"]),
+      sel("timeImpact", "Time impact", ["Yes — delay", "Yes — acceleration", "No time impact", "To be agreed"]),
+      fo("witnessName", "Witness present (if any)"),
+      fo("approxValue", "Approximate value (£) if known", "number"),
+      sel("deadlineForWritten", "Deadline for written confirmation", ["48 hours", "72 hours", "5 working days", "7 days"]),
+    ], `Produce a UK Confirmation of Verbal Instruction (CVI) letter. Use the user's profile for sender (full name, company, address, contact). Format:
+1. ADDRESS BLOCK — To: issuer name + role + their company (if supplied). From: user profile (full name, company, address).
+2. SUBJECT — 'Confirmation of Verbal Instruction issued on [date and time supplied]'.
+3. OPENING — 'I am writing to confirm in writing the verbal instruction received as set out below. Under industry good practice and the Housing Grants, Construction and Regeneration Act 1996, instructions issued verbally should be confirmed in writing without delay to avoid disputes over scope, cost and programme.'
+4. INSTRUCTION DETAILS — clearly numbered:
+   1. Issued by: name + role + company
+   2. Date and time: as supplied
+   3. Location on site: as supplied
+   4. Instruction received: the exact wording supplied
+   5. Witness (if supplied)
+5. IMPACT ASSESSMENT — three lines:
+   Scope impact: as selected
+   Cost impact: as selected (and approximate value if supplied — make clear this is indicative and subject to a formal variation)
+   Time impact: as selected
+6. REQUEST FOR WRITTEN INSTRUCTION — 'I now formally request your written confirmation of this instruction within [deadline supplied]. If written confirmation is not received within that period, I will treat the above as a properly issued instruction and proceed accordingly, reserving the right to apply for additional cost and time as a variation.'
+7. NEXT STEPS — 'Where this instruction results in a variation, a formal Variation Letter will follow. Please reply confirming acceptance, amendment or rejection by return.'
+End with an ISSUED BY block from the user profile (full name printed, company, today's date, signature line).`),
   t("contract-review", "Contract Review", "site", "Plain-English review of a construction contract. flags the dodgy clauses, onerous terms and payment risks.", [ta("contractText", "Paste relevant contract text")], "Review the supplied UK construction contract text. Flag onerous clauses (pay-when-paid, set-off, indemnities, time-bar), payment terms, retention, LDs, and notice provisions. Plain English summary with risk rating."),
   t("dispute-timeline", "Dispute Timeline", "site", "Builds a chronological timeline of a dispute from your bullet points. essential for adjudication.", [ta("events", "Events (one per line: date. what happened)")], "Convert the supplied events into a clean chronological dispute timeline with dates, parties, and document references."),
   t("incident-report", "Incident Report", "site", "RIDDOR-aware incident report. near misses, injuries, dangerous occurrences.", [f("date", "Date / time"), f("location", "Location"), f("persons", "Persons involved"), ta("description", "What happened"), ta("actions", "Immediate actions taken")], "Produce a HSE / RIDDOR-aware Incident Report with sections: Incident Details, Persons Involved, Description, Immediate Actions, Root Cause, Lessons Learned, Reportable under RIDDOR? (yes/no/possibly)."),
   t("reminders", "Reminders", "site", "Custom reminders for inspections, certificates, calibrations, insurance renewals.", [ta("items", "Items to remind (one per line)")], "Produce a Reminders Register with Item / Frequency / Last Done / Next Due / Owner / Status."),
-  t("toolbox-talk", "Toolbox Talk", "site", "A short, trade-specific toolbox talk briefing. 5–10 minutes, signed by the crew.", [f("topic", "Topic")], "Produce a UK toolbox talk briefing for the user's trade on the supplied topic. 5–10 minute read, HSE-aligned, with key points, do's, don'ts, and a sign-off sheet."),
+  t("toolbox-talk", "Toolbox Talk", "site", "A short, trade-specific toolbox talk briefing. 5–10 minutes, signed by the crew.", [
+      f("topic", "Topic / subject of the talk"),
+      fp("talkDate", "Date of talk", "today", "date"),
+      f("siteName", "Site name and address"),
+      f("deliveredBy", "Delivered by (name)"),
+      f("durationMinutes", "Duration (minutes)", "number"),
+      f("attendeesCount", "Number of attendees", "number"),
+      ta("attendeesNames", "Attendees (one name per line — will form the sign-off sheet)"),
+      tao("specificHazards", "Site-specific hazards related to this topic (optional, will be added to the standard set)"),
+      sel("ppeRequired", "PPE required for this activity", ["Standard (hard hat, hi-vis, boots, gloves, glasses)", "Standard + RPE", "Standard + harness", "Standard + ear defenders", "Other"]),
+      tao("ppeOther", "If 'Other' PPE — specify"),
+    ], `Produce a UK toolbox talk briefing for the user's trade on the supplied topic. Format the document as follows:
+1. HEADER — Topic, Date, Site, Delivered by, Duration, Number of attendees.
+2. PURPOSE — One short paragraph explaining why this talk matters today.
+3. RELEVANT LEGISLATION — cite the applicable UK regulations (e.g. Work at Height Regulations 2005, Manual Handling Operations Regulations 1992, COSHH 2002, Control of Noise at Work Regulations 2005, PUWER 1998, CDM 2015) depending on the topic.
+4. KEY HAZARDS — bulleted list of the main hazards including any site-specific hazards supplied.
+5. CONTROL MEASURES — bulleted list of how those hazards are controlled.
+6. DO'S — short list of must-do actions.
+7. DON'TS — short list of must-not actions.
+8. PPE REQUIRED — list the PPE supplied.
+9. EMERGENCY PROCEDURES — first aider, assembly point, raising the alarm.
+10. QUESTIONS & DISCUSSION — placeholder line for site-specific questions raised.
+11. SIGN-OFF SHEET — produce a table with one row per attendee (use the supplied names), columns: Print Name / Signature / Date. Add a final row for the person delivering the talk with the same three columns. Above the table state: 'By signing below I confirm I have attended this Toolbox Talk, understood the content and had the opportunity to ask questions.'
+Close with a PREPARED BY block from the user profile (full name, company, today's date).`),
   t("asbestos-record", "Asbestos Record", "site", "A record entry for asbestos awareness. refurbishment & demolition survey reference, suspected ACMs, actions.", [f("location", "Location"), ta("suspect", "Suspect material / location"), ta("action", "Action taken")], "Produce an Asbestos Awareness Record entry, referencing CAR 2012 and the requirement for a Refurbishment & Demolition Survey before intrusive works."),
   t("snagging-list", "Snagging List", "site", "A snag list with item, location, photo ref, priority and status. Used at handover.", [ta("items", "Snags (one per line)")], "Produce a snagging list table: Ref / Location / Description / Priority (H/M/L) / Owner / Status / Date Closed."),
   t("site-access-permit", "Site Access Permit", "site", "Permit-to-work for restricted areas or high-risk activity (hot works, confined space).", [f("permitType", "Permit type"), f("location", "Location"), ta("controls", "Controls in place"), f("validity", "Valid from / to")], "Produce a Permit to Work form for the supplied activity. controls, isolation, gas tests if applicable, sign-on / sign-off."),
@@ -349,12 +419,64 @@ Use only UK English. Do not use placeholder text. Use today's date and the auto-
   t("procurement-schedule", "Procurement Schedule", "site", "A procurement schedule listing key materials, lead times, order-by dates.", [ta("items", "Items + lead times")], "Produce a Procurement Schedule: Item / Required On Site / Lead Time / Order By / Supplier / Status."),
   t("risk-register", "Risk Register", "site", "A live risk register with probability × impact scoring (risk matrix).", [ta("risks", "Risks (one per line)")], "Produce a Risk Register: Ref / Risk Description / Probability (1–5) / Impact (1–5) / Score / Owner / Mitigation / Status."),
   t("variation-instruction-log", "Variation Instruction Log", "site", "A live log of every variation instruction received. date, source, status, value.", [ta("variations", "Variations (one per line)")], "Produce a Variation Instruction Log: VO No / Date / Source / Description / Estimated £ / Status / Approved By."),
-  t("coshh", "COSHH Assessment", "site", "Control of Substances Hazardous to Health assessment for a specific substance you use.", [f("substance", "Substance"), ta("use", "How it's used")], "Produce a UK COSHH Assessment under COSHH Regs 2002: Substance, Hazard Class, Exposure Route, Persons at Risk, Controls, PPE, First Aid, Disposal, Review Date."),
+  t("coshh", "COSHH Assessment", "site", "Control of Substances Hazardous to Health assessment for a specific substance you use.", [
+      f("substance", "Substance / product name (as on the container)"),
+      fo("manufacturer", "Manufacturer / supplier"),
+      f("location", "Site / location where used"),
+      ta("activity", "Activity / how the substance is used"),
+      sel("hazardClass", "Hazard class (per CLP labels)", ["Irritant", "Corrosive", "Toxic / harmful", "Flammable", "Sensitiser", "Carcinogenic / mutagenic / toxic for reproduction (CMR)", "Hazardous to environment", "Other"]),
+      sel("exposureRoute", "Primary exposure route", ["Inhalation", "Skin contact", "Eye contact", "Ingestion", "Multiple routes"]),
+      fo("wel", "Workplace Exposure Limit (WEL) if known (mg/m³ or ppm)"),
+      f("personsAtRisk", "Persons at risk (operatives, public, vulnerable persons)"),
+      ta("controlMeasures", "Control measures in place (extraction / dilution / substitution / handling)"),
+      sel("ppeRequired", "PPE required", ["Gloves only", "Gloves + eye protection", "Gloves + eye protection + RPE", "Full chemical suit + RPE", "Other"]),
+      ta("firstAid", "First aid measures (skin / eyes / inhalation / ingestion)"),
+      sel("storage", "Storage requirements", ["Locked store", "Ventilated store", "Fire-rated cabinet", "Cool/dry place", "Other"]),
+      ta("spillProcedure", "Spill procedure and waste disposal method"),
+      sel("rpeRequired", "Is RPE required?", ["No", "Yes — FFP2", "Yes — FFP3", "Yes — half-mask with cartridge", "Yes — full-face with cartridge", "Yes — air-fed"]),
+    ], `Produce a UK COSHH Assessment compliant with the Control of Substances Hazardous to Health Regulations 2002 (as amended). Format as follows:
+1. SUBSTANCE DETAILS — name, manufacturer, location, activity in which it is used.
+2. HAZARD IDENTIFICATION — hazard class (from CLP labels), exposure route, Workplace Exposure Limit (WEL) if supplied.
+3. PERSONS AT RISK — operatives and any other persons (public, vulnerable persons).
+4. RISK MATRIX — for this substance show Likelihood (1-5), Severity (1-5), Risk Score (LxS) BEFORE controls and AFTER controls.
+5. CONTROL MEASURES — Hierarchy of control (Elimination / Substitution / Engineering / Administrative / PPE). State the measures supplied.
+6. PPE REQUIRED — list the specific PPE from the user input. If RPE is required, state the type.
+7. SAFE HANDLING & STORAGE — how to handle and store the substance safely.
+8. EMERGENCY PROCEDURES & FIRST AID — first aid for skin, eyes, inhalation and ingestion.
+9. SPILL CONTAINMENT & WASTE DISPOSAL — what to do in a spill and how to dispose of the waste lawfully (including SDS reference and registered carrier).
+10. HEALTH SURVEILLANCE — state whether health surveillance is required for this substance (e.g. for sensitisers, CMRs, dusts at the WEL).
+11. SAFETY DATA SHEET — state: 'A current Safety Data Sheet (SDS) for this substance is held on site and is available for inspection.'
+12. REVIEW — review date is 12 months from today's date OR sooner if the substance, process or controls change.
+13. BRIEFING — list a sign-off table with columns Print Name / Signature / Date for every operative who handles the substance.
+Close with a PREPARED BY block from the user profile (full name, company, today's date) and a REVIEWED BY block.`),
   t("noise-assessment", "Noise Assessment", "site", "Noise at Work assessment. exposure, hearing protection required.", [f("activity", "Activity"), f("estimatedDb", "Estimated dB(A)")], "Produce a Control of Noise at Work Regulations 2005 assessment. exposure action values 80/85 dB(A), hearing protection required, signage."),
   t("manual-handling", "Manual Handling Assessment", "site", "A TILE / LITE manual handling risk assessment.", [f("load", "Load / item"), f("weight", "Weight"), ta("task", "Task description")], "Produce a Manual Handling Operations Regulations 1992 assessment using the TILE method (Task, Individual, Load, Environment) for the supplied task."),
   t("working-at-height-rescue", "Working at Height Rescue Plan", "site", "Mandatory Working at Height rescue plan. what happens if someone falls into a harness.", [f("activity", "Activity"), f("height", "Working height"), ta("rescueMethod", "Rescue method available")], "Produce a Working at Height Regulations 2005 Rescue Plan. fall arrest equipment, rescue method, suspension trauma considerations, emergency contacts."),
   // ---------- PRICE WORK ----------
-  t("scope-of-works", "Scope of Works", "pricework", "A precise written scope of works. what's included, what's not. Stops scope creep.", [f("project", "Project"), ta("inclusions", "Inclusions"), ta("exclusions", "Exclusions")], "Produce a tight UK Scope of Works document with Inclusions and Exclusions clearly delineated."),
+  t("scope-of-works", "Scope of Works", "pricework", "A precise written scope of works. what's included, what's not. Stops scope creep.", [
+      f("project", "Project / site name"),
+      f("client", "Client / main contractor"),
+      ta("siteAddress", "Site address"),
+      fp("startDate", "Anticipated start date", "today", "date"),
+      f("estimatedDuration", "Estimated duration on site"),
+      ta("inclusions", "Inclusions (work that IS in scope — be specific)"),
+      ta("exclusions", "Exclusions (work that is NOT in scope — list everything that's commonly assumed)"),
+      ta("assumptions", "Assumptions the scope is based on (e.g. access available, power on site, prior works complete)"),
+      sel("priceBasis", "Price basis", ["Fixed price", "Day rate", "Price work / per-unit", "Cost plus"]),
+      tao("preliminaries", "Preliminaries included (welfare, scaffolding, waste removal, etc.)"),
+      ta("deliverables", "Deliverables on completion (e.g. certificates, snag list closed, handover docs)"),
+      fo("retention", "Retention percentage (if applicable)", "number"),
+    ], `Produce a UK tight Scope of Works document. Use the user's profile for prepared-by (full name, company, address, contact). Format with these labelled sections:
+1. PROJECT DETAILS — Project, Client, Site address, Anticipated start date, Estimated duration, Price basis.
+2. INTRODUCTION — Short paragraph stating: 'This Scope of Works defines what is INCLUDED and what is EXCLUDED for the works to be carried out by the supplier listed at the foot of this document. It is intended to be read in conjunction with any contract, drawings or specification provided.'
+3. INCLUSIONS — bullet list of every item supplied in 'Inclusions'.
+4. EXCLUSIONS — bullet list of every item supplied in 'Exclusions'. Add a clear note: 'Any work not expressly listed above is considered excluded and will be subject to a separate variation.'
+5. ASSUMPTIONS — bullet list of every assumption supplied. Add a clear note: 'Any variation in these assumptions may impact cost and/or programme and will be communicated in writing.'
+6. PRELIMINARIES — bullet list of every item supplied (if any).
+7. DELIVERABLES — bullet list of items supplied.
+8. RETENTION — state the retention percentage if supplied; otherwise state 'No retention applicable.'
+9. ACCEPTANCE — 'Acceptance of this Scope of Works confirms the basis on which the supplier will proceed.'
+End with two signature blocks: PREPARED BY (user profile) and ACCEPTED BY (client full name printed, company, signature line, date).`),
   t("pricework-variation-tracker", "Price Work Variation Tracker", "pricework", "Tracks every variation on a price-work job. extra rates, extra metres, extra units.", [ta("variations", "Variations (date, description, qty, rate, total)")], "Produce a Price Work Variation Tracker table."),
   t("standing-time-calculator", "Standing Time Calculator", "pricework", "Calculates standing time you are owed when the site can't let you work.", [f("hoursStanding", "Hours standing"), f("dayRate", "Day rate (£)"), ta("reason", "Reason for standing time")], "Produce a Standing Time claim letter / calculation: hours lost × rate, reason, with a request for written approval."),
   t("pricework-profit", "Price Work Profit Calculator", "pricework", "Quickly works out your profit / £ per hour on a price-work job.", [f("priceWorkValue", "Price work value (£)"), f("hoursOnJob", "Hours on the job"), f("materialsCost", "Materials cost (£)")], "Produce a Price Work Profit summary: Revenue, Materials, Net, Hours, £/hr, vs. day rate benchmark."),
@@ -374,12 +496,92 @@ Use only UK English. Do not use placeholder text. Use today's date and the auto-
   t("labour-allocation", "Labour Allocation", "contractors", "Daily labour allocation across multiple sites.", [f("date", "Date"), ta("allocation", "Labour allocation")], "Produce a Labour Allocation sheet: Operative / Trade / Site / Hours / Task."),
   t("purchase-order", "Purchase Order", "contractors", "A formal Purchase Order to a supplier or subcontractor.", [f("supplier", "Supplier"), ta("items", "Items"), f("total", "Total (£)")], "Produce a formal UK Purchase Order with PO number, supplier, line items, total, delivery address, payment terms."),
   t("subbie-payment-cert", "Subbi Payment Certificate", "contractors", "A payment certificate to a subcontractor under HGCRA 1996.", [f("subbie", "Subcontractor"), f("appNo", "Application number"), f("certifiedValue", "Certified value (£)"), f("paylessReason", "Pay less reason (if any)")], "Produce a UK Payment Certificate / Pay Less Notice to a subcontractor under HGCRA 1996. including final date for payment."),
-  t("hs-policy", "H&S Policy", "contractors", "A short, signed Health & Safety policy statement.", [], "Produce a UK Health & Safety Policy statement (under HSWA 1974). commitments, responsibilities, signed by director / proprietor."),
-  t("subbie-compliance", "Subbi Compliance Checker", "contractors", "Checklist of compliance documents you should hold for each subbie.", [f("subbie", "Subcontractor")], "Produce a Subcontractor Compliance Checklist. Public Liability Insurance, Employers Liability, CSCS, CIS status, RAMS, Method Statements, references, etc."),
+  t("hs-policy", "H&S Policy", "contractors", "A short, signed Health & Safety policy statement.", [
+      f("companyTradingName", "Trading name (if different to profile company name)", "text"),
+      f("directorName", "Responsible person / Director / Proprietor (full name)"),
+      f("directorRole", "Position (e.g. Director, Proprietor, Owner)"),
+      f("totalEmployees", "Total number of employees (incl. self)", "number"),
+      sel("employersLiability", "Employers Liability Insurance held?", ["Yes", "Not required (sole trader, no employees)"]),
+      fo("eliPolicyNumber", "Employers Liability policy number (if held)"),
+      fo("eliInsurer", "Employers Liability insurer name"),
+      f("publicLiabilityCover", "Public Liability cover amount (e.g. £2m, £5m)"),
+      ta("typicalActivities", "Typical activities undertaken by the business (3–5 lines)"),
+      f("firstAiderName", "Named First Aider"),
+      fo("hsAdvisor", "Health & Safety advisor / consultant (if used)"),
+      sel("riskAssessmentsHeld", "Are RAMS / Risk Assessments held for each task?", ["Yes", "No (to be implemented)"]),
+      fp("policyDate", "Policy issue date", "today", "date"),
+      f("nextReviewDate", "Policy next review date (typically 12 months)"),
+    ], `Produce a UK Health & Safety Policy Statement compliant with the Health and Safety at Work etc Act 1974 section 2(3) (which requires a written policy from any employer with 5 or more employees, and is good practice for sole traders). Use the user's profile for company name, address, contact and trade (auto-populated). Format the document with these exact sections:
+1. STATEMENT OF GENERAL POLICY — a short statement that the business is committed to providing a safe and healthy workplace for all employees, subcontractors, clients and members of the public who may be affected by its activities.
+2. COMPANY DETAILS — trading name, registered address (from profile), responsible person and their position, total number of employees, typical activities undertaken.
+3. RESPONSIBILITIES — clearly list the responsibilities of: (a) the named responsible person / Director, (b) supervisors / site managers, (c) employees and subcontractors. Each list should be 3–5 bullet points.
+4. RISK ASSESSMENT — state that suitable and sufficient risk assessments are carried out for each task and reviewed regularly (or, if 'No' was supplied, state that risk assessments are being implemented and which tasks are next).
+5. INSURANCE — list Employers Liability (with insurer + policy number if supplied, OR state 'Sole trader — no employees — Employers Liability not required') and Public Liability cover amount.
+6. TRAINING & COMPETENCE — state that all employees are competent for the tasks they carry out, hold appropriate cards (CSCS) where required, and toolbox talks / refresher training are provided regularly.
+7. FIRST AID & WELFARE — named first aider, location of first aid kit and accident book, welfare arrangements on site.
+8. ACCIDENTS & RIDDOR REPORTING — accidents are recorded in the accident book and reportable incidents are notified to the HSE under RIDDOR 2013.
+9. CONSULTATION — employees are consulted on H&S matters under the Health and Safety (Consultation with Employees) Regulations 1996.
+10. PPE — appropriate PPE is provided free of charge under the PPE at Work Regulations 1992 (as amended 2022).
+11. REVIEW — policy review date (use the date supplied or default to 12 months from issue date).
+End with a signed statement block: 'Signed: ____________________ Print name: {director name} Position: {director role} Date: {policy date supplied or today}'. Use plain English. No markdown. No placeholders.`),
+  t("subbie-compliance", "Subbi Compliance Checker", "contractors", "Checklist of compliance documents you should hold for each subbie.", [
+      f("subbieName", "Subcontractor full / company name"),
+      ta("subbieAddress", "Subcontractor address"),
+      f("subbieUtr", "Subcontractor UTR"),
+      sel("cisVerified", "CIS verified via HMRC?", ["Yes — Net 20%", "Yes — Net 30% (unverified)", "Yes — Gross 0%", "No — to be verified"]),
+      sel("publicLiability", "Public Liability insurance held?", ["Yes — £2m+", "Yes — £5m+", "Yes — £10m+", "No — required"]),
+      fo("publicLiabilityExpiry", "Public Liability expiry date", "date"),
+      sel("employersLiability", "Employers Liability insurance held?", ["Yes — £5m+", "Yes — £10m+ (statutory minimum)", "Not applicable (sole trader)", "No — required"]),
+      fo("employersLiabilityExpiry", "Employers Liability expiry date", "date"),
+      sel("cscsCards", "CSCS cards held by all operatives?", ["Yes — all valid", "Partially valid", "No — required"]),
+      sel("ramsHeld", "RAMS / Method Statement provided for the works?", ["Yes — signed and dated", "Provided but not signed", "No — required"]),
+      sel("specificTraining", "Specific training certs held (e.g. PASMA, IPAF, Asbestos Awareness, Manual Handling)?", ["Yes — all relevant certs held", "Some certs outstanding", "Not relevant to this scope"]),
+      sel("rightToWork", "Right to Work checks complete?", ["Yes — all operatives", "Pending", "No — required"]),
+      sel("references", "References / past work checked?", ["Yes", "Partially", "No"]),
+    ], `Produce a UK Subcontractor Compliance Checklist for the named subcontractor. Use the user's profile for the engaging contractor block (full name, company, address). Format as a tick-list document with PASS / FAIL / OUTSTANDING status against each requirement. Sections:
+1. SUBCONTRACTOR DETAILS — name, address, UTR, verified CIS status.
+2. INSURANCE — Public Liability (with expiry if supplied), Employers Liability (with expiry if supplied). Flag if either is missing or expires within 30 days.
+3. CSCS — status of cards.
+4. RAMS / METHOD STATEMENTS — held and signed for the specific scope.
+5. SPECIFIC TRAINING — relevant trade certs.
+6. RIGHT TO WORK — checked, pending or outstanding.
+7. REFERENCES — checked, partial or outstanding.
+8. OVERALL STATUS — RED (do not start works), AMBER (start subject to outstanding items being closed by a stated date), GREEN (cleared to start).
+9. OUTSTANDING ACTIONS — bullet list of any FAIL or PENDING items and who owns each one.
+10. REVIEW DATE — 30 days from today.
+End with a PREPARED BY block from the user profile (full name, company, today's date) and a SUBCONTRACTOR ACKNOWLEDGEMENT block.`),
   t("commercial-report", "Commercial Report", "contractors", "A weekly / monthly commercial position report. earned value, cost, margin, risk.", [f("project", "Project"), f("period", "Period"), f("earnedValue", "Earned value (£)"), f("costToDate", "Cost to date (£)"), ta("risks", "Commercial risks")], "Produce a Commercial Report: Earned Value, Cost, Margin, Cash Position, Risks, Forecast Final Cost vs Final Value."),
   t("defects-tracker", "Defects Tracker", "contractors", "Defects log during liability period.", [ta("defects", "Defects (one per line)")], "Produce a Defects Tracker: Ref / Date Reported / Location / Description / Owner / Status / Date Closed."),
   t("new-starter-pack", "New Starter Pack", "contractors", "A new-starter induction pack. site rules, emergency procedures, sign-in.", [f("site", "Site")], "Produce a UK New Starter / Site Induction Pack. site rules, PPE, welfare, emergency procedures, sign-in form."),
-  t("hire-agreement", "Hire Agreement", "contractors", "A simple plant / equipment hire agreement.", [f("hirer", "Hirer"), f("equipment", "Equipment"), f("rate", "Rate"), f("startDate", "Start date")], "Produce a UK Plant Hire Agreement. parties, equipment, rate, hire period, insurance, off-hire procedure."),
+  t("hire-agreement", "Hire Agreement", "contractors", "A simple plant / equipment hire agreement.", [
+      f("hirerName", "Hirer's full name / company name"),
+      ta("hirerAddress", "Hirer's address"),
+      fo("hirerContact", "Hirer's contact number / email"),
+      f("equipment", "Equipment description (make, model, serial / asset number)"),
+      f("rate", "Hire rate (£ per day or per week)"),
+      sel("rateBasis", "Rate basis", ["Per day", "Per week", "Per month"]),
+      fp("startDate", "Hire start date", "today", "date"),
+      f("endDate", "Hire end date / off-hire date"),
+      f("deposit", "Deposit / security required (£)", "number"),
+      ta("conditionOnHire", "Condition of equipment at start of hire (note any existing damage)"),
+      sel("insuranceRequired", "Insurance required from hirer", ["Hire-in insurance / CPA insurance", "Hirer's own all-risks", "Not required"]),
+      sel("operatorIncluded", "Operator included in hire?", ["No — hirer operates", "Yes — operator supplied"]),
+      ta("siteAddress", "Site where equipment will be used"),
+      fo("dailyHours", "Working day length (hours)", "number"),
+      tao("specialTerms", "Any special terms (delivery, collection, fuel)"),
+    ], `Produce a UK Plant / Equipment Hire Agreement between the user (as 'Owner / Hire Company') and the named hirer. Format:
+1. PARTIES — Owner (user profile: full name, company, address, contact) and Hirer (full name / company, address, contact).
+2. EQUIPMENT — description with make, model, serial / asset number, supplied condition.
+3. HIRE TERM — start date, anticipated end date, working day length.
+4. HIRE CHARGES — rate (per day / week / month), payment terms (weekly in advance unless otherwise agreed), VAT applicability based on the user's profile, deposit / security amount.
+5. INSURANCE — state who insures the equipment during hire (CPA terms by default unless the hirer has their own all-risks cover). Reference the standard CPA Model Conditions for the Hiring of Plant 2011 (with operator) or 2021 (without operator) as appropriate.
+6. RESPONSIBILITY FOR LOSS OR DAMAGE — under CPA conditions the hirer is responsible for loss or damage during the hire period (excluding fair wear and tear).
+7. OPERATOR — if an operator is supplied, the operator remains the employee of the owner; if not, the hirer is responsible for competence and supervision of any operator they appoint.
+8. DELIVERY, COLLECTION & OFF-HIRE — process for off-hire, condition check on return, any cleaning charges.
+9. INDEMNITY — hirer indemnifies the owner against any claim arising from their use of the equipment, subject to the CPA conditions.
+10. TERMINATION — either party may terminate on written notice; outstanding charges immediately due on termination.
+11. GOVERNING LAW — England and Wales.
+End with two signature blocks: OWNER (user profile: full name, company, today's date, signature line) and HIRER (full name printed, company, address, today's date, signature line). Close with: 'This agreement is legally binding once signed by both parties. Both parties should retain a signed copy. Hire is subject to the CPA Model Conditions referenced above, copies available on request.'`),
   t("tender-letter", "Tender Letter", "contractors", "A professional tender submission cover letter.", [f("client", "Client"), f("project", "Project"), f("tenderSum", "Tender sum (£)")], "Produce a professional UK tender cover letter. confirming sum, basis, validity (typically 90 days), and key exclusions."),
 ];
 
@@ -389,6 +591,10 @@ export const WOW_TOOLS = [
     info: "Record yourself describing a verbal instruction you received on site. Morris converts it instantly into a formal variation letter. ready to send." },
   { id: "photo-to-document", name: "Photo to Document", section: "documents", route: "/app/wow/photo-to-document",
     info: "Snap a photo of a scribbled note, drawing or scrap of paper. Morris turns it into a clean professional document." },
+  { id: "tax-pot", name: "Tax Pot", section: "finance", route: "/app/taxpot",
+    info: "Set aside 23% of every CIS net payment. Morris keeps your running tax pot total alongside your Self Assessment deadline countdown." },
+  { id: "company-checker", name: "Company Checker", section: "soletrader", route: "/app/company-checker",
+    info: "Look up any UK contractor on Companies House before you commit labour. See active / dissolved status, accounts overdue and red flags." },
 ];
 
 export function getToolById(id) {
@@ -425,6 +631,7 @@ export const TOOL_EMOJI = {
   "tender-letter": "📨",
   // Wow
   "verbal-to-variation": "🎙️", "photo-to-document": "📸",
+  "tax-pot": "🐖", "company-checker": "🏢",
   // Account
 "favourites": "⭐", "history": "🗃️", "billing": "💳", "profile": "👤", "privacy": "🛡️", "terms": "⚖️", "complaints": "📣", "refund": "💷", "offline-mode": "📴",
 };
@@ -496,7 +703,7 @@ export function getToolsBySection(sectionId) {
       { id: "terms", name: "Terms and Conditions", section: "account", route: "/app/terms", info: "The legal terms of using Morris." },
       { id: "complaints", name: "Complaints", section: "account", route: "/app/complaints", info: "How to raise a complaint with Morris." },
       { id: "refund", name: "Refund Policy", section: "account", route: "/app/refund-policy", info: "Refund terms for Morris subscriptions." },
-      { id: "offline-mode", name: "Offline Mode", section: "account", info: "Generate documents offline. Synced when you're back in signal. (Coming soon.)" },
+      { id: "offline-mode", name: "Offline Mode", section: "account", route: "/app/offline-mode", info: "Generate documents offline. Synced when you're back in signal." },
     ];
   }
   const docTools = TOOLS.filter(x => x.section === sectionId);

@@ -9,6 +9,8 @@ logger = logging.getLogger(__name__)
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
 SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "onboarding@resend.dev")
 APP_BRAND = os.environ.get("APP_BRAND_NAME", "Morris")
+# All admin notifications (new signup, churn, failed payment) are sent here.
+ADMIN_NOTIFICATION_EMAIL = os.environ.get("ADMIN_NOTIFICATION_EMAIL", "hello@morrisapp.co.uk")
 
 if RESEND_API_KEY:
     resend.api_key = RESEND_API_KEY
@@ -104,3 +106,98 @@ async def send_subscription_receipt(to: str, plan: str, amount_pence: int) -> bo
         """,
         preheader=f"Morris {plan} active. {pounds} charged.",
     )
+
+
+# ---------- Admin / owner notifications (Prompt 8) ----------
+def _admin_panel(title: str, lines: list, accent: str = "#E8A020") -> str:
+    rows = "".join(
+        f'<tr><td style="padding:6px 12px;color:#A19D94;font-size:13px;width:38%;">{k}</td>'
+        f'<td style="padding:6px 12px;color:#F0EDE8;font-size:13px;font-weight:600;">{v}</td></tr>'
+        for k, v in lines
+    )
+    return f"""
+        <p style="font-size:18px;color:{accent};margin:0 0 12px 0;font-weight:700;letter-spacing:1px;text-transform:uppercase;">{title}</p>
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#0a0a0a;border:1px solid rgba(232,160,32,0.18);border-radius:8px;margin-top:12px;">
+        {rows}
+        </table>
+        <p style="margin:24px 0 0 0;color:#706D66;font-size:11px;">Sent automatically by Morris. Do not reply.</p>
+    """
+
+
+async def send_admin_signup(username: str, email: str, phone: str = "") -> bool:
+    return await send_email(
+        ADMIN_NOTIFICATION_EMAIL,
+        f"[Morris] New signup: {username}",
+        _admin_panel(
+            "New Morris signup",
+            [
+                ("Username", username),
+                ("Email", email or ""),
+                ("Phone", phone or "(not provided)"),
+                ("When", _now_str()),
+            ],
+        ),
+        preheader=f"New Morris signup: {username}",
+    )
+
+
+async def send_admin_payment_success(username: str, email: str, plan: str, amount_pence: int) -> bool:
+    pounds = f"£{amount_pence/100:.2f}"
+    return await send_email(
+        ADMIN_NOTIFICATION_EMAIL,
+        f"[Morris] Payment received: {plan} ({pounds})",
+        _admin_panel(
+            "Subscription paid",
+            [
+                ("User", username or "(unknown)"),
+                ("Email", email or ""),
+                ("Plan", plan),
+                ("Amount", pounds),
+                ("When", _now_str()),
+            ],
+        ),
+        preheader=f"Morris {plan} active. {pounds} charged.",
+    )
+
+
+async def send_admin_payment_failed(username: str, email: str, plan: str, reason: str = "") -> bool:
+    return await send_email(
+        ADMIN_NOTIFICATION_EMAIL,
+        f"[Morris] Payment FAILED: {username or email}",
+        _admin_panel(
+            "Payment failed",
+            [
+                ("User", username or "(unknown)"),
+                ("Email", email or ""),
+                ("Plan", plan or "(unknown)"),
+                ("Reason", reason or "(no reason given)"),
+                ("When", _now_str()),
+            ],
+            accent="#E5635A",
+        ),
+        preheader=f"Payment failed for {username or email}.",
+    )
+
+
+async def send_admin_churn(username: str, email: str, plan: str, reason: str = "cancelled") -> bool:
+    return await send_email(
+        ADMIN_NOTIFICATION_EMAIL,
+        f"[Morris] Churn alert: {username or email}",
+        _admin_panel(
+            "Subscription cancelled",
+            [
+                ("User", username or "(unknown)"),
+                ("Email", email or ""),
+                ("Plan", plan or "(unknown)"),
+                ("Reason", reason),
+                ("When", _now_str()),
+            ],
+            accent="#E5635A",
+        ),
+        preheader=f"Churn: {username or email} cancelled {plan or ''}.",
+    )
+
+
+def _now_str() -> str:
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).strftime("%d %b %Y %H:%M UTC")

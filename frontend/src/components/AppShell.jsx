@@ -7,6 +7,9 @@ import { Search, ChevronDown, ChevronRight, Star, Clock, LogOut, Menu, X, User, 
 import { TradeSwitcher } from "./TradeSwitcher";
 import AppFooter from "./AppFooter";
 import SessionTimeout from "./SessionTimeout";
+import Breadcrumbs from "./Breadcrumbs";
+import CommandPalette from "./CommandPalette";
+import OnboardingTour from "./OnboardingTour";
 
 export default function AppShell() {
   const { user, logout } = useAuth();
@@ -41,12 +44,16 @@ export default function AppShell() {
         <div className="relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#706D66]" />
           <input
-            className="w-full bg-[#121212] border border-[#F0EDE8]/10 text-sm rounded-md py-2 pl-8 pr-3 text-[#F0EDE8] focus:outline-none focus:border-[#E8A020]/50"
+            className="w-full bg-[#121212] border border-[#F0EDE8]/10 text-sm rounded-md py-2 pl-8 pr-14 text-[#F0EDE8] focus:outline-none focus:border-[#E8A020]/50"
             placeholder="Search tools…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             data-testid="sidebar-search"
           />
+          <span
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] tracking-widest text-[#706D66] border border-[#F0EDE8]/10 rounded px-1.5 py-0.5 select-none"
+            title="Cmd+K / Ctrl+K opens global search"
+          >⌘K</span>
         </div>
       </div>
 
@@ -137,12 +144,15 @@ export default function AppShell() {
 
       {/* Main */}
       <main className="flex-1 md:ml-72 pt-14 md:pt-0 min-h-screen flex flex-col">
+        <Breadcrumbs />
         <div className="flex-1"><Outlet /></div>
         <AppFooter />
       </main>
 
       <TradeSwitcher open={tradeSwitchOpen} onClose={() => setTradeSwitchOpen(false)} />
       <SessionTimeout />
+      <CommandPalette />
+      <OnboardingTour />
     </div>
   );
 }

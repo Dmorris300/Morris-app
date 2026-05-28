@@ -19,6 +19,9 @@ import CISRefundPredictor from "./pages/CISRefundPredictor";
 import MileageTracker from "./pages/MileageTracker";
 import VatThreshold from "./pages/VatThreshold";
 import Earnings from "./pages/Earnings";
+import TaxPot from "./pages/TaxPot";
+import CompanyChecker from "./pages/CompanyChecker";
+import OfflineMode from "./pages/OfflineMode";
 import Profile from "./pages/Profile";
 import Favourites from "./pages/Favourites";
 import History from "./pages/History";
@@ -98,6 +101,9 @@ function App() {
             <Route path="mileage" element={<ProfileGate><MileageTracker /></ProfileGate>} />
             <Route path="vat" element={<ProfileGate><VatThreshold /></ProfileGate>} />
             <Route path="earnings" element={<ProfileGate><Earnings /></ProfileGate>} />
+            <Route path="taxpot" element={<ProfileGate><TaxPot /></ProfileGate>} />
+            <Route path="company-checker" element={<ProfileGate><CompanyChecker /></ProfileGate>} />
+            <Route path="offline-mode" element={<OfflineMode />} />
             <Route path="profile" element={<Profile />} />
             <Route path="favourites" element={<Favourites />} />
             <Route path="history" element={<History />} />

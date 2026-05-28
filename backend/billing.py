@@ -9,9 +9,13 @@ from pydantic import BaseModel
 from typing import Optional
 
 from dotenv import dotenv_values
+import json
 import stripe as stripe_sdk
 from emergentintegrations.payments.stripe.checkout import (
     StripeCheckout, CheckoutSessionResponse, CheckoutSessionRequest, CheckoutStatusResponse,
+)
+from email_helper import (
+    send_admin_payment_success, send_admin_payment_failed, send_admin_churn,
 )
 
 logger = logging.getLogger(__name__)
@@ -317,6 +321,10 @@ def build_router(db, get_user, send_subscription_receipt):
                 await send_subscription_receipt(user["email"], PLANS[plan_id]["name"], int(record.get("amount", 0) * 100))
             except Exception:
                 pass
+            try:
+                await send_admin_payment_success(user.get("username", ""), user["email"], PLANS[plan_id]["name"], int(record.get("amount", 0) * 100))
+            except Exception:
+                pass
         return {"ok": True, "planId": plan_id, "expiresAt": expires.isoformat()}
 
     # ---------- Auth: poll status after redirect ----------
@@ -368,6 +376,10 @@ def build_router(db, get_user, send_subscription_receipt):
                     await send_subscription_receipt(user["email"], PLANS[plan_id]["name"], int(record.get("amount", 0) * 100))
                 except Exception as e:
                     logger.warning(f"Receipt email failed: {e}")
+                try:
+                    await send_admin_payment_success(user.get("username", ""), user["email"], PLANS[plan_id]["name"], int(record.get("amount", 0) * 100))
+                except Exception as e:
+                    logger.warning(f"Admin payment notification failed: {e}")
 
         return {
             "status": status.status,
@@ -387,34 +399,98 @@ def build_webhook_router(db, send_subscription_receipt):
     async def stripe_webhook(request: Request):
         body = await request.body()
         sig = request.headers.get("Stripe-Signature", "")
-        host_url = str(request.base_url).rstrip("/")
-        stripe = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=f"{host_url}/api/webhook/stripe")
-        try:
-            event = await stripe.handle_webhook(body, sig)
-        except Exception as e:
-            logger.warning(f"Webhook verify failed: {e}")
-            raise HTTPException(400, "Invalid webhook")
-        # Idempotent: if checkout completed, activate plan
-        if event.event_type and "checkout" in event.event_type and event.payment_status == "paid":
-            session_id = event.session_id
-            record = await db.payment_transactions.find_one({"sessionId": session_id}, {"_id": 0})
-            if record and record.get("status") != "complete":
-                plan_id = record.get("planId")
-                user_id = record.get("userId")
-                expires = datetime.now(timezone.utc) + timedelta(days=30)
+
+        # Parse the raw event with the official Stripe SDK so we can react to
+        # ANY event type (not just checkout). The emergentintegrations helper
+        # only surfaces checkout-style events.
+        webhook_secret = _cfg("STRIPE_WEBHOOK_SECRET", "")
+        raw_event = None
+        if webhook_secret and sig:
+            try:
+                stripe_sdk.api_key = STRIPE_API_KEY
+                raw_event = stripe_sdk.Webhook.construct_event(body, sig, webhook_secret)
+            except Exception as e:
+                logger.warning(f"Stripe webhook signature verify failed: {e}")
+        if raw_event is None:
+            # No verified secret yet — fall back to parsing the body as JSON
+            # (still useful in dev where the webhook hasn't been registered with Stripe).
+            try:
+                raw_event = json.loads(body.decode("utf-8") or "{}")
+            except Exception:
+                raw_event = {}
+
+        evt_type = (raw_event or {}).get("type") or ""
+        evt_obj = ((raw_event or {}).get("data") or {}).get("object") or {}
+
+        # ---- checkout.session.completed → activate plan + admin notify ----
+        if evt_type == "checkout.session.completed":
+            session_id = evt_obj.get("id")
+            payment_status = evt_obj.get("payment_status")
+            if session_id and payment_status == "paid":
+                record = await db.payment_transactions.find_one({"sessionId": session_id}, {"_id": 0})
+                if record and record.get("status") != "complete":
+                    plan_id = record.get("planId")
+                    user_id = record.get("userId")
+                    expires = datetime.now(timezone.utc) + timedelta(days=30)
+                    await db.users.update_one(
+                        {"id": user_id},
+                        {"$set": {"plan": plan_id, "planExpiresAt": expires, "lastPaymentAt": datetime.now(timezone.utc)}},
+                    )
+                    await db.payment_transactions.update_one(
+                        {"sessionId": session_id},
+                        {"$set": {"status": "complete", "paymentStatus": "paid", "updatedAt": datetime.now(timezone.utc)}},
+                    )
+                    if record.get("email") and plan_id in PLANS:
+                        try:
+                            await send_subscription_receipt(record["email"], PLANS[plan_id]["name"], int(record.get("amount", 0) * 100))
+                        except Exception:
+                            pass
+                        try:
+                            await send_admin_payment_success(record.get("username", ""), record["email"], PLANS[plan_id]["name"], int(record.get("amount", 0) * 100))
+                        except Exception:
+                            pass
+
+        # ---- invoice.payment_failed → admin notify ----
+        elif evt_type == "invoice.payment_failed":
+            customer_email = evt_obj.get("customer_email") or ""
+            reason = (evt_obj.get("last_payment_error") or {}).get("message") or "Card declined"
+            # Try to find user from customer email
+            user_doc = None
+            if customer_email:
+                user_doc = await db.users.find_one({"email": customer_email.lower()}, {"_id": 0})
+            username = (user_doc or {}).get("username", "")
+            plan = (user_doc or {}).get("plan", "")
+            try:
+                await send_admin_payment_failed(username, customer_email, plan, reason)
+            except Exception as e:
+                logger.warning(f"Admin payment-failed notification failed: {e}")
+
+        # ---- customer.subscription.deleted → churn alert + drop plan ----
+        elif evt_type == "customer.subscription.deleted":
+            customer_id = evt_obj.get("customer") or ""
+            meta = evt_obj.get("metadata") or {}
+            user_id_meta = meta.get("userId")
+            user_doc = None
+            if user_id_meta:
+                user_doc = await db.users.find_one({"id": user_id_meta}, {"_id": 0})
+            if not user_doc and customer_id:
+                user_doc = await db.users.find_one({"stripeCustomerId": customer_id}, {"_id": 0})
+            if user_doc:
                 await db.users.update_one(
-                    {"id": user_id},
-                    {"$set": {"plan": plan_id, "planExpiresAt": expires, "lastPaymentAt": datetime.now(timezone.utc)}},
+                    {"id": user_doc["id"]},
+                    {"$set": {"plan": "free", "planExpiresAt": None, "cancelledAt": datetime.now(timezone.utc)}},
                 )
-                await db.payment_transactions.update_one(
-                    {"sessionId": session_id},
-                    {"$set": {"status": "complete", "paymentStatus": "paid", "updatedAt": datetime.now(timezone.utc)}},
-                )
-                if record.get("email") and plan_id in PLANS:
-                    try:
-                        await send_subscription_receipt(record["email"], PLANS[plan_id]["name"], int(record.get("amount", 0) * 100))
-                    except Exception:
-                        pass
+                try:
+                    await send_admin_churn(
+                        user_doc.get("username", ""),
+                        user_doc.get("email", ""),
+                        user_doc.get("plan", ""),
+                        reason="customer.subscription.deleted",
+                    )
+                except Exception as e:
+                    logger.warning(f"Admin churn notification failed: {e}")
+
+        # Always 200 so Stripe doesn't retry forever on unhandled event types
         return {"ok": True}
 
     return router

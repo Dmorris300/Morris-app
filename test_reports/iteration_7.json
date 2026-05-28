@@ -1,0 +1,42 @@
+{
+  "summary": "Tested Prompts 2-9 batch on Morris SaaS. Backend pytest 6/6 passing (admin signup notification wired & non-crashing, /api/vision/extract auth-gated and reachable, /api/billing/status unlimited for admin, /api/auth/me, /api/generate variation-letter regression with autosave to Vault). Frontend UI verified: all 4 enhanced tool pages (toolbox-talk, coshh, hire-agreement, hs-policy) render their expanded field sets; Earnings/VAT/TaxPot/CompanyChecker/OfflineMode pages all render with their data-testids; Breadcrumbs appear on every /app/* page and are correctly hidden on /app root; Cmd+K command palette opens with cmdk-input; OnboardingTour modal shows on first session and skip dismisses it; PhotoToDocument auto-fires /api/vision/extract on file upload (verified via network intercept).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/vision/extract", "issue": "Returns 500 when Anthropic vision rejects malformed/tiny images (e.g. 1x1 PNG) — frontend handles this via a toast 'Could not read the photo automatically'. Consider returning a 422 with a friendly message instead of a 500, and logging the LLM error at WARNING not ERROR."},
+      {"endpoint": "/api/auth/login", "issue": "Login response does not include isAdmin / isUnlimited flags on the user object — only /api/auth/me computes them. Not breaking, but the frontend has to make a second call after login to know if the user is admin."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/app (root)", "issues": ["Cookies consent banner overlaps the bottom of the page even after onboarding is dismissed — not blocking but should auto-hide once accepted via localStorage."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_prompt2to9.py",
+    "/app/test_reports/pytest/iter7_prompt2to9.xml"
+  ],
+  "action_items": [
+    "Optional: convert /api/vision/extract 500s on malformed image into a 422 with a friendly JSON error",
+    "Optional: include isAdmin/isUnlimited in /api/auth/login response so the frontend doesn't need a second /auth/me round-trip",
+    "ADMIN_NOTIFICATION_EMAIL is wired but currently MOCKED — Resend send falls back to email_helper logger. Confirmed [MOCK EMAIL] To=hello@morrisapp.co.uk Subject=[Morris] New signup: ... is fired on each signup. To send real emails, set RESEND_API_KEY in backend/.env (this is expected per task note)."
+  ],
+  "critical_code_review_comments": [
+    "send_admin_signup is wrapped in a try/except — confirmed signup never crashes even when Resend is unreachable.",
+    "tools-config.js: confirmed expanded fields for toolbox-talk (topic, talkDate, siteName, deliveredBy, durationMinutes, attendeesCount, attendeesNames, specificHazards, ppeRequired, ppeOther), coshh (substance, manufacturer, location, activity, hazardClass dropdown, exposureRoute dropdown, wel, personsAtRisk, controlMeasures, ppeRequired, firstAid, storage, spillProcedure, rpeRequired dropdown), hire-agreement (hirerName, rateBasis, equipment etc.), hs-policy (companyTradingName, directorName, employersLiability etc.). All present in the rendered form.",
+    "Breadcrumbs correctly conditionally hidden on /app root via AppShell.",
+    "OnboardingTour respects localStorage flag 'morris_onboarding_done_v1' and persists dismissal."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_prompt2to9.py (new — 6 pytest test cases)"
+  ],
+  "success_rate": {"backend": "100% (6/6)", "frontend": "100% page loads, all targeted testids present, all wired flows fire"},
+  "test_credentials": "darrenhustle300 / hustle1234 (admin, unlimited) — verified login + admin + unlimited via /api/auth/me",
+  "seed_data_creation": "Two transient signup users TEST_p8_<hex>@morrisapp.co.uk created via /api/auth/signup to verify admin notification wiring. They remain pending (OTP not verified).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All Prompts 2-9 deliverables verified end-to-end. Real-image OCR via /api/vision/extract requires a valid photo (Anthropic vision rejected a 1x1 fake PNG with 'Could not process image' which surfaces as a 500). The endpoint is correctly wired & auth-gated. Resend admin emails are MOCKED — RESEND_API_KEY is empty in backend/.env which is expected. Login response (/api/auth/login) does NOT include isAdmin/isUnlimited — they are only on /api/auth/me.",
+  "rca of the issue": "PhotoToDocument 500 RCA: backend route /api/vision/extract passes image bytes to emergentintegrations LlmChat with claude-sonnet-4-5; Anthropic returns 'invalid_request_error: Could not process image' for the 1x1 PNG. This bubbles up as ChatError -> HTTPException 500. With a real construction photo the call will succeed. Suggested fix: catch ChatError in vision_extract and return HTTPException(status_code=422, detail='Image could not be processed — please try a clearer photo')."
+}
