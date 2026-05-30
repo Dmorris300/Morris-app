@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import api from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { toast } from "sonner";
-import { CheckCircle2, Loader2, Sparkles, Zap, Crown, Building2, Mail, ArrowRight } from "lucide-react";
+import { CheckCircle2, Loader2, Sparkles, Zap, Crown, Building2, Mail, ArrowRight, Settings } from "lucide-react";
 
 const PLAN_META = {
   solo: {
@@ -123,6 +123,18 @@ export default function Billing() {
     }
   };
 
+  const openPortal = async () => {
+    setBusy("portal");
+    try {
+      const r = await api.post("/billing/portal", { returnUrl: `${window.location.origin}/app/billing` });
+      window.location.href = r.data.url;
+    } catch (err) {
+      const d = err?.response?.data?.detail;
+      toast.error(typeof d === "string" ? d : "Could not open subscription portal");
+      setBusy(null);
+    }
+  };
+
   if (!status) return <div className="p-10 text-[#A19D94]">Loading.</div>;
 
   // Compute a friendly label for the current plan tier
@@ -164,6 +176,18 @@ export default function Billing() {
               <div className="text-xs uppercase tracking-widest text-[#A19D94]">This month so far</div>
               <div className="font-display text-2xl">{status.usageTools.length}/{status.freeToolLimit} tools  &nbsp;&nbsp; {status.usageDocs}/{status.freeDocLimit} docs</div>
             </div>
+          )}
+          {onPaid && !status.isUnlimited && (
+            <button
+              onClick={openPortal}
+              className="btn-secondary flex items-center gap-2"
+              disabled={busy === "portal"}
+              data-testid="manage-subscription-btn"
+              title="Update card, view invoices, or cancel."
+            >
+              {busy === "portal" ? <Loader2 size={14} className="animate-spin" /> : <Settings size={14} />}
+              Manage subscription
+            </button>
           )}
         </div>
       </div>

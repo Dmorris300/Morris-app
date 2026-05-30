@@ -386,9 +386,20 @@ def build_router(db, get_user, send_subscription_receipt):
         if status.payment_status == "paid" and not already_processed:
             plan_id = record.get("planId")
             expires = datetime.now(timezone.utc) + timedelta(days=30)
+            # Capture stripeCustomerId from Stripe so the Customer Portal can be opened later
+            customer_id = None
+            try:
+                stripe_sdk.api_key = STRIPE_API_KEY
+                sess = stripe_sdk.checkout.Session.retrieve(session_id)
+                customer_id = sess.get("customer") if isinstance(sess, dict) else getattr(sess, "customer", None)
+            except Exception as e:
+                logger.warning(f"Could not retrieve Stripe customer id for session {session_id}: {e}")
+            user_update = {"plan": plan_id, "planExpiresAt": expires, "lastPaymentAt": datetime.now(timezone.utc)}
+            if customer_id:
+                user_update["stripeCustomerId"] = customer_id
             await db.users.update_one(
                 {"id": user["id"]},
-                {"$set": {"plan": plan_id, "planExpiresAt": expires, "lastPaymentAt": datetime.now(timezone.utc)}},
+                {"$set": user_update},
             )
             # Fire-and-forget receipt
             if user.get("email"):
@@ -408,6 +419,36 @@ def build_router(db, get_user, send_subscription_receipt):
             "currency": status.currency,
             "metadata": status.metadata,
         }
+
+    # ---------- Auth: open Stripe Customer Portal ----------
+    class PortalReq(BaseModel):
+        returnUrl: str
+
+    @router.post("/portal")
+    async def create_portal_session(req: PortalReq, authorization: Optional[str] = Header(None)):
+        token = authorization.replace("Bearer ", "") if authorization else None
+        user = await get_user(token)
+        if is_unlimited_admin(user):
+            raise HTTPException(400, "Admin accounts don't have a Stripe subscription to manage.")
+        if not STRIPE_LIVE:
+            raise HTTPException(400, "Stripe is in mock mode — no customer portal available.")
+        fresh = await db.users.find_one({"id": user["id"]}, {"_id": 0})
+        customer_id = (fresh or {}).get("stripeCustomerId")
+        if not customer_id:
+            raise HTTPException(400, "We can't find your Stripe customer record yet. If you just paid, give it a minute and refresh.")
+        stripe_sdk.api_key = STRIPE_API_KEY
+        try:
+            session = stripe_sdk.billing_portal.Session.create(
+                customer=customer_id,
+                return_url=req.returnUrl,
+            )
+        except stripe_sdk.error.StripeError as e:
+            logger.exception("Stripe portal create failed")
+            raise HTTPException(500, f"Stripe error: {e.user_message or str(e)}")
+        except Exception as e:
+            logger.exception("Stripe portal create failed")
+            raise HTTPException(500, f"Stripe error: {e}")
+        return {"url": session.url}
 
     return router
 
@@ -446,15 +487,19 @@ def build_webhook_router(db, send_subscription_receipt):
         if evt_type == "checkout.session.completed":
             session_id = evt_obj.get("id")
             payment_status = evt_obj.get("payment_status")
+            customer_id = evt_obj.get("customer")
             if session_id and payment_status == "paid":
                 record = await db.payment_transactions.find_one({"sessionId": session_id}, {"_id": 0})
                 if record and record.get("status") != "complete":
                     plan_id = record.get("planId")
                     user_id = record.get("userId")
                     expires = datetime.now(timezone.utc) + timedelta(days=30)
+                    user_update = {"plan": plan_id, "planExpiresAt": expires, "lastPaymentAt": datetime.now(timezone.utc)}
+                    if customer_id:
+                        user_update["stripeCustomerId"] = customer_id
                     await db.users.update_one(
                         {"id": user_id},
-                        {"$set": {"plan": plan_id, "planExpiresAt": expires, "lastPaymentAt": datetime.now(timezone.utc)}},
+                        {"$set": user_update},
                     )
                     await db.payment_transactions.update_one(
                         {"sessionId": session_id},
