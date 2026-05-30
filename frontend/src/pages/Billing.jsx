@@ -6,10 +6,56 @@ import { toast } from "sonner";
 import { CheckCircle2, Loader2, Sparkles, Zap, Crown, Building2, Mail, ArrowRight } from "lucide-react";
 
 const PLAN_META = {
-  solo: { name: "Solo", price: "£12.99", period: "per month", desc: "All tools, unlimited documents, 1 user.", icon: Zap, features: ["All 88+ tools", "Unlimited documents", "1 user", "PDF + WhatsApp + Email"] },
-  pro: { name: "Pro", price: "£24.99", period: "per month", desc: "Everything in Solo + multi-user.", icon: Sparkles, features: ["Everything in Solo", "3 users", "Shared document history"], highlight: true },
-  business: { name: "Business", price: "£59.99", period: "per month", desc: "Bigger crews. Multi-site.", icon: Crown, features: ["Everything in Pro", "10 users", "Multi-site management"] },
-  enterprise: { name: "Enterprise", price: "£199.99", period: "per month", desc: "Unlimited users + white-label.", icon: Building2, features: ["Unlimited users", "White label available", "Priority support"] },
+  solo: {
+    name: "Solo", price: "£29.99", period: "per month",
+    desc: "Single user. Full access to every tool.",
+    icon: Zap,
+    features: [
+      "Single user only",
+      "Full access to all document generation tools",
+      "Full access to all finance tools",
+      "Full access to all site tools",
+    ],
+  },
+  business: {
+    name: "Business", price: "£59.99", period: "per month",
+    desc: "Bring up to 4 mates. 5 users in total.",
+    icon: Crown,
+    features: [
+      "Up to 4 team invites (5 users total)",
+      "Each invited user gets their own login",
+      "Account owner can remove team members",
+      "Team management dashboard with last-active",
+      "All Solo features included",
+    ],
+  },
+  pro: {
+    name: "Pro", price: "£99.99", period: "per month",
+    desc: "Scaling crews. Roles. 15 users.",
+    icon: Sparkles,
+    highlight: true,
+    features: [
+      "Up to 14 team invites (15 users total)",
+      "Assign Admin or Member roles",
+      "Admins can invite and remove members",
+      "Team dashboard with roles + last-active",
+      "All Business features included",
+    ],
+  },
+  enterprise: {
+    name: "Enterprise", price: "£249.99", period: "per month",
+    desc: "Unlimited seats. White-label. Concierge onboarding.",
+    icon: Building2,
+    contact: true,
+    features: [
+      "Unlimited team member invites",
+      "Owner / Admin / Manager / Member roles",
+      "Managers can view + edit team documents",
+      "Members can create + download docs only",
+      "White-label: your logo + company name on every PDF",
+      "Priority support + concierge onboarding",
+    ],
+  },
 };
 
 export default function Billing() {
@@ -158,8 +204,14 @@ export default function Billing() {
                 {p.features.map(f => <li key={f} className="flex items-start gap-2"><CheckCircle2 size={12} className="text-[#E8A020] mt-0.5 flex-shrink-0" /> {f}</li>)}
               </ul>
               {p.contact ? (
-                <a href="mailto:hello@morrisapp.co.uk?subject=Morris Enterprise" className="btn-secondary text-center flex items-center justify-center gap-2" data-testid={`contact-${id}`}>
-                  <Mail size={14} /> Contact us
+                <a
+                  href="mailto:contact@morrisapp.co.uk?subject=Morris%20Enterprise%20onboarding&body=Hi%20Morris%20team%2C%0A%0AI%27d%20like%20to%20set%20up%20a%20Morris%20Enterprise%20account.%0A%0AThanks."
+                  className="btn-primary text-center flex items-center justify-center gap-2"
+                  data-testid={`contact-${id}`}
+                  title="To set up your Enterprise account contact us at contact@morrisapp.co.uk — we will onboard you within 24 hours."
+                  onClick={(e) => { toast.message("To set up your Enterprise account contact us at contact@morrisapp.co.uk — we will onboard you within 24 hours.", { duration: 8000 }); }}
+                >
+                  <Mail size={14} /> Contact us to set up
                 </a>
               ) : isCurrent ? (
                 <div className="btn-secondary text-center text-xs opacity-70 cursor-default">Current plan</div>

@@ -1,10 +1,10 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import api from "../lib/api";
 import { TRADES } from "../lib/tools-config";
 import { toast } from "sonner";
-import { AlertTriangle, Trash2, Info, PenTool, Upload, IdCard, Share2, Download, Mail, MessageCircle, MessageSquare } from "lucide-react";
+import { AlertTriangle, Trash2, Info, PenTool, Upload, IdCard, Share2, Download, Mail, MessageCircle, MessageSquare, Building2 } from "lucide-react";
 import { isProfileComplete } from "../App";
 import SignaturePad from "../components/SignaturePad";
 import { downloadProfilePdf } from "../lib/profilePdf";
@@ -35,11 +35,20 @@ export default function Profile() {
     signatureRole: user?.signatureRole || "",
     cscsCardFront: user?.cscsCardFront || "",
     cscsCardBack: user?.cscsCardBack || "",
+    companyLogo: user?.companyLogo || "",
     trade: user?.trade || "",
   });
   const [saving, setSaving] = useState(false);
   const cscsFrontRef = useRef(null);
   const cscsBackRef = useRef(null);
+  const logoRef = useRef(null);
+  const [plan, setPlan] = useState(null);
+
+  // Load billing plan to gate the white-label logo upload
+  useEffect(() => {
+    api.get("/billing/status").then((r) => setPlan(r.data.plan)).catch(() => {});
+  }, []);
+  const canWhiteLabel = plan === "enterprise" || plan === "unlimited" || user?.isUnlimited;
 
   // Resize + compress an uploaded image to keep the user's profile payload sane
   // (a raw phone photo would otherwise be 2-5MB which is too big to stash on the profile).
@@ -72,6 +81,20 @@ export default function Profile() {
       const dataUrl = await fileToCompressedDataUrl(file);
       setF((prev) => ({ ...prev, [side === "front" ? "cscsCardFront" : "cscsCardBack"]: dataUrl }));
       toast.success(`CSCS ${side} uploaded. Remember to save the profile.`);
+    } catch {
+      toast.error("Could not read the image");
+    }
+  };
+
+  const onLogoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { toast.error("Please upload an image file"); return; }
+    try {
+      // Compress to a tight 600px-wide PNG so it stays crisp on PDF headers without bloating the profile
+      const dataUrl = await fileToCompressedDataUrl(file, 600, 0.92);
+      setF((prev) => ({ ...prev, companyLogo: dataUrl }));
+      toast.success("Logo uploaded. Save the profile to apply it to your documents.");
     } catch {
       toast.error("Could not read the image");
     }
@@ -221,6 +244,42 @@ export default function Profile() {
 
         <Row label="Vehicle registration"><input className="input-base" value={f.vehicleReg} onChange={(e) => setF({ ...f, vehicleReg: e.target.value })} placeholder="e.g. AB12 CDE" data-testid="profile-vehicle" /></Row>
         <Row label="Bank details for invoices"><textarea rows={2} className="input-base resize-y" value={f.bankDetails} onChange={(e) => setF({ ...f, bankDetails: e.target.value })} placeholder="Sort code · Account number · Bank name" data-testid="profile-bank" /></Row>
+
+        {/* White-label company logo (Enterprise only) */}
+        <div className="pt-2 border-t border-[#1a1a1a]">
+          <div className="text-[10px] uppercase tracking-[0.2em] text-[#E8A020] flex items-center gap-2 mb-3">
+            <Building2 size={12}/> White-label branding
+            {!canWhiteLabel && <span className="text-[#706D66] normal-case tracking-normal text-[11px]">(Enterprise plan)</span>}
+          </div>
+          {canWhiteLabel ? (
+            <div data-testid="whitelabel-uploader">
+              <p className="text-[11px] text-[#706D66] mb-3">Upload your company logo. It replaces the Morris wordmark on the header of every PDF you generate, and your company name appears in the corner instead of Morris.</p>
+              <div className="flex items-center gap-4 flex-wrap">
+                <div className="w-40 h-24 rounded border bg-[#0a0a0a] flex items-center justify-center overflow-hidden" style={{ borderColor: "rgba(232,160,32,0.3)" }}>
+                  {f.companyLogo ? (
+                    <img src={f.companyLogo} alt="Logo preview" className="max-w-full max-h-full object-contain" data-testid="whitelabel-preview" />
+                  ) : (
+                    <Building2 size={28} className="text-[#3d3d3d]" />
+                  )}
+                </div>
+                <div className="flex flex-col gap-2">
+                  <button type="button" onClick={() => logoRef.current?.click()} className="btn-secondary text-xs flex items-center gap-2" data-testid="whitelabel-upload-btn">
+                    <Upload size={12}/> {f.companyLogo ? "Replace logo" : "Upload logo"}
+                  </button>
+                  {f.companyLogo && (
+                    <button type="button" onClick={() => setF({ ...f, companyLogo: "" })} className="text-[10px] text-[#706D66] hover:text-[#E5635A] uppercase tracking-widest" data-testid="whitelabel-clear">Clear</button>
+                  )}
+                  <input ref={logoRef} type="file" accept="image/*" onChange={onLogoUpload} className="hidden" data-testid="whitelabel-input" />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-[11px] text-[#706D66]" data-testid="whitelabel-locked">
+              White-label branding (your logo and company name on every PDF in place of Morris) is exclusive to Enterprise.
+              <a href="/app/billing" className="text-[#E8A020] hover:underline ml-1">See Enterprise plan →</a>
+            </p>
+          )}
+        </div>
 
         {/* Signature — appears on every generated document sign-off block */}
         <div className="pt-2 border-t border-[#1a1a1a]">

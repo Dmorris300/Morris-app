@@ -40,11 +40,17 @@ STRIPE_LIVE = (STRIPE_API_KEY.startswith("sk_test_") and STRIPE_API_KEY != "sk_t
 # Server-defined plans — never trust the frontend on price.
 # Each plan has a stripePriceId for a recurring subscription product.
 PLANS = {
-    "solo":       {"name": "Solo",       "price": 12.99,  "currency": "gbp", "stripePriceId": _cfg("STRIPE_PRICE_SOLO", "")},
-    "pro":        {"name": "Pro",        "price": 24.99,  "currency": "gbp", "stripePriceId": _cfg("STRIPE_PRICE_PRO", "")},
-    "business":   {"name": "Business",   "price": 59.99,  "currency": "gbp", "stripePriceId": _cfg("STRIPE_PRICE_BUSINESS", "")},
-    "enterprise": {"name": "Enterprise", "price": 199.99, "currency": "gbp", "stripePriceId": _cfg("STRIPE_PRICE_ENTERPRISE", "")},
+    "solo":       {"name": "Solo",       "price": 29.99,  "currency": "gbp", "stripePriceId": _cfg("STRIPE_PRICE_SOLO", ""),       "seats": 1},
+    "business":   {"name": "Business",   "price": 59.99,  "currency": "gbp", "stripePriceId": _cfg("STRIPE_PRICE_BUSINESS", ""),   "seats": 5},
+    "pro":        {"name": "Pro",        "price": 99.99,  "currency": "gbp", "stripePriceId": _cfg("STRIPE_PRICE_PRO", ""),        "seats": 15},
+    "enterprise": {"name": "Enterprise", "price": 249.99, "currency": "gbp", "stripePriceId": _cfg("STRIPE_PRICE_ENTERPRISE", ""), "seats": 9999, "whiteLabel": True, "contactOnly": True},
 }
+
+# How many seats does each plan include (used for team invite gating)
+SEAT_LIMITS = {pid: p["seats"] for pid, p in PLANS.items()}
+SEAT_LIMITS["free"] = 1
+SEAT_LIMITS["trial"] = 1
+SEAT_LIMITS["unlimited"] = 9999
 
 TRIAL_DAYS = 3
 
@@ -81,9 +87,11 @@ def is_unlimited_admin(user: dict) -> bool:
 
 
 def effective_plan(user: dict) -> str:
-    """Returns 'free' | 'solo' | 'pro' | 'business' | 'trial' | 'unlimited'."""
+    """Returns 'free' | 'solo' | 'pro' | 'business' | 'enterprise' | 'trial' | 'unlimited'."""
     if is_unlimited_admin(user):
         return "unlimited"
+    # Team members inherit the owner's plan benefits — but we DO NOT recurse into Mongo here.
+    # The caller is expected to have pre-resolved teamOwnerId to the owner doc when needed.
     plan = user.get("plan") or "free"
     expires = user.get("planExpiresAt")
     if plan == "free":
@@ -115,6 +123,11 @@ async def check_can_generate(db, user: dict, tool_id: str):
     """Raises HTTPException 402 if user has hit free-tier limits. Returns nothing on pass."""
     if is_unlimited_admin(user):
         return  # darrenhustle300 / admin: unlimited, no metering
+    # Team members inherit the owner's plan benefits
+    if user.get("teamOwnerId"):
+        owner = await db.users.find_one({"id": user["teamOwnerId"]}, {"_id": 0})
+        if owner and effective_plan(owner) != "free":
+            return
     plan = effective_plan(user)
     if plan != "free":
         return  # all paid/trial users: unlimited
@@ -150,7 +163,12 @@ def build_router(db, get_user, send_subscription_receipt):
     # ---------- Public: list plans ----------
     @router.get("/plans")
     async def list_plans():
-        return {"plans": PLANS, "trialDays": TRIAL_DAYS, "free": {"toolLimit": FREE_TOOL_LIMIT, "docLimit": FREE_DOC_LIMIT}}
+        return {
+            "plans": PLANS,
+            "trialDays": TRIAL_DAYS,
+            "free": {"toolLimit": FREE_TOOL_LIMIT, "docLimit": FREE_DOC_LIMIT},
+            "seatLimits": SEAT_LIMITS,
+        }
 
     # ---------- Auth: current status ----------
     @router.get("/status")
@@ -205,6 +223,8 @@ def build_router(db, get_user, send_subscription_receipt):
             raise HTTPException(400, "Your account already has unlimited access. No subscription required.")
         if req.planId not in PLANS:
             raise HTTPException(400, "Unknown plan")
+        if PLANS[req.planId].get("contactOnly"):
+            raise HTTPException(400, "Enterprise plans are contact-only. Email contact@morrisapp.co.uk and we will onboard you within 24 hours.")
         plan = PLANS[req.planId]
 
         origin = req.originUrl.rstrip("/")

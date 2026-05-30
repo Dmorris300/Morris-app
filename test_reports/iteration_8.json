@@ -1,0 +1,75 @@
+{
+  "summary": "Iteration 8 — Full backend+frontend regression for new subscription tiers (Solo £29.99 / Business £59.99 / Pro £99.99 / Enterprise £249.99), team management (invite/accept/role/remove), Enterprise contact-only checkout, white-label profile section, and accept-invite public route. 8/8 backend tests pass. All frontend acceptance criteria pass with one inconsistency found in role-update enterprise gating (admin-as-unlimited can INVITE manager but cannot PATCH manager).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "PATCH /api/team/members/{id} (role=manager)",
+        "issue": "Inconsistency: admin user (isUnlimited=True) effective_plan returns 'unlimited'. team_invite only blocks manager when plan=='pro', but team_update_role rejects unless plan=='enterprise'. So you can INVITE a manager but cannot LATER set someone to manager via PATCH — both endpoints should use the same gate. Suggest using a single helper `is_enterprise_or_unlimited(plan)` or treating 'unlimited' as enterprise in team_update_role."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Sidebar search",
+        "issues": [
+          "Searching 'Team' or 'Billing' in the sidebar search returns 'No tools match'. The sidebar filter uses `[...TOOLS, ...WOW_TOOLS]` (AppShell.jsx L26-27), but account-section tools (favourites, history, billing, team, profile, privacy, terms, complaints, refund, offline-mode) are returned as a HARD-CODED inline list inside `getToolsBySection('account')` (tools-config.js L695-708) and are NOT part of TOOLS/WOW_TOOLS. So they are invisible to the sidebar search. Recommend exporting an ACCOUNT_TOOLS array and including it in `allTools` in AppShell.jsx."
+        ]
+      },
+      {
+        "screen": "AppShell sidebar — Account section",
+        "issues": [
+          "Account section is collapsed by default (openSections.account = false). Team Management link is only visible after expanding the section by scrolling to the bottom of the sidebar and clicking ACCOUNT. Consider opening it by default for admins with team-management entitlements, or pin the Team Management link near the top."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_team_billing.py",
+    "/app/test_reports/pytest/iter8_team_billing.xml"
+  ],
+  "verified_acceptance_criteria": {
+    "GET /api/billing/plans": "PASS — solo 29.99/1, business 59.99/5, pro 99.99/15, enterprise 249.99/9999. seatLimits present. enterprise.contactOnly=true.",
+    "POST /api/billing/checkout (enterprise, non-admin)": "PASS — returns 400 with 'Enterprise plans are contact-only. Email contact@morrisapp.co.uk...'",
+    "POST /api/billing/checkout (enterprise, admin/unlimited)": "PASS — returns 400 with the unlimited-already message (acceptable per task spec).",
+    "GET /api/team/members": "PASS — returns plan, seats {used,limit}, members[] (owner first with teamRole='owner'), pendingInvites[].",
+    "POST /api/team/invite (admin)": "PASS — returns ok, inviteLink, demoInviteToken, expiresAt.",
+    "POST /api/team/accept-invite": "PASS — creates user with teamOwnerId set, returns fresh auth token.",
+    "PATCH /api/team/members/{id} role=admin": "PASS",
+    "DELETE /api/team/members/{id}": "PASS — member detached from team list.",
+    "Owner lastActiveAt bumped": "PASS — present on team/members response after authed calls.",
+    "Manager role gating": "PARTIAL — see backend minor issue above (unlimited != enterprise in team_update_role).",
+    "/app/billing 4 plan cards in order": "PASS — order Solo→Business→Pro→Enterprise verified visually and by bounding-box x position.",
+    "Enterprise card shows 'Contact us to set up'": "PASS — button text 'Contact us to set up', data-testid='contact-enterprise'.",
+    "Enterprise contact toast": "PASS — sonner toast displays 'To set up your Enterprise account contact us at contact@morrisapp.co.uk — we will onboard you within 24 hours.' (verified via screenshot and DOM read).",
+    "/app/team page-team for admin": "PASS — testids team-plan-card, team-seats, team-invite-form, invite-email-input, invite-send-btn, team-members-list, role-badge-darrenhustle300=Owner all present.",
+    "/app/profile whitelabel-uploader for admin": "PASS — whitelabel-uploader rendered (admin treated as Enterprise); whitelabel-locked absent.",
+    "/accept-invite?token=XYZ form": "PASS — accept-invite-form + accept-username, accept-fullname, accept-phone, accept-password, accept-submit all present.",
+    "/accept-invite missing token": "PASS — accept-invite-missing error page rendered.",
+    "Sidebar Team Management link": "PASS — link `/app/team` with 'Team Management' is rendered after expanding the Account section. Note design issue above re: search filter and default collapsed state.",
+    "POST /api/profile/update companyLogo": "PASS — backend accepts and persists data: URL."
+  },
+  "action_items": [
+    "Unify enterprise-gating logic for the manager role between team_invite and team_update_role. Either accept 'unlimited' as enterprise in PATCH role, or block manager invites for non-enterprise too (current state allows the invite then blocks the assignment).",
+    "Expose account-section tools to the sidebar search filter (move inline list from getToolsBySection('account') into an exported ACCOUNT_TOOLS array, then include in `allTools` in AppShell.jsx so search picks them up).",
+    "Optional: default-open the Account section or surface Team Management higher in the sidebar so admins can find it without scrolling and expanding."
+  ],
+  "critical_code_review_comments": [
+    "tools-config.js: account-section tools are duplicated as a hard-coded inline list inside getToolsBySection — duplicates the SECTIONS pattern and breaks the sidebar search. Recommend a single source of truth (ACCOUNT_TOOLS export).",
+    "server.py: team_update_role and team_invite use different plan checks for 'manager' role. Extract `def _can_use_manager_role(plan): return plan in ('enterprise','unlimited')` and reuse.",
+    "Backend tests created at /app/backend/tests/test_team_billing.py provide regression coverage for future iterations. Junit XML at /app/test_reports/pytest/iter8_team_billing.xml."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_team_billing.py"
+  ],
+  "success_rate": {"backend": "100% (8/8 pytest)", "frontend": "100% on stated acceptance criteria; 2 design notes"},
+  "test_credentials": "darrenhustle300 / hustle1234 (admin, unlimited) — from /app/memory/test_credentials.md. Used in all tests.",
+  "seed_data_creation": "Each test run creates and tears down: (1) a transient signup user `test_ent_<uuid>` (verify-otp + DELETE /api/account/delete) to test non-admin enterprise checkout, (2) a teammate user via /api/team/invite + /api/team/accept-invite, then PATCH role, DELETE member, and DELETE /api/account/delete for full cleanup. No persistent test data remains in DB.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend regression suite is at /app/backend/tests/test_team_billing.py — run with `REACT_APP_BACKEND_URL=<url> pytest /app/backend/tests/test_team_billing.py -v`. The test for manager-role gating currently asserts the CURRENT (buggy-inconsistent) behaviour: PATCH manager on unlimited returns 400. If E1 fixes the inconsistency (treating unlimited as enterprise), flip that assertion to status_code == 200. Resend email send is MOCKED (falls back to mock logging when RESEND_API_KEY is empty) — invite emails won't actually send.",
+  "rca_of_the_issue": "The manager-role gating inconsistency originates because `effective_plan(user)` returns 'unlimited' for isUnlimited admins (see billing.py), while server.py's `team_update_role` directly compares `plan != 'enterprise'` instead of using a helper. `team_invite` uses a different (looser) check `plan == 'pro'`. Reproduction: login as darrenhustle300 → POST /api/team/invite {role:'manager'} → succeeds. Then POST accept-invite → PATCH /api/team/members/{id} {role:'manager'} → 400 'The Manager role is only available on Enterprise plans.' Mitigation: introduce a single `_can_use_manager_role(plan)` helper used by both endpoints."
+}

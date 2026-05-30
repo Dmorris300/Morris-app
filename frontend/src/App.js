@@ -22,6 +22,8 @@ import Earnings from "./pages/Earnings";
 import TaxPot from "./pages/TaxPot";
 import CompanyChecker from "./pages/CompanyChecker";
 import OfflineMode from "./pages/OfflineMode";
+import TeamManagement from "./pages/TeamManagement";
+import AcceptInvite from "./pages/AcceptInvite";
 import Profile from "./pages/Profile";
 import Favourites from "./pages/Favourites";
 import History from "./pages/History";
@@ -88,6 +90,7 @@ function App() {
           <Route path="/verify-otp" element={<VerifyOtp />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/accept-invite" element={<AcceptInvite />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/terms" element={<TermsConditions />} />
           <Route path="/select-trade" element={<Protected><SelectTrade /></Protected>} />
@@ -104,6 +107,7 @@ function App() {
             <Route path="taxpot" element={<ProfileGate><TaxPot /></ProfileGate>} />
             <Route path="company-checker" element={<ProfileGate><CompanyChecker /></ProfileGate>} />
             <Route path="offline-mode" element={<OfflineMode />} />
+            <Route path="team" element={<TeamManagement />} />
             <Route path="profile" element={<Profile />} />
             <Route path="favourites" element={<Favourites />} />
             <Route path="history" element={<History />} />

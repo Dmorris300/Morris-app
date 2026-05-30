@@ -77,6 +77,7 @@ class ProfileUpdate(BaseModel):
     signatureRole: Optional[str] = None     # e.g. "Director", "Site Manager"
     cscsCardFront: Optional[str] = None     # base64 image data URL
     cscsCardBack: Optional[str] = None      # base64 image data URL
+    companyLogo: Optional[str] = None       # white-label logo (Enterprise only)
     email: Optional[EmailStr] = None
     favourites: Optional[List[str]] = None
     recentlyUsed: Optional[List[str]] = None
@@ -147,6 +148,11 @@ async def get_user(token: Optional[str]) -> dict:
     if (user.get("username") or "").lower() == "darrenhustle300" or user.get("isAdmin"):
         user["isAdmin"] = True
         user["isUnlimited"] = True
+    # Bump last-active timestamp (used by the Team Management dashboard)
+    try:
+        await db.users.update_one({"id": user["id"]}, {"$set": {"lastActiveAt": datetime.now(timezone.utc)}})
+    except Exception:
+        pass
     return user
 
 
@@ -777,6 +783,246 @@ async def del_cis(pid: str, authorization: Optional[str] = Header(None)):
     user = await get_user(token)
     await db.cis_payments.delete_one({"id": pid, "userId": user["id"]})
     return {"ok": True}
+
+# ---------- Team Management ----------
+TEAM_ROLES = ["owner", "admin", "manager", "member"]
+
+
+class TeamInvite(BaseModel):
+    email: EmailStr
+    role: str = "member"  # one of TEAM_ROLES (excluding owner)
+
+
+class TeamRoleUpdate(BaseModel):
+    role: str  # admin | manager | member
+
+
+def _team_owner_id(user: dict) -> str:
+    """Returns the owner-account id for a user. Owner accounts return their own id."""
+    return user.get("teamOwnerId") or user["id"]
+
+
+async def _seat_limits_for_owner(owner_id: str) -> tuple[int, int, str]:
+    """Returns (current_seats, seat_limit, plan_id) for the owner's plan."""
+    from billing import PLANS as _PLANS, SEAT_LIMITS as _SEATS, effective_plan as _eff
+    owner = await db.users.find_one({"id": owner_id}, {"_id": 0})
+    plan = _eff(owner or {})
+    limit = _SEATS.get(plan, 1)
+    # Count owner + active members tagged to this owner
+    members = await db.users.count_documents({"$or": [{"id": owner_id}, {"teamOwnerId": owner_id}]})
+    return (members, limit, plan)
+
+
+async def _require_team_admin(user: dict):
+    """Owner OR admin can manage the team. Otherwise 403."""
+    role = user.get("teamRole") or ("owner" if not user.get("teamOwnerId") else "member")
+    if role not in ("owner", "admin"):
+        raise HTTPException(403, "Only the account owner or admins can manage the team.")
+
+
+@api_router.post("/team/invite")
+async def team_invite(req: TeamInvite, authorization: Optional[str] = Header(None)):
+    token = authorization.replace("Bearer ", "") if authorization else None
+    user = await get_user(token)
+    await _require_team_admin(user)
+
+    if req.role not in ("admin", "manager", "member"):
+        raise HTTPException(400, "Role must be one of: admin, manager, member.")
+
+    # Pro doesn't have manager role; Enterprise does
+    owner_id = _team_owner_id(user)
+    current, limit, plan = await _seat_limits_for_owner(owner_id)
+    if plan == "free" or plan == "trial":
+        raise HTTPException(402, "Team invites require a Business, Pro or Enterprise plan.")
+    if plan == "solo":
+        raise HTTPException(402, "Solo plans are single-user. Upgrade to Business, Pro or Enterprise to invite team members.")
+    if plan == "pro" and req.role == "manager":
+        raise HTTPException(400, "The Manager role is only available on Enterprise plans.")
+    if current >= limit:
+        raise HTTPException(400, f"You have reached your plan's seat limit ({limit}). Upgrade or remove a member to invite more.")
+
+    # Prevent inviting an already-registered email that's on a different team
+    email_lower = req.email.lower()
+    existing = await db.users.find_one({"email": email_lower}, {"_id": 0})
+    if existing:
+        if existing.get("teamOwnerId") == owner_id or existing.get("id") == owner_id:
+            raise HTTPException(400, "That email is already part of your team.")
+        raise HTTPException(400, "That email is already registered with another account.")
+
+    invite_token = secrets.token_urlsafe(32)
+    expires_at = datetime.now(timezone.utc) + timedelta(days=14)
+    await db.team_invites.insert_one({
+        "token": invite_token,
+        "ownerId": owner_id,
+        "ownerUsername": user.get("username") if user.get("id") == owner_id else None,
+        "email": email_lower,
+        "role": req.role,
+        "expiresAt": expires_at,
+        "accepted": False,
+        "createdAt": datetime.now(timezone.utc),
+    })
+
+    # Fire-and-forget the invite email
+    app_url = os.environ.get("APP_URL", "https://morrisapp.co.uk")
+    invite_link = f"{app_url}/accept-invite?token={invite_token}"
+    try:
+        from email_helper import send_email
+        owner_name = user.get("companyName") or user.get("fullName") or user.get("username") or "Morris user"
+        await send_email(
+            email_lower,
+            f"You've been invited to join {owner_name} on Morris",
+            f"""
+            <p style="font-size:18px;color:#F0EDE8;margin:0 0 12px 0;">Join {owner_name} on Morris.</p>
+            <p><strong>{owner_name}</strong> has invited you to join their Morris account as a <strong style="color:#E8A020;">{req.role}</strong>.</p>
+            <p>Morris is the construction admin app for UK tradesmen. Variation letters, RAMS, CIS invoices, retention chasers and 80+ more tools, all in your pocket.</p>
+            <p style="margin:28px 0;text-align:center;">
+              <a href="{invite_link}" style="background:#E8A020;color:#060606;font-weight:700;text-decoration:none;padding:14px 28px;border-radius:6px;display:inline-block;">Accept invite</a>
+            </p>
+            <p style="color:#A19D94;font-size:13px;">Or paste this link into your browser:<br/><span style="color:#E8A020;word-break:break-all;">{invite_link}</span></p>
+            <p style="color:#706D66;font-size:13px;">This invite expires in 14 days.</p>
+            """,
+            preheader=f"Join {owner_name} on Morris.",
+        )
+    except Exception as e:
+        logger.warning(f"Team invite email failed: {e}")
+
+    return {
+        "ok": True,
+        "inviteLink": invite_link,
+        "demoInviteToken": invite_token,
+        "expiresAt": expires_at.isoformat(),
+    }
+
+
+class AcceptInviteReq(BaseModel):
+    token: str
+    username: str
+    password: str
+    fullName: Optional[str] = None
+    phone: Optional[str] = None
+
+
+@api_router.post("/team/accept-invite")
+async def team_accept_invite(req: AcceptInviteReq):
+    inv = await db.team_invites.find_one({"token": req.token}, {"_id": 0})
+    if not inv or inv.get("accepted"):
+        raise HTTPException(400, "Invalid or already-used invite link.")
+    expires_at = inv["expiresAt"]
+    if isinstance(expires_at, str):
+        expires_at = datetime.fromisoformat(expires_at)
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if datetime.now(timezone.utc) > expires_at:
+        raise HTTPException(400, "This invite has expired.")
+
+    username_lower = req.username.lower().strip()
+    if await db.users.find_one({"username": username_lower}, {"_id": 0}):
+        raise HTTPException(400, "That username is taken.")
+    if await db.users.find_one({"email": inv["email"]}, {"_id": 0}):
+        raise HTTPException(400, "That email is already registered.")
+    if len(req.password) < 6:
+        raise HTTPException(400, "Password must be at least 6 characters.")
+
+    token = str(uuid.uuid4())
+    new_user = {
+        "id": str(uuid.uuid4()),
+        "username": username_lower,
+        "email": inv["email"],
+        "password": hash_pw(req.password),
+        "phone": req.phone or "",
+        "fullName": req.fullName or "",
+        "verified": True,  # invited users skip OTP
+        "token": token,
+        "teamOwnerId": inv["ownerId"],
+        "teamRole": inv["role"],
+        "trade": None,
+        "createdAt": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.users.insert_one(new_user)
+    await db.team_invites.update_one(
+        {"token": req.token},
+        {"$set": {"accepted": True, "acceptedAt": datetime.now(timezone.utc), "acceptedBy": new_user["id"]}},
+    )
+    new_user.pop("password", None)
+    new_user.pop("_id", None)
+    return {"ok": True, "token": token, "user": new_user}
+
+
+@api_router.get("/team/members")
+async def team_members(authorization: Optional[str] = Header(None)):
+    token = authorization.replace("Bearer ", "") if authorization else None
+    user = await get_user(token)
+    owner_id = _team_owner_id(user)
+    current, limit, plan = await _seat_limits_for_owner(owner_id)
+    members = await db.users.find(
+        {"$or": [{"id": owner_id}, {"teamOwnerId": owner_id}]},
+        {"_id": 0, "password": 0, "token": 0, "otp": 0, "signature": 0, "cscsCardFront": 0, "cscsCardBack": 0, "companyLogo": 0},
+    ).to_list(500)
+    pending = await db.team_invites.find(
+        {"ownerId": owner_id, "accepted": False},
+        {"_id": 0, "token": 0},
+    ).to_list(200)
+    # Annotate the owner
+    for m in members:
+        if m["id"] == owner_id and not m.get("teamRole"):
+            m["teamRole"] = "owner"
+    return {
+        "plan": plan,
+        "seats": {"used": current, "limit": limit},
+        "members": members,
+        "pendingInvites": pending,
+    }
+
+
+@api_router.patch("/team/members/{member_id}")
+async def team_update_role(member_id: str, update: TeamRoleUpdate, authorization: Optional[str] = Header(None)):
+    token = authorization.replace("Bearer ", "") if authorization else None
+    user = await get_user(token)
+    await _require_team_admin(user)
+    if update.role not in ("admin", "manager", "member"):
+        raise HTTPException(400, "Role must be one of: admin, manager, member.")
+    owner_id = _team_owner_id(user)
+    if member_id == owner_id:
+        raise HTTPException(400, "You cannot change the owner's role.")
+    target = await db.users.find_one({"id": member_id, "teamOwnerId": owner_id}, {"_id": 0})
+    if not target:
+        raise HTTPException(404, "Team member not found.")
+    # Manager role gated to Enterprise
+    _, _, plan = await _seat_limits_for_owner(owner_id)
+    if plan != "enterprise" and update.role == "manager":
+        raise HTTPException(400, "The Manager role is only available on Enterprise plans.")
+    await db.users.update_one({"id": member_id}, {"$set": {"teamRole": update.role}})
+    return {"ok": True, "memberId": member_id, "role": update.role}
+
+
+@api_router.delete("/team/members/{member_id}")
+async def team_remove_member(member_id: str, authorization: Optional[str] = Header(None)):
+    token = authorization.replace("Bearer ", "") if authorization else None
+    user = await get_user(token)
+    await _require_team_admin(user)
+    owner_id = _team_owner_id(user)
+    if member_id == owner_id:
+        raise HTTPException(400, "You cannot remove the account owner.")
+    target = await db.users.find_one({"id": member_id, "teamOwnerId": owner_id}, {"_id": 0})
+    if not target:
+        raise HTTPException(404, "Team member not found.")
+    # Don't delete their data — just detach from team and invalidate session
+    await db.users.update_one(
+        {"id": member_id},
+        {"$set": {"teamOwnerId": None, "teamRole": None, "plan": "free", "planExpiresAt": None}, "$unset": {"token": ""}},
+    )
+    return {"ok": True}
+
+
+@api_router.delete("/team/invites/{invite_token}")
+async def team_cancel_invite(invite_token: str, authorization: Optional[str] = Header(None)):
+    token = authorization.replace("Bearer ", "") if authorization else None
+    user = await get_user(token)
+    await _require_team_admin(user)
+    owner_id = _team_owner_id(user)
+    await db.team_invites.delete_one({"token": invite_token, "ownerId": owner_id, "accepted": False})
+    return {"ok": True}
+
 
 # ---------- Health ----------
 @api_router.get("/")

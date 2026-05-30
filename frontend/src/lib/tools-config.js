@@ -633,7 +633,7 @@ export const TOOL_EMOJI = {
   "verbal-to-variation": "🎙️", "photo-to-document": "📸",
   "tax-pot": "🐖", "company-checker": "🏢",
   // Account
-"favourites": "⭐", "history": "🗃️", "billing": "💳", "profile": "👤", "privacy": "🛡️", "terms": "⚖️", "complaints": "📣", "refund": "💷", "offline-mode": "📴",
+"favourites": "⭐", "history": "🗃️", "billing": "💳", "team": "👥", "profile": "👤", "privacy": "🛡️", "terms": "⚖️", "complaints": "📣", "refund": "💷", "offline-mode": "📴",
 };
 
 export function emojiFor(id) {
@@ -698,6 +698,7 @@ export function getToolsBySection(sectionId) {
       { id: "favourites", name: "Favourites", section: "account", route: "/app/favourites", info: "Your starred tools, one click away." },
       { id: "history", name: "Document History", section: "account", route: "/app/history", info: "Every document you've generated, saved and ready to re-download." },
       { id: "billing", name: "Plan & Billing", section: "account", route: "/app/billing", info: "Your current plan, usage and upgrades." },
+      { id: "team", name: "Team Management", section: "account", route: "/app/team", info: "Invite your crew, assign roles, see who's active." },
       { id: "profile", name: "My Profile", section: "account", route: "/app/profile", info: "Your company details. Used to personalise every document Morris generates." },
       { id: "privacy", name: "Privacy Policy", section: "account", route: "/app/privacy", info: "How Morris handles your data." },
       { id: "terms", name: "Terms and Conditions", section: "account", route: "/app/terms", info: "The legal terms of using Morris." },
