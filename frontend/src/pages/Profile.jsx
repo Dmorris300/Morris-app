@@ -4,8 +4,9 @@ import { useAuth } from "../lib/auth";
 import api from "../lib/api";
 import { TRADES } from "../lib/tools-config";
 import { toast } from "sonner";
-import { AlertTriangle, Trash2, Info } from "lucide-react";
+import { AlertTriangle, Trash2, Info, PenTool } from "lucide-react";
 import { isProfileComplete } from "../App";
+import SignaturePad from "../components/SignaturePad";
 
 export default function Profile() {
   const { user, refresh, logout } = useAuth();
@@ -29,6 +30,8 @@ export default function Profile() {
     cscsExpiry: user?.cscsExpiry || "",
     vehicleReg: user?.vehicleReg || "",
     bankDetails: user?.bankDetails || "",
+    signature: user?.signature || "",
+    signatureRole: user?.signatureRole || "",
     trade: user?.trade || "",
   });
   const [saving, setSaving] = useState(false);
@@ -95,6 +98,27 @@ export default function Profile() {
         <Row label="CSCS card expiry *"><input type="date" className="input-base" value={f.cscsExpiry} onChange={(e) => setF({ ...f, cscsExpiry: e.target.value })} data-testid="profile-cscs-expiry" /></Row>
         <Row label="Vehicle registration"><input className="input-base" value={f.vehicleReg} onChange={(e) => setF({ ...f, vehicleReg: e.target.value })} placeholder="e.g. AB12 CDE" data-testid="profile-vehicle" /></Row>
         <Row label="Bank details for invoices"><textarea rows={2} className="input-base resize-y" value={f.bankDetails} onChange={(e) => setF({ ...f, bankDetails: e.target.value })} placeholder="Sort code · Account number · Bank name" data-testid="profile-bank" /></Row>
+
+        {/* Signature — appears on every generated document sign-off block */}
+        <div className="pt-2 border-t border-[#1a1a1a]">
+          <div className="text-[10px] uppercase tracking-[0.2em] text-[#E8A020] flex items-center gap-2 mb-3">
+            <PenTool size={12}/> Sign-off settings
+          </div>
+          <Row label="Your role (appears in sign-off block)">
+            <input
+              className="input-base"
+              value={f.signatureRole}
+              onChange={(e) => setF({ ...f, signatureRole: e.target.value })}
+              placeholder="e.g. Director, Site Manager, Owner, Operative"
+              data-testid="profile-signature-role"
+            />
+          </Row>
+          <div className="block">
+            <div className="text-xs uppercase tracking-widest text-[#A19D94] mb-1">Saved signature</div>
+            <p className="text-[11px] text-[#706D66] mb-2">Drawn once here. Auto-applied to every document Morris generates. Sign with your finger on a phone or stylus.</p>
+            <SignaturePad value={f.signature} onChange={(s) => setF({ ...f, signature: s })} />
+          </div>
+        </div>
         <button className="btn-primary" disabled={saving} data-testid="profile-save">{saving ? "Saving…" : "Save profile"}</button>
       </form>
 

@@ -73,6 +73,8 @@ class ProfileUpdate(BaseModel):
     cscsExpiry: Optional[str] = None
     vehicleReg: Optional[str] = None
     bankDetails: Optional[str] = None
+    signature: Optional[str] = None         # base64 PNG data URL (e.g. "data:image/png;base64,...")
+    signatureRole: Optional[str] = None     # e.g. "Director", "Site Manager"
     email: Optional[EmailStr] = None
     favourites: Optional[List[str]] = None
     recentlyUsed: Optional[List[str]] = None
@@ -198,6 +200,78 @@ async def next_ref_number(user: dict, tool_id: str) -> str:
     )
     seq = (((res or {}).get("docCounters") or {}).get(tool_id) or {}).get(ymd, 1)
     return f"{_ref_abbr(tool_id)}-{_ref_initials(user)}-{ymd}-{seq:03d}"
+
+
+# ---------- Global sign-off classification (added Feb 2026) ----------
+# Single sign-off: contractor only. Dual sign-off: contractor AND client/receiving party.
+SINGLE_SIGNOFF_TOOLS = {
+    "site-diary", "coshh", "noise-assessment", "manual-handling",
+    "working-at-height-rescue", "toolbox-talk", "asbestos-record", "hs-policy",
+    "risk-register", "timesheet", "daywork-sheet", "delay-notice",
+    "progress-report", "incident-report", "incident-log", "photo-evidence-log",
+    "verbal-instruction-recorder", "measurement-record", "weather-log",
+    "prestart-meeting", "meeting-notes", "site-access-permit", "delivery-record",
+    "rams", "rams-library", "variation-instruction-log", "multiuser-site-diary",
+    "labour-allocation", "tool-register", "procurement-schedule",
+    "reminders", "dispute-timeline", "contract-review",
+}
+DUAL_SIGNOFF_TOOLS = {
+    "quote-builder", "variation-letter", "verbal-to-variation",
+    "cis-invoice", "handover-certificate", "subcontract-letter",
+    "complaint-letter", "application-for-payment", "retention-chaser",
+    "final-account", "contra-charge-dispute", "eot-claim", "lds-dispute",
+    "novation-letter", "bad-debt-letter", "snagging-list", "purchase-order",
+    "subbie-payment-cert", "hire-agreement", "tender-letter",
+    "scope-of-works", "price-work-quote", "rate-increase-letter",
+    "hmrc-correspondence", "reference-letter",
+    # Photo-to-Document inherits dual (most converted docs are client-facing)
+    "photo-to-document",
+}
+
+
+def _signoff_instructions(tool_id: str, profile: dict, has_signature: bool) -> str:
+    """Returns the section of the system prompt that tells Claude exactly what
+    sign-off block(s) to append. Applied globally — never per-tool."""
+    name = profile.get("fullName") or ""
+    role = profile.get("signatureRole") or ""
+    company = profile.get("companyName") or ""
+    now_str = datetime.now(timezone.utc).strftime("%d %B %Y, %H:%M")
+    sig_line = ("Signature: (signed electronically. saved signature on file)" if has_signature
+                else "Signature: Add your signature in profile settings to complete this document.")
+
+    contractor_block = (
+        "CONTRACTOR SIGN-OFF\n"
+        f"Name: {name}\n"
+        f"Role: {role or '(role not set in profile)'}\n"
+        f"Company: {company}\n"
+        f"Date and time: {now_str}\n"
+        f"{sig_line}\n"
+    )
+
+    if tool_id in DUAL_SIGNOFF_TOOLS:
+        client_block = (
+            "CLIENT SIGN-OFF (to be completed by the recipient)\n"
+            "Name: ____________________________\n"
+            "Role: ____________________________\n"
+            "Company: ____________________________\n"
+            "Date and time: ____________________________\n"
+            "Signature: ____________________________\n"
+        )
+        return (
+            "MANDATORY SIGN-OFF BLOCKS: Every document MUST end with the following two sign-off blocks, "
+            "in this exact format, on their own lines, separated by a single blank line. "
+            "Use the contractor values exactly as provided. Leave the client block as labelled blank lines "
+            "with underscores so it can be completed by hand or counter-signed.\n\n"
+            + contractor_block + "\n" + client_block
+        )
+
+    # Default to single sign-off for any tool not in either set
+    return (
+        "MANDATORY SIGN-OFF BLOCK: Every document MUST end with the following single contractor sign-off block, "
+        "in this exact format, on its own lines. Use the contractor values exactly as provided. "
+        "Do not add a client sign-off block.\n\n"
+        + contractor_block
+    )
 
 
 # ---------- Auth ----------
@@ -517,7 +591,8 @@ async def generate(req: GenerateReq, authorization: Optional[str] = Header(None)
         .format(ref=ref_number, today=today_str, review=review_date_str)
         + "AUTHOR PROFILE (use these exact values wherever a name, company, address, UTR, VAT or CIS reference is needed):\n"
         + profile_block + "\n"
-        "Personalise the document to this profile. Do not invent details."
+        "Personalise the document to this profile. Do not invent details.\n\n"
+        + _signoff_instructions(req.toolId, user, bool(user.get("signature")))
     )
 
     inputs_text = "\n".join(f"- {k}: {v}" for k, v in req.userInputs.items() if v)

@@ -44,6 +44,11 @@ export function generatePdf({ title, content, user, photo, photoCaption }) {
   const bottom = pageHeight - 60;
   const lineHeight = 14;
 
+  // Detect the line that contains the contractor Signature field so we can
+  // stamp the user's saved signature image directly below it.
+  const sigLineMatcher = /^Signature:\s/i;
+  let sigStampedY = null;
+
   lines.forEach((line) => {
     if (y > bottom) {
       addFooter(doc, pageWidth, pageHeight);
@@ -51,6 +56,21 @@ export function generatePdf({ title, content, user, photo, photoCaption }) {
       y = 60;
     }
     doc.text(line, margin, y);
+
+    // If this is the contractor "Signature:" line AND a signature image is on file,
+    // stamp the signature 4pt below the text on the same row.
+    if (sigStampedY === null && user?.signature && sigLineMatcher.test(line)) {
+      try {
+        const sigW = 130;
+        const sigH = 46;
+        // Place image slightly to the right of "Signature:" label
+        doc.addImage(user.signature, "PNG", margin + 60, y - 32, sigW, sigH, undefined, "FAST");
+        sigStampedY = y;
+      } catch (e) {
+        if (process.env.NODE_ENV !== "production") console.error("PDF signature embed failed", e);
+      }
+    }
+
     y += lineHeight;
   });
 
