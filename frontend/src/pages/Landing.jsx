@@ -193,9 +193,8 @@ export default function Landing() {
                 "Priority support",
                 "Everything in Pro",
               ]}
-              cta="Contact Us"
-              ctaTo="mailto:contact@morrisapp.co.uk?subject=Morris%20Enterprise%20onboarding"
-              external
+              cta="Choose Enterprise"
+              ctaTo="/signup"
             />
           </div>
         </div>

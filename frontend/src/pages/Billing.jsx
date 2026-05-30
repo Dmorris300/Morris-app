@@ -46,7 +46,6 @@ const PLAN_META = {
     name: "Enterprise", price: "£249.99", period: "per month",
     desc: "Unlimited seats. White-label. Concierge onboarding.",
     icon: Building2,
-    contact: true,
     features: [
       "Unlimited team member invites",
       "Owner / Admin / Manager / Member roles",
