@@ -29,12 +29,19 @@ export default function Profile() {
     insuranceExpiry: user?.insuranceExpiry || "",
     cscsExpiry: user?.cscsExpiry || "",
     vehicleReg: user?.vehicleReg || "",
+    // Legacy free-text field — kept so existing profiles still surface
+    // bank details on invoices until the user re-enters them as structured fields.
     bankDetails: user?.bankDetails || "",
     signature: user?.signature || "",
     signatureRole: user?.signatureRole || "",
     cscsCardFront: user?.cscsCardFront || "",
     cscsCardBack: user?.cscsCardBack || "",
     companyLogo: user?.companyLogo || "",
+    sortCode: user?.sortCode || "",
+    accountNumber: user?.accountNumber || "",
+    bankName: user?.bankName || "",
+    // Default ON for new users: they can switch off via the toggle below.
+    shareBankDetails: user?.shareBankDetails ?? true,
     trade: user?.trade || "",
   });
   const [saving, setSaving] = useState(false);
@@ -102,6 +109,7 @@ export default function Profile() {
   // ----- Share my profile -----
   const [sharing, setSharing] = useState(false);
   const buildShareCopy = () => {
+    const includeBank = user?.shareBankDetails !== false && (user?.bankName || user?.sortCode || user?.accountNumber);
     const parts = [
       `MORRIS TRADE PROFILE`,
       ``,
@@ -115,6 +123,12 @@ export default function Profile() {
       user?.insuranceExpiry ? `Public liability expiry: ${user.insuranceExpiry}` : null,
       user?.cscsExpiry ? `CSCS card expiry: ${user.cscsExpiry}` : null,
       ``,
+      includeBank ? `PAYMENT DETAILS` : null,
+      includeBank && user?.bankName ? `Bank: ${user.bankName}` : null,
+      includeBank && (user?.companyName || user?.fullName) ? `Account name: ${user.companyName || user.fullName}` : null,
+      includeBank && user?.sortCode ? `Sort code: ${user.sortCode}` : null,
+      includeBank && user?.accountNumber ? `Account number: ${user.accountNumber}` : null,
+      includeBank ? `` : null,
       (user?.cscsCardFront && user?.cscsCardBack)
         ? `(CSCS card photos attached in the PDF.)`
         : `Add your CSCS card photos in profile settings to include them in your shared profile.`,
@@ -228,7 +242,31 @@ export default function Profile() {
         </div>
 
         <Row label="Vehicle registration"><input className="input-base" value={f.vehicleReg} onChange={(e) => setF({ ...f, vehicleReg: e.target.value })} placeholder="e.g. AB12 CDE" data-testid="profile-vehicle" /></Row>
-        <Row label="Bank details for invoices"><textarea rows={2} className="input-base resize-y" value={f.bankDetails} onChange={(e) => setF({ ...f, bankDetails: e.target.value })} placeholder="Sort code · Account number · Bank name" data-testid="profile-bank" /></Row>
+        {/* Bank / Payment details — auto-populated on CIS Invoice, Application for Payment, Daywork Sheet, Retention Chaser, Subbi Payment Certificate, Final Account Statement, Bad Debt Letter, Payment Chaser, Quote Builder and Price Work Quote ONLY. */}
+        <div className="pt-2 border-t border-[#1a1a1a]" data-testid="bank-details-section">
+          <div className="text-[10px] uppercase tracking-[0.2em] text-[#E8A020] mb-3">Payment details</div>
+          <p className="text-[11px] text-[#706D66] mb-3">
+            Auto-populated on invoices, quotes, payment chasers and similar documents only. Never shown on RAMS, COSHH, site diaries or any other non-payment paperwork.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <Row label="Bank name"><input className="input-base" value={f.bankName} onChange={(e) => setF({ ...f, bankName: e.target.value })} placeholder="e.g. Lloyds Bank" data-testid="profile-bank-name" /></Row>
+            <Row label="Sort code"><input className="input-base" value={f.sortCode} onChange={(e) => setF({ ...f, sortCode: e.target.value })} placeholder="00-00-00" data-testid="profile-bank-sortcode" /></Row>
+            <Row label="Account number"><input className="input-base" value={f.accountNumber} onChange={(e) => setF({ ...f, accountNumber: e.target.value })} placeholder="00000000" data-testid="profile-bank-account" /></Row>
+          </div>
+          <label className="mt-3 flex items-start gap-3 text-sm text-[#A19D94] cursor-pointer" data-testid="profile-share-bank-toggle-row">
+            <input
+              type="checkbox"
+              className="mt-1"
+              checked={!!f.shareBankDetails}
+              onChange={(e) => setF({ ...f, shareBankDetails: e.target.checked })}
+              data-testid="profile-share-bank-toggle"
+            />
+            <span>
+              <span className="text-[#F0EDE8] font-semibold">Include bank details when sharing my profile</span>
+              <span className="block text-[11px] text-[#706D66] mt-0.5">When OFF, your bank details are kept private on the shared profile PDF. They still appear on the invoices and quotes you generate inside Morris.</span>
+            </span>
+          </label>
+        </div>
 
         {/* White-label company logo (Enterprise only) */}
         <div className="pt-2 border-t border-[#1a1a1a]">

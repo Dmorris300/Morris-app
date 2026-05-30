@@ -78,6 +78,12 @@ class ProfileUpdate(BaseModel):
     cscsCardFront: Optional[str] = None     # base64 image data URL
     cscsCardBack: Optional[str] = None      # base64 image data URL
     companyLogo: Optional[str] = None       # white-label logo (Enterprise only)
+    # Bank details (split into 3 fields). shareBankDetails controls whether
+    # they appear on the shared profile PDF (always appear on relevant docs).
+    sortCode: Optional[str] = None
+    accountNumber: Optional[str] = None
+    bankName: Optional[str] = None
+    shareBankDetails: Optional[bool] = None
     email: Optional[EmailStr] = None
     favourites: Optional[List[str]] = None
     recentlyUsed: Optional[List[str]] = None
@@ -210,7 +216,43 @@ async def next_ref_number(user: dict, tool_id: str) -> str:
     return f"{_ref_abbr(tool_id)}-{_ref_initials(user)}-{ymd}-{seq:03d}"
 
 
-# ---------- Global sign-off classification (added Feb 2026) ----------
+# Tools that should auto-populate the user's bank details under a clearly
+# labelled Payment Details section near the bottom of the generated document.
+# This is a strict allowlist — bank details NEVER appear on any other tool.
+BANK_DETAILS_TOOLS = {
+    "cis-invoice",
+    "application-for-payment",
+    "daywork-sheet",
+    "retention-chaser",
+    "subbie-payment-cert",
+    "final-account",
+    "bad-debt-letter",
+    "payment-chaser",
+    "quote-builder",
+    "price-work-quote",
+}
+
+
+def _bank_details_block(user: dict) -> str:
+    """Returns the labelled Payment Details block for the system prompt, or '' if nothing is set."""
+    sort_code = (user.get("sortCode") or "").strip()
+    account_number = (user.get("accountNumber") or "").strip()
+    bank_name = (user.get("bankName") or "").strip()
+    if not (sort_code or account_number or bank_name):
+        return ""
+    lines = ["PAYMENT DETAILS (include these EXACTLY as written, in a clearly labelled 'PAYMENT DETAILS' section near the bottom of the document):"]
+    if bank_name:
+        lines.append(f"Bank: {bank_name}")
+    if user.get("fullName") or user.get("companyName"):
+        lines.append(f"Account name: {user.get('companyName') or user.get('fullName')}")
+    if sort_code:
+        lines.append(f"Sort code: {sort_code}")
+    if account_number:
+        lines.append(f"Account number: {account_number}")
+    return "\n".join(lines)
+
+
+
 # Single sign-off: contractor only. Dual sign-off: contractor AND client/receiving party.
 SINGLE_SIGNOFF_TOOLS = {
     "site-diary", "coshh", "noise-assessment", "manual-handling",
@@ -550,7 +592,7 @@ async def generate(req: GenerateReq, authorization: Optional[str] = Header(None)
     vat_registered = user.get("vatRegistered")
     vat_number = user.get("vatNumber") or ""
     user_email = user.get("email") or ""
-    bank_details = user.get("bankDetails") or ""
+    bank_details_legacy = user.get("bankDetails") or ""
     vehicle_reg = user.get("vehicleReg") or ""
 
     ref_number = await next_ref_number(user, req.toolId)
@@ -575,11 +617,16 @@ async def generate(req: GenerateReq, authorization: Optional[str] = Header(None)
         profile_lines.append(f"VAT registered: yes, VAT number {vat_number}")
     elif vat_registered is False:
         profile_lines.append("VAT registered: no")
-    if bank_details:
-        profile_lines.append(f"Bank details for payment: {bank_details}")
+    # NOTE: Bank details are intentionally NOT in the global profile block.
+    # They are injected separately below for an allowlisted set of tools only.
     if vehicle_reg:
         profile_lines.append(f"Vehicle registration: {vehicle_reg}")
     profile_block = "\n".join(profile_lines)
+
+    # Bank details only for the allowlisted document set
+    bank_block = ""
+    if req.toolId in BANK_DETAILS_TOOLS:
+        bank_block = _bank_details_block(user)
 
     system_prompt = (
         "You are Morris, an AI document writer for UK construction tradespeople. "
@@ -600,6 +647,7 @@ async def generate(req: GenerateReq, authorization: Optional[str] = Header(None)
         + "AUTHOR PROFILE (use these exact values wherever a name, company, address, UTR, VAT or CIS reference is needed):\n"
         + profile_block + "\n"
         "Personalise the document to this profile. Do not invent details.\n\n"
+        + (bank_block + "\n\n" if bank_block else "")
         + _signoff_instructions(req.toolId, user, bool(user.get("signature")))
     )
 

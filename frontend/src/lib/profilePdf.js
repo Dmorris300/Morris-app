@@ -66,6 +66,19 @@ export function generateProfilePdf(user) {
   y = row(doc, "Public liability expiry", user?.insuranceExpiry ? fmtDate(user.insuranceExpiry) : null, margin, y, usable);
   y = row(doc, "CSCS card expiry", user?.cscsExpiry ? fmtDate(user.cscsExpiry) : null, margin, y, usable);
 
+  // ----- Section: Payment details (only if the user has opted in) -----
+  const hasAnyBank = !!(user?.sortCode || user?.accountNumber || user?.bankName);
+  const shareBank = user?.shareBankDetails !== false; // default to true when undefined
+  if (hasAnyBank && shareBank) {
+    y += 12;
+    y = section(doc, "PAYMENT DETAILS", margin, y);
+    if (user?.bankName) y = row(doc, "Bank", user.bankName, margin, y, usable);
+    const accountName = user?.companyName || user?.fullName;
+    if (accountName) y = row(doc, "Account name", accountName, margin, y, usable);
+    if (user?.sortCode) y = row(doc, "Sort code", user.sortCode, margin, y, usable);
+    if (user?.accountNumber) y = row(doc, "Account number", user.accountNumber, margin, y, usable);
+  }
+
   // ----- CSCS card photos -----
   if (user?.cscsCardFront || user?.cscsCardBack) {
     y += 16;
