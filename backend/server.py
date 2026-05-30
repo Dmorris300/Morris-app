@@ -75,6 +75,8 @@ class ProfileUpdate(BaseModel):
     bankDetails: Optional[str] = None
     signature: Optional[str] = None         # base64 PNG data URL (e.g. "data:image/png;base64,...")
     signatureRole: Optional[str] = None     # e.g. "Director", "Site Manager"
+    cscsCardFront: Optional[str] = None     # base64 image data URL
+    cscsCardBack: Optional[str] = None      # base64 image data URL
     email: Optional[EmailStr] = None
     favourites: Optional[List[str]] = None
     recentlyUsed: Optional[List[str]] = None
