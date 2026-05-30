@@ -137,12 +137,66 @@ export default function Landing() {
             <div className="text-[#E8A020] text-xs uppercase tracking-widest mb-3">Pricing</div>
             <h2 className="font-display text-5xl md:text-6xl">Simple pricing. Pay monthly.</h2>
           </div>
-          <div className="grid md:grid-cols-5 gap-4">
-            <PriceCard tier="Free" price="£0" period="forever" features={["3 tools", "5 documents per month", "Get a feel for Morris"]} cta="Start free" ctaTo="/signup" />
-            <PriceCard tier="Solo" price="£12.99" period="per month" features={["All tools", "Unlimited documents", "1 user"]} cta="Choose Solo" highlight ctaTo="/signup" />
-            <PriceCard tier="Pro" price="£24.99" period="per month" features={["Everything in Solo", "3 users", "Shared document history"]} cta="Choose Pro" ctaTo="/signup" />
-            <PriceCard tier="Business" price="£59.99" period="per month" features={["Everything in Pro", "10 users", "Multi-site management"]} cta="Choose Business" ctaTo="/signup" />
-            <PriceCard tier="Enterprise" price="£199.99" period="per month" features={["Unlimited users", "White label available", "Priority support"]} cta="Contact us" ctaTo="mailto:hello@morrisapp.co.uk?subject=Morris Enterprise" external />
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <PriceCard
+              tier="Solo"
+              price="£29.99"
+              period="per month"
+              features={[
+                "1 user",
+                "All tools",
+                "Unlimited documents",
+              ]}
+              cta="Choose Solo"
+              ctaTo="/signup"
+            />
+            <PriceCard
+              tier="Business"
+              price="£59.99"
+              period="per month"
+              features={[
+                "Up to 5 users",
+                "All tools",
+                "Unlimited documents",
+                "Team management",
+                "Everything in Solo",
+              ]}
+              cta="Choose Business"
+              ctaTo="/signup"
+            />
+            <PriceCard
+              tier="Pro"
+              price="£99.99"
+              period="per month"
+              highlight
+              features={[
+                "Up to 15 users",
+                "All tools",
+                "Unlimited documents",
+                "Team management",
+                "Role management. Admin and Member",
+                "Everything in Business",
+              ]}
+              cta="Choose Pro"
+              ctaTo="/signup"
+            />
+            <PriceCard
+              tier="Enterprise"
+              price="£249.99"
+              period="per month"
+              features={[
+                "Unlimited users",
+                "All tools",
+                "Unlimited documents",
+                "Full role management. Admin, Manager, Member",
+                "White label branding",
+                "Priority support",
+                "Everything in Pro",
+              ]}
+              cta="Contact Us"
+              ctaTo="mailto:contact@morrisapp.co.uk?subject=Morris%20Enterprise%20onboarding"
+              external
+            />
           </div>
         </div>
       </section>
