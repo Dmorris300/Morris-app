@@ -19,7 +19,7 @@ export const SECTIONS = [
   { id: "site", label: "Site Tools" },
   { id: "pricework", label: "Price Work" },
   { id: "soletrader", label: "Sole Trader" },
-  { id: "contractors", label: "Contractors" },
+  { id: "contractors", label: "Subcontractor Tools" },
   { id: "account", label: "Account" },
 ];
 
