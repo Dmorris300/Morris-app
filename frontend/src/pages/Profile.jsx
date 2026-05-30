@@ -5,7 +5,6 @@ import api from "../lib/api";
 import { TRADES } from "../lib/tools-config";
 import { toast } from "sonner";
 import { AlertTriangle, Trash2, Info, PenTool, Upload, IdCard, Share2, Download, Mail, MessageCircle, MessageSquare, Building2 } from "lucide-react";
-import { isProfileComplete } from "../App";
 import SignaturePad from "../components/SignaturePad";
 import { downloadProfilePdf } from "../lib/profilePdf";
 
@@ -13,7 +12,7 @@ export default function Profile() {
   const { user, refresh, logout } = useAuth();
   const nav = useNavigate();
   const [params] = useSearchParams();
-  const mustComplete = params.get("complete") === "1" && !isProfileComplete(user);
+  // Profile completion is no longer mandatory — `mustComplete` removed.
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteWord, setDeleteWord] = useState("");
   const [deleting, setDeleting] = useState(false);
@@ -162,35 +161,21 @@ export default function Profile() {
         <p className="text-[#A19D94] mt-2">These details appear on every document Morris generates.</p>
       </div>
 
-      {mustComplete && (
-        <div
-          className="mb-6 p-4 rounded flex items-start gap-3"
-          style={{ border: "1px solid #E8A020", background: "rgba(232,160,32,0.07)" }}
-          data-testid="profile-complete-banner"
-        >
-          <Info size={18} className="text-[#E8A020] mt-0.5 flex-shrink-0" />
-          <div>
-            <div className="text-sm font-semibold text-[#F0EDE8] mb-1">Complete your profile to unlock the tools</div>
-            <p className="text-xs text-[#A19D94] leading-relaxed">
-              Morris auto-fills your name, company, UTR, CIS status and insurance details on every document it generates. Fill the fields marked with a gold asterisk to unlock all 88+ tools.
-            </p>
-          </div>
-        </div>
-      )}
+      {/* Profile-complete banner removed — every field is optional. Save whenever you're ready. */}
 
       <form onSubmit={save} className="card-dark p-6 space-y-4">
-        <Row label="Trade *">
+        <Row label="Trade">
           <select value={f.trade} onChange={(e) => setF({ ...f, trade: e.target.value })} className="input-base" data-testid="profile-trade">
             <option value="">— Choose —</option>
             {TRADES.map(t => <option key={t}>{t}</option>)}
           </select>
         </Row>
-        <Row label="Full name *"><input className="input-base" value={f.fullName} onChange={(e) => setF({ ...f, fullName: e.target.value })} data-testid="profile-name" /></Row>
-        <Row label="Email *"><input type="email" className="input-base" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} placeholder="you@email.com" data-testid="profile-email" /></Row>
-        <Row label="Company name *"><input className="input-base" value={f.companyName} onChange={(e) => setF({ ...f, companyName: e.target.value })} data-testid="profile-company" /></Row>
-        <Row label="Address *"><textarea rows={3} className="input-base" value={f.address} onChange={(e) => setF({ ...f, address: e.target.value })} data-testid="profile-address" /></Row>
-        <Row label="Contact number *"><input className="input-base" value={f.contactNumber} onChange={(e) => setF({ ...f, contactNumber: e.target.value })} placeholder="07700 900001" data-testid="profile-contact" /></Row>
-        <Row label="UTR *"><input className="input-base" value={f.utr} onChange={(e) => setF({ ...f, utr: e.target.value })} placeholder="10-digit Unique Taxpayer Reference" data-testid="profile-utr" /></Row>
+        <Row label="Full name"><input className="input-base" value={f.fullName} onChange={(e) => setF({ ...f, fullName: e.target.value })} data-testid="profile-name" /></Row>
+        <Row label="Email"><input type="email" className="input-base" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} placeholder="you@email.com" data-testid="profile-email" /></Row>
+        <Row label="Company name"><input className="input-base" value={f.companyName} onChange={(e) => setF({ ...f, companyName: e.target.value })} data-testid="profile-company" /></Row>
+        <Row label="Address"><textarea rows={3} className="input-base" value={f.address} onChange={(e) => setF({ ...f, address: e.target.value })} data-testid="profile-address" /></Row>
+        <Row label="Contact number"><input className="input-base" value={f.contactNumber} onChange={(e) => setF({ ...f, contactNumber: e.target.value })} placeholder="07700 900001" data-testid="profile-contact" /></Row>
+        <Row label="UTR"><input className="input-base" value={f.utr} onChange={(e) => setF({ ...f, utr: e.target.value })} placeholder="10-digit Unique Taxpayer Reference" data-testid="profile-utr" /></Row>
         <Row label="VAT registered">
           <label className="flex items-center gap-3 text-sm text-[#A19D94]">
             <input type="checkbox" checked={!!f.vatRegistered} onChange={(e) => setF({ ...f, vatRegistered: e.target.checked })} data-testid="profile-vat-registered" />
@@ -200,13 +185,13 @@ export default function Profile() {
         {f.vatRegistered && (
           <Row label="VAT number"><input className="input-base" value={f.vatNumber} onChange={(e) => setF({ ...f, vatNumber: e.target.value })} data-testid="profile-vat" /></Row>
         )}
-        <Row label="CIS status *">
+        <Row label="CIS status">
           <select className="input-base" value={f.cisStatus} onChange={(e) => setF({ ...f, cisStatus: e.target.value })} data-testid="profile-cis">
             <option>Gross 0%</option><option>Net 20%</option><option>Higher 30%</option>
           </select>
         </Row>
-        <Row label="Public liability insurance expiry *"><input type="date" className="input-base" value={f.insuranceExpiry} onChange={(e) => setF({ ...f, insuranceExpiry: e.target.value })} data-testid="profile-insurance-expiry" /></Row>
-        <Row label="CSCS card expiry *"><input type="date" className="input-base" value={f.cscsExpiry} onChange={(e) => setF({ ...f, cscsExpiry: e.target.value })} data-testid="profile-cscs-expiry" /></Row>
+        <Row label="Public liability insurance expiry"><input type="date" className="input-base" value={f.insuranceExpiry} onChange={(e) => setF({ ...f, insuranceExpiry: e.target.value })} data-testid="profile-insurance-expiry" /></Row>
+        <Row label="CSCS card expiry"><input type="date" className="input-base" value={f.cscsExpiry} onChange={(e) => setF({ ...f, cscsExpiry: e.target.value })} data-testid="profile-cscs-expiry" /></Row>
 
         {/* CSCS card photo uploads */}
         <div className="pt-2 border-t border-[#1a1a1a]">

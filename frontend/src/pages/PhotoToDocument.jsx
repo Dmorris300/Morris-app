@@ -63,7 +63,6 @@ export default function PhotoToDocument() {
   };
 
   const onGenerate = async () => {
-    if (!description.trim()) { toast.error("Add or confirm the contents of the photo before generating"); return; }
     setGenerating(true); setResult(""); setRefNumber("");
     try {
       const r = await api.post("/generate", {

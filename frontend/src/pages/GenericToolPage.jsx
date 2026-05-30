@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getToolById } from "../lib/tools-config";
 import ToolHeader, { ResultActions } from "../components/ToolHeader";
@@ -17,8 +17,10 @@ const inDaysIso = (n) => {
   return d.toISOString().slice(0, 10);
 };
 
-// A field is optional only if explicitly flagged optional:true
-const isRequired = (field) => field.optional !== true;
+// Required-field gating has been removed globally: every field is optional and the
+// generate button is always clickable. Morris will simply leave unfilled sections
+// blank (or use sensible placeholders) in the generated document.
+const isRequired = (_field) => false;
 
 // Auto-default value for date-style fields. Supports field.prefill = 'today' | 'today+Nd'.
 // Also defensive matching by field.name patterns so date inputs without explicit prefill still pre-populate.
@@ -66,12 +68,8 @@ export default function GenericToolPage() {
     setMissing([]);
   }, [toolId, tool]);
 
-  const missingRequired = useMemo(() => {
-    if (!tool) return [];
-    return (tool.fields || [])
-      .filter((f) => isRequired(f) && !String(values[f.name] || "").trim())
-      .map((f) => f.label);
-  }, [tool, values]);
+  // No required-field gating — users can generate with whatever they've entered.
+  const missingRequired = [];
 
   if (!tool) {
     return <div className="p-8 text-[#A19D94]">Tool not found.</div>;
@@ -120,7 +118,7 @@ export default function GenericToolPage() {
     } finally { setGenerating(false); }
   };
 
-  const generateDisabled = generating || missingRequired.length > 0;
+  const generateDisabled = generating;
 
   return (
     <div className="p-6 md:p-10 max-w-6xl mx-auto" data-testid={`tool-page-${tool.id}`}>

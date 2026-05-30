@@ -66,12 +66,9 @@ export function isProfileComplete(user) {
 }
 
 function ProfileGate({ children }) {
-  const { user } = useAuth();
-  // Allow the Profile page itself + a few safe areas through so the user can complete it
-  const path = typeof window !== "undefined" ? window.location.pathname : "";
-  const allowList = ["/app/profile", "/app/billing", "/app/privacy", "/app/terms", "/app/complaints", "/app/refund-policy"];
-  if (allowList.some((p) => path.startsWith(p))) return children;
-  if (!isProfileComplete(user)) return <Navigate to="/app/profile?complete=1" replace />;
+  // Profile completion is no longer mandatory — the user is in full control of
+  // what they fill in and when. ProfileGate is now a passthrough so no tool
+  // ever blocks on missing profile fields.
   return children;
 }
 

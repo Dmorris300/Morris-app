@@ -39,14 +39,13 @@ export default function VerbalToVariation() {
   const stop = () => { if (recRef.current) recRef.current.stop(); setRecording(false); };
 
   const onGenerate = async () => {
-    if (!transcript.trim()) { toast.error("Record or type the instruction first"); return; }
     setGenerating(true); setResult("");
     try {
       const r = await api.post("/generate", {
         toolId: TOOL.id,
         toolName: TOOL.name,
-        promptTemplate: "Take this verbal instruction from a UK construction site and turn it into a formal Variation Letter / Confirmation of Verbal Instruction (CVI) addressed to the issuing party. Reference HGCRA 1996 and request written authorisation. Use UK construction conventions.",
-        userInputs: { verbalInstruction: transcript },
+        promptTemplate: "Take this verbal instruction from a UK construction site and turn it into a formal Variation Letter / Confirmation of Verbal Instruction (CVI) addressed to the issuing party. Reference HGCRA 1996 and request written authorisation. Use UK construction conventions. If the transcript is empty or thin, produce a clean template the user can edit and send.",
+        userInputs: { verbalInstruction: transcript || "(no transcript provided. produce a clean template)" },
         trade: user?.trade, companyName: user?.companyName, fullName: user?.fullName,
       });
       setResult(r.data.content);
@@ -82,7 +81,7 @@ export default function VerbalToVariation() {
             onChange={(e) => setTranscript(e.target.value)}
             data-testid="transcript-textarea"
           />
-          <button onClick={onGenerate} className="btn-primary w-full mt-4 flex items-center justify-center gap-2" disabled={generating || !transcript.trim()} data-testid="generate-variation-btn">
+          <button onClick={onGenerate} className="btn-primary w-full mt-4 flex items-center justify-center gap-2" disabled={generating} data-testid="generate-variation-btn">
             {generating ? <><Loader2 size={16} className="animate-spin" /> Writing…</> : <><Wand2 size={16} /> Turn into Variation Letter</>}
           </button>
         </div>
