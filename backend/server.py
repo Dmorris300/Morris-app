@@ -820,6 +820,11 @@ async def _require_team_admin(user: dict):
         raise HTTPException(403, "Only the account owner or admins can manage the team.")
 
 
+def _can_use_manager_role(plan: str) -> bool:
+    """Manager role is exclusive to Enterprise (and admin/unlimited)."""
+    return plan in ("enterprise", "unlimited")
+
+
 @api_router.post("/team/invite")
 async def team_invite(req: TeamInvite, authorization: Optional[str] = Header(None)):
     token = authorization.replace("Bearer ", "") if authorization else None
@@ -836,7 +841,7 @@ async def team_invite(req: TeamInvite, authorization: Optional[str] = Header(Non
         raise HTTPException(402, "Team invites require a Business, Pro or Enterprise plan.")
     if plan == "solo":
         raise HTTPException(402, "Solo plans are single-user. Upgrade to Business, Pro or Enterprise to invite team members.")
-    if plan == "pro" and req.role == "manager":
+    if req.role == "manager" and not _can_use_manager_role(plan):
         raise HTTPException(400, "The Manager role is only available on Enterprise plans.")
     if current >= limit:
         raise HTTPException(400, f"You have reached your plan's seat limit ({limit}). Upgrade or remove a member to invite more.")
@@ -987,9 +992,9 @@ async def team_update_role(member_id: str, update: TeamRoleUpdate, authorization
     target = await db.users.find_one({"id": member_id, "teamOwnerId": owner_id}, {"_id": 0})
     if not target:
         raise HTTPException(404, "Team member not found.")
-    # Manager role gated to Enterprise
+    # Manager role gated to Enterprise (and unlimited/admin)
     _, _, plan = await _seat_limits_for_owner(owner_id)
-    if plan != "enterprise" and update.role == "manager":
+    if update.role == "manager" and not _can_use_manager_role(plan):
         raise HTTPException(400, "The Manager role is only available on Enterprise plans.")
     await db.users.update_one({"id": member_id}, {"$set": {"teamRole": update.role}})
     return {"ok": True, "memberId": member_id, "role": update.role}

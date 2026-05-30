@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { Outlet, Link, useNavigate, useLocation } from "react-router-dom";
 import { MorrisLogo, MorrisWordmark } from "./MorrisLogo";
-import { TOOLS, WOW_TOOLS, SECTIONS, getToolsBySection, emojiFor } from "../lib/tools-config";
+import { TOOLS, WOW_TOOLS, SECTIONS, ACCOUNT_TOOLS, getToolsBySection, emojiFor } from "../lib/tools-config";
 import { useAuth } from "../lib/auth";
 import { Search, ChevronDown, ChevronRight, Star, Clock, LogOut, Menu, X, User, FileText, History as HistoryIcon, Settings as SettingsIcon, HardHat, Briefcase } from "lucide-react";
 import { TradeSwitcher } from "./TradeSwitcher";
@@ -19,11 +19,11 @@ export default function AppShell() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [tradeSwitchOpen, setTradeSwitchOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [openSections, setOpenSections] = useState({ documents: true, finance: true, site: false, pricework: false, soletrader: false, contractors: false, account: false });
+  const [openSections, setOpenSections] = useState({ documents: true, finance: true, site: false, pricework: false, soletrader: false, contractors: false, account: true });
 
   const recentlyUsed = (user?.recentlyUsed || []).slice(0, 5);
 
-  const allTools = useMemo(() => [...TOOLS, ...WOW_TOOLS], []);
+  const allTools = useMemo(() => [...TOOLS, ...WOW_TOOLS, ...ACCOUNT_TOOLS], []);
   const filtered = query.trim() ? allTools.filter(t => t.name.toLowerCase().includes(query.toLowerCase())) : null;
 
   const toggleSection = (id) => setOpenSections((s) => ({ ...s, [id]: !s[id] }));

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, X, Star, ArrowRight } from "lucide-react";
-import { TOOLS, WOW_TOOLS, emojiFor } from "../lib/tools-config";
+import { TOOLS, WOW_TOOLS, ACCOUNT_TOOLS, emojiFor } from "../lib/tools-config";
 
 // Cmd/Ctrl + K opens a global tool palette. Type to filter, ↑↓ to navigate, Enter to open.
 export default function CommandPalette() {
@@ -31,7 +31,7 @@ export default function CommandPalette() {
     }
   }, [open]);
 
-  const all = useMemo(() => [...TOOLS, ...WOW_TOOLS, ...EXTRA_ROUTES], []);
+  const all = useMemo(() => [...TOOLS, ...WOW_TOOLS, ...ACCOUNT_TOOLS, ...EXTRA_ROUTES], []);
   const filtered = useMemo(() => {
     if (!q.trim()) return all.slice(0, 24);
     const t = q.toLowerCase();

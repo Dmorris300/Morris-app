@@ -692,21 +692,21 @@ export function requiresReview(toolId) {
   return REVIEW_REQUIRED_TOOLS.has(toolId);
 }
 
+export const ACCOUNT_TOOLS = [
+  { id: "favourites", name: "Favourites", section: "account", route: "/app/favourites", info: "Your starred tools, one click away." },
+  { id: "history", name: "Document History", section: "account", route: "/app/history", info: "Every document you've generated, saved and ready to re-download." },
+  { id: "billing", name: "Plan & Billing", section: "account", route: "/app/billing", info: "Your current plan, usage and upgrades." },
+  { id: "team", name: "Team Management", section: "account", route: "/app/team", info: "Invite your crew, assign roles, see who's active." },
+  { id: "profile", name: "My Profile", section: "account", route: "/app/profile", info: "Your company details. Used to personalise every document Morris generates." },
+  { id: "privacy", name: "Privacy Policy", section: "account", route: "/app/privacy", info: "How Morris handles your data." },
+  { id: "terms", name: "Terms and Conditions", section: "account", route: "/app/terms", info: "The legal terms of using Morris." },
+  { id: "complaints", name: "Complaints", section: "account", route: "/app/complaints", info: "How to raise a complaint with Morris." },
+  { id: "refund", name: "Refund Policy", section: "account", route: "/app/refund-policy", info: "Refund terms for Morris subscriptions." },
+  { id: "offline-mode", name: "Offline Mode", section: "account", route: "/app/offline-mode", info: "Generate documents offline. Synced when you're back in signal." },
+];
+
 export function getToolsBySection(sectionId) {
-  if (sectionId === "account") {
-    return [
-      { id: "favourites", name: "Favourites", section: "account", route: "/app/favourites", info: "Your starred tools, one click away." },
-      { id: "history", name: "Document History", section: "account", route: "/app/history", info: "Every document you've generated, saved and ready to re-download." },
-      { id: "billing", name: "Plan & Billing", section: "account", route: "/app/billing", info: "Your current plan, usage and upgrades." },
-      { id: "team", name: "Team Management", section: "account", route: "/app/team", info: "Invite your crew, assign roles, see who's active." },
-      { id: "profile", name: "My Profile", section: "account", route: "/app/profile", info: "Your company details. Used to personalise every document Morris generates." },
-      { id: "privacy", name: "Privacy Policy", section: "account", route: "/app/privacy", info: "How Morris handles your data." },
-      { id: "terms", name: "Terms and Conditions", section: "account", route: "/app/terms", info: "The legal terms of using Morris." },
-      { id: "complaints", name: "Complaints", section: "account", route: "/app/complaints", info: "How to raise a complaint with Morris." },
-      { id: "refund", name: "Refund Policy", section: "account", route: "/app/refund-policy", info: "Refund terms for Morris subscriptions." },
-      { id: "offline-mode", name: "Offline Mode", section: "account", route: "/app/offline-mode", info: "Generate documents offline. Synced when you're back in signal." },
-    ];
-  }
+  if (sectionId === "account") return ACCOUNT_TOOLS;
   const docTools = TOOLS.filter(x => x.section === sectionId);
   const wowInSection = WOW_TOOLS.filter(x => x.section === sectionId);
   return [...docTools, ...wowInSection];

@@ -146,7 +146,27 @@ Dark-themed construction administration SaaS for UK tradespeople and sole trader
 - **P2**: Annual billing option (20% discount)
 - **P3**: PWA + offline mode (IndexedDB queue) — Offline page + localStorage queue shipped; PWA service worker still pending
 
-## Iteration 12 (Feb 2026 — Global sign-off blocks on every document)
+## Iteration 13 (Feb 2026 — New subscription tiers + team management + white-label)
+- **Pricing tiers updated**: Solo £29.99 (1 seat), Business £59.99 (5 seats), Pro £99.99 (15 seats), Enterprise £249.99 (unlimited + white-label + contact-only). Plan card order on Billing page is now Solo → Business → Pro → Enterprise.
+- **Enterprise contact-only**: `POST /api/billing/checkout planId='enterprise'` is blocked server-side with the message "Enterprise plans are contact-only. Email contact@morrisapp.co.uk and we will onboard you within 24 hours." Frontend Billing card shows a "Contact us to set up" button that triggers a toast and a `mailto:contact@morrisapp.co.uk` deep-link.
+- **Team Management** (`/app/team`, sidebar Account section, default-open):
+  - Owners and Admins can invite by email, assign Member / Admin / Manager (Enterprise only) roles, and remove members.
+  - Invite emails sent via Resend with a `/accept-invite?token=…` deep-link (14-day expiry).
+  - `lastActiveAt` field is bumped on every authed call (`get_user`) so the team dashboard shows live activity (just-now / X min ago / X hr ago).
+  - Solo / Free / Trial users see an upgrade CTA instead of the team dashboard.
+  - Pending invites can be cancelled by owners/admins.
+- **Role logic** (consistent across `invite` and `update_role` via shared `_can_use_manager_role(plan)` helper):
+  - Owner — pays the bill, full access.
+  - Admin — invite + remove + role changes, full tool access. (Pro & Enterprise.)
+  - Manager — view + edit team documents, full tool access. (Enterprise only.)
+  - Member — create + download own docs. Default for all invites.
+- **Team-member plan inheritance**: `check_can_generate` now looks up the team owner and grants the owner's plan benefits to all team members — so an invitee on a Business team gets full tool access automatically.
+- **White-label PDF branding (Enterprise/admin)**: Profile page exposes a logo uploader (gated to Enterprise plan; non-Enterprise see a locked message). Uploaded logos are auto-compressed to 600px-wide PNG. `pdf.js` swaps the MORRIS wordmark in the header for the uploaded logo, uses the user's company name in the top-right, and replaces the footer with `{Company name}  •  Document prepared by {Author}` (no Morris branding).
+- **AcceptInvite page** (`/accept-invite?token=…`): public route — invitees pick a username and password (no OTP needed), are auto-logged-in, redirected to `/select-trade` then `/app`.
+- **Sidebar search fix**: extracted account-section tools to a reusable `ACCOUNT_TOOLS` export — they now show up in the sidebar text search AND the global ⌘K palette (Team, Billing, Profile, Document History etc. all searchable).
+- **Tested**: Iteration 8 test report — 8/8 backend pytest pass, 100% on stated frontend acceptance criteria. Manager-role gating consistency fix re-tested end-to-end after the report.
+
+
 - **Profile**: Added `signature` (base64 PNG data URL) and `signatureRole` fields. New `SignaturePad.jsx` canvas component on the Profile page — user draws their signature once with finger/mouse/stylus, saved to MongoDB on profile save. Cleared via an Eraser button. Saved signatures load back into the canvas on next visit.
 - **Backend (server.py)**: Added `SINGLE_SIGNOFF_TOOLS` (32 tools) and `DUAL_SIGNOFF_TOOLS` (26 tools) classification sets, and a `_signoff_instructions(tool_id, profile, has_signature)` helper that builds the mandatory sign-off block instructions injected into the Claude system prompt for EVERY `/api/generate` call. This is a single global setting — never per-tool.
   - SINGLE block: Contractor only (Name + Role + Company + Date/time + Signature line).
@@ -154,6 +174,11 @@ Dark-themed construction administration SaaS for UK tradespeople and sole trader
   - Signature line varies: if a signature is on file → "Signature: (signed electronically. saved signature on file)"; else → "Signature: Add your signature in profile settings to complete this document."
 - **PDF (pdf.js)**: When rendering the body, detects any `Signature:` line and stamps the user's saved signature PNG (130×46pt with a transparent background) directly to the right of the label — so the downloaded PDF carries the real signature image.
 - **Tested end-to-end** via curl: site-diary → SINGLE block at the foot, variation-letter → DUAL block at the foot. The "saved electronically" / "add your signature in profile settings" copy switches correctly based on profile state.
+
+## Iteration 12 (Feb 2026 — Global sign-off blocks + CSCS upload + Share My Profile)
+- **Global sign-off blocks** (covered above in Iteration 12 details).
+- **CSCS card photo upload**: `cscsCardFront`/`cscsCardBack` fields on profile; auto-resized to 1100px JPEG@82% to keep payload small.
+- **Share My Profile**: `/lib/profilePdf.js` generates a one-page branded Trade Profile PDF (contact, CIS, insurance, CSCS expiries, both CSCS card photos, signature). Buttons on profile page: Download / Email / WhatsApp / SMS. When photos are missing, shows the "Add your CSCS card photos in profile settings…" guidance.
 
 ## Iteration 11 (Feb 2026 — Prompts 2 / 3 / 4 / 5 / 6 / 7 / 8 / 9 batch)
 - **Prompt 8 (Admin notifications via Resend)**: New `send_admin_signup`, `send_admin_payment_success`, `send_admin_payment_failed`, `send_admin_churn` helpers in `email_helper.py` (all routed to `ADMIN_NOTIFICATION_EMAIL=hello@morrisapp.co.uk`). Wired into signup, mock-complete, status/{session_id}, and the Stripe webhook. Webhook now parses raw event types and handles `checkout.session.completed`, `invoice.payment_failed`, and `customer.subscription.deleted` for full churn / failed-payment / signup admin alerting. Resend send falls back to mock logging if `RESEND_API_KEY` is empty (which it currently is — confirmed end-to-end mocked).
