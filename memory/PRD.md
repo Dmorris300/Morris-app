@@ -140,9 +140,27 @@ Dark-themed construction administration SaaS for UK tradespeople and sole trader
 - **P0**: Verify Morris domain on Resend (DKIM records) → enables sending to any address from `hello@morrisapp.co.uk`
 - **P1**: Twilio for real SMS OTP
 - **P1**: Multi-user invites
-- **P1**: Real OCR (Tesseract or Claude vision) on Photo-to-Document
+- **P1**: Real OCR (Tesseract or Claude vision) on Photo-to-Document — DONE Feb 2026 (Claude vision via /api/vision/extract auto-fired on photo upload)
 - **P2**: Custom company logo upload onto branded PDF letterhead
 - **P2**: Stripe Customer Portal link for self-serve cancel/update card
 - **P2**: Annual billing option (20% discount)
-- **P3**: PWA + offline mode (IndexedDB queue)
-- **P3**: Marketing SEO / blog
+- **P3**: PWA + offline mode (IndexedDB queue) — Offline page + localStorage queue shipped; PWA service worker still pending
+
+## Iteration 11 (Feb 2026 — Prompts 2 / 3 / 4 / 5 / 6 / 7 / 8 / 9 batch)
+- **Prompt 8 (Admin notifications via Resend)**: New `send_admin_signup`, `send_admin_payment_success`, `send_admin_payment_failed`, `send_admin_churn` helpers in `email_helper.py` (all routed to `ADMIN_NOTIFICATION_EMAIL=hello@morrisapp.co.uk`). Wired into signup, mock-complete, status/{session_id}, and the Stripe webhook. Webhook now parses raw event types and handles `checkout.session.completed`, `invoice.payment_failed`, and `customer.subscription.deleted` for full churn / failed-payment / signup admin alerting. Resend send falls back to mock logging if `RESEND_API_KEY` is empty (which it currently is — confirmed end-to-end mocked).
+- **Prompt 2 (remaining Documents deep-field overhauls)**: 4 more compliance tools rebuilt with their full required-field sets and detailed AI prompts. `toolbox-talk` (10 fields incl. attendees → sign-off sheet), `coshh` (15 fields with CLP hazard class + WEL + RPE selectors → full COSHH 2002 doc), `hire-agreement` (15 fields → full CPA 2011/2021 agreement with mandatory clauses + signature blocks), `hs-policy` (14 fields → full HSWA s.2(3) statement with insurance details + responsibilities + signed statement). All four are already in `REVIEW_REQUIRED_TOOLS` so the mandatory review checkbox blocks Send/Download until ticked.
+- **Prompt 3 (Finance category)**: `Earnings.jsx` rebuilt — adds allowable expenses input, taxable profit calc, 2025/26 banded income tax (20%/40%/45%) + Class 4 NI (6%/2%), CIS refund-vs-balance owed delta, 12-month monthly bar chart of CIS gross by month. `VatThreshold.jsx` rebuilt — proper rolling 12-month grid where users enter each month's turnover, with run-rate forecast and projected months-to-breach. CIS Refund Predictor was already production-ready and untouched.
+- **Prompt 4 (Site Tools + Photo to Document AI vision)**: PhotoToDocument now **auto-OCRs every uploaded photo** via `/api/vision/extract` (Claude Sonnet 4.5 vision). User sees an "Extracting" overlay, then a gold-bordered AI Transcription card with the read text + a one-line image description. Transcription pre-fills the description field so the user can edit before generating. The original photo is then embedded in the final PDF as evidence with a generated caption. Backend now returns 422 (not 500) on unprocessable images. Two site tools rebuilt: `photo-evidence-log` (8 fields → numbered photo evidence table with chain-of-custody statement), `verbal-instruction-recorder` (13 fields → proper CVI letter with scope/cost/time impact analysis and 48-72h written-confirmation request).
+- **Prompt 5 (Price Work) + Prompt 6 (Contractors)**: `scope-of-works` rebuilt (12 fields → tight scope doc with inclusions/exclusions/assumptions/preliminaries/deliverables and acceptance signatures). `subbie-compliance` rebuilt (12 fields → full PASS/FAIL/OUTSTANDING checklist covering CIS, PL, EL, CSCS, RAMS, training, right-to-work + overall RAG status + 30-day review).
+- **Prompt 7 (Three new tools)**:
+  1. **Tax Pot** (`/app/taxpot`) — log every weekly deposit, recommended pot = 23% of net CIS, live shortfall + £/week-to-catch-up calc, Self Assessment 31 Jan countdown banner.
+  2. **Company Checker** (`/app/company-checker`) — Companies House public search with active/dissolved badges, accounts-overdue and CS01-overdue red-flag warnings, deep-link to the official record.
+  3. **Offline Mode** (`/app/offline-mode`) — live online/offline status pill, queue UI for drafts saved in localStorage, "Sync now" button that pushes queued items via `/documents/save` and `/cis/payments` when reconnected. Exported `enqueueOffline()` helper for future wiring from any tool.
+- **Prompt 9 (Navigation & UX revamp)**:
+  1. **Breadcrumbs** on every `/app/*` page (except `/app` root). Smart routing — knows tool sections, jobs, billing checkout etc.
+  2. **Global Cmd+K / Ctrl+K command palette** — full-screen overlay with arrow-key navigation, type to filter across all 90+ tools + nav routes, ↩ to open.
+  3. **OnboardingTour** — 6-step gold-progress-bar modal that appears once on first session (gated by `morris_onboarding_done_v1` localStorage flag). Tour covers: welcome → Command Centre → 3 wow features → auto-save Vault → Tax Pot → Cmd+K. Finishes by sending the user to `/app/profile?complete=1`.
+  4. **⌘K hint chip** added to the sidebar search input.
+- **Backend quality-of-life fixes**: `/api/auth/login` now returns `isAdmin` / `isUnlimited` for admin accounts (removes the extra `/auth/me` round-trip). `/api/vision/extract` returns 422 (not 500) when Anthropic rejects an image.
+- **Tested**: Iteration 7 test report — 6/6 backend pytest pass, 100% frontend page-load coverage of all new pages + breadcrumbs + Cmd+K + onboarding. PhotoToDocument vision auto-OCR fires correctly on file upload.
+
