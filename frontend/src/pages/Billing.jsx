@@ -31,11 +31,11 @@ const PLAN_META = {
   },
   pro: {
     name: "Pro", price: "£99.99", period: "per month",
-    desc: "Scaling crews. Roles. 15 users.",
+    desc: "Scaling crews. Roles. 10 users.",
     icon: Sparkles,
     highlight: true,
     features: [
-      "Up to 14 team invites (15 users total)",
+      "Up to 9 team invites (10 users total)",
       "Assign Admin or Member roles",
       "Admins can invite and remove members",
       "Team dashboard with roles + last-active",

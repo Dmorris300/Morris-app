@@ -170,7 +170,7 @@ export default function Landing() {
               period="per month"
               highlight
               features={[
-                "Up to 15 users",
+                "Up to 10 users",
                 "All tools",
                 "Unlimited documents",
                 "Team management",

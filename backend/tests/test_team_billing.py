@@ -41,7 +41,7 @@ class TestBillingPlans:
         assert plans["enterprise"]["price"] == 249.99
         assert plans["solo"]["seats"] == 1
         assert plans["business"]["seats"] == 5
-        assert plans["pro"]["seats"] == 15
+        assert plans["pro"]["seats"] == 10
         assert plans["enterprise"]["seats"] == 9999
         assert plans["enterprise"].get("contactOnly") is True
         assert body["seatLimits"]["solo"] == 1

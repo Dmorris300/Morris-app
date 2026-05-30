@@ -42,7 +42,7 @@ STRIPE_LIVE = (STRIPE_API_KEY.startswith("sk_test_") and STRIPE_API_KEY != "sk_t
 PLANS = {
     "solo":       {"name": "Solo",       "price": 29.99,  "currency": "gbp", "stripePriceId": _cfg("STRIPE_PRICE_SOLO", ""),       "seats": 1},
     "business":   {"name": "Business",   "price": 59.99,  "currency": "gbp", "stripePriceId": _cfg("STRIPE_PRICE_BUSINESS", ""),   "seats": 5},
-    "pro":        {"name": "Pro",        "price": 99.99,  "currency": "gbp", "stripePriceId": _cfg("STRIPE_PRICE_PRO", ""),        "seats": 15},
+    "pro":        {"name": "Pro",        "price": 99.99,  "currency": "gbp", "stripePriceId": _cfg("STRIPE_PRICE_PRO", ""),        "seats": 10},
     "enterprise": {"name": "Enterprise", "price": 249.99, "currency": "gbp", "stripePriceId": _cfg("STRIPE_PRICE_ENTERPRISE", ""), "seats": 9999, "whiteLabel": True, "contactOnly": True},
 }
 
