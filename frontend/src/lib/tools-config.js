@@ -34,6 +34,8 @@ const sel = (name, label, options, opts = {}) => ({ name, label, type: "select",
 // Field that auto-prefills from a value generator (handled in GenericToolPage)
 // prefill: 'today' | 'today+30d' | 'profile:field' — populated on tool mount
 const fp = (name, label, prefill, type = "text") => ({ name, label, type, prefill });
+// Optional prefill variant — won't trigger required validation
+const fpo = (name, label, prefill, type = "text") => ({ name, label, type, prefill, optional: true });
 
 // Helper for tool definition (now supports optional 5th arg: compute function for derived totals)
 const t = (id, name, section, info, fields, promptTemplate, extras = {}) => ({
@@ -42,26 +44,43 @@ const t = (id, name, section, info, fields, promptTemplate, extras = {}) => ({
 
 export const TOOLS = [
   // ---------- DOCUMENTS ----------
-  t("variation-letter", "Variation Letter", "documents",
-    "A formal letter notifying a client or main contractor of variation works on site. Covers scope, cost and time impact. Crucial for getting paid for changes outside your original scope.",
+  t("variation-letter", "Variation Order", "documents",
+    "A formal Variation Order notifying a client or main contractor of changes to the original scope. Covers scope, cost and time impact. Crucial for getting paid for changes outside your original scope.",
     [
       f("project", "Project / Site"),
       f("client", "To (Client / Main Contractor)"),
       f("contractRef", "Original contract reference number"),
       fp("contractDate", "Date of original contract", "today", "date"),
-      f("instructorName", "Name of person who gave the verbal instruction"),
+      sel("raisedBy", "Raised by", ["Contractor", "Client", "Architect", "Engineer", "Project Manager"]),
+      f("instructorName", "Name of person who gave the instruction"),
       sel("instructorRole", "Their role", ["Site Manager", "Project Manager", "Client", "Engineer", "Foreman", "Other"]),
       fp("instructionDate", "Date and time instruction was given", "today", "datetime-local"),
       f("instructionLocation", "Location on site where instruction was given"),
+      sel("reasonForVariation", "Reason for variation", ["Client Request", "Unforeseen Site Condition", "Design Error", "Scope Change", "Material Substitution", "Other"]),
+      tao("referenceDocuments", "Reference documents (drawings, RFIs, emails — one per line)"),
       ta("originalScope", "Description of original agreed scope"),
       ta("variation", "Description of what the variation adds or changes"),
-      f("labourCost", "Labour cost breakdown (£)", "number"),
-      f("materialsCost", "Materials cost breakdown (£)", "number"),
+      f("labourCost", "Labour cost (£)", "number"),
+      f("materialsCost", "Materials cost (£)", "number"),
+      fo("plantEquipmentCost", "Plant and equipment cost (£)", "number"),
+      fo("prelimsOverheads", "Preliminaries and overheads (£)", "number"),
       f("timeImpact", "Time impact (additional days required)", "number"),
-      sel("instructionMethod", "Method of original instruction", ["Verbal", "Email", "WhatsApp", "Text message", "Other"]),
+      fpo("newPCDate", "New Practical Completion date", "today", "date"),
+      sel("instructionMethod", "Method of original instruction", ["Verbal", "Email", "WhatsApp", "Text message", "Written", "Other"]),
       fo("clauseRef", "Reference to original contract clause being varied"),
     ],
-    "Write a formal UK Variation Letter from the trade to the client/main contractor. Reference the Housing Grants, Construction and Regeneration Act 1996 in the footer. Include sections for the original contract reference and date, the instructor's name and role, when and where the instruction was given, the original scope vs variation scope, an itemised cost breakdown (labour + materials with the auto-calculated total), the time impact in days, the method by which the original instruction was given, and the contract clause being varied. End with two signature blocks: an 'ISSUED BY' block using the user's profile (full name, company, today's date) and a 'CLIENT ACCEPTANCE' block with printed name, company, signature line and date. Close with: 'To confirm acceptance of this variation please sign and return a copy or reply in writing.'"
+    `Write a formal UK Variation Order from the trade to the client/main contractor. Use VO-NNN format for the variation number (taken from the provided document reference). Reference the Housing Grants, Construction and Regeneration Act 1996 in the footer. Format:
+1. HEADER — VARIATION ORDER {ref}, today's date, project/site, raised by (use the value supplied), to (client/main contractor), original contract reference and date.
+2. INSTRUCTION DETAILS — instructor name + role, date/time, location, method.
+3. REASON FOR VARIATION — use the value supplied (Client Request / Unforeseen Site Condition / Design Error / Scope Change / Material Substitution / Other).
+4. REFERENCE DOCUMENTS — list every supplied document reference (drawing numbers, RFIs, email refs) as a numbered list. If none, state 'None'.
+5. ORIGINAL SCOPE — use the value supplied.
+6. VARIED SCOPE — use the value supplied.
+7. COST BREAKDOWN — produce a table with rows for: Labour, Materials, Plant and Equipment (if supplied), Preliminaries and Overheads (if supplied). Auto-calculate and clearly state TOTAL VARIATION COST = sum of all rows. Show in £ to two decimals.
+8. TIME IMPACT — additional days, new Practical Completion date (use the picker value if supplied).
+9. CONTRACT CLAUSE — reference clause if supplied.
+10. AUTHORISATION REQUEST — request a written instruction or counter-signature within 7 days. Reference HGCRA 1996.
+Close with: 'To confirm acceptance of this variation please sign and return a copy or reply in writing.'`
   ),
   t("rams", "RAMS", "documents",
     "Risk Assessment and Method Statement. a legal requirement on most UK sites under HSE / CDM 2015. Identifies hazards, controls and a safe method of work.",
@@ -71,29 +90,34 @@ export const TOOLS = [
       ta("siteAddress", "Full site address (including postcode)"),
       f("task", "Task / activity"),
       f("operativesCount", "Number of operatives", "number"),
+      f("supervisorName", "Supervisor / Competent Person name"),
+      fo("documentRevision", "Document revision number", "text"),
       f("firstAiderName", "First Aider name on site"),
       f("assemblyPoint", "Assembly point location"),
+      ta("emergencyContacts", "Emergency contact numbers (one per line, e.g. Site Manager, First Aider, A&E)"),
       ta("plantEquipment", "Plant and equipment being used"),
       tao("hazardousSubstances", "Any hazardous substances in use (leave blank if none)"),
       sel("workAtHeight", "Work at height", ["No", "Yes"]),
       f("estimatedDuration", "Estimated duration of works"),
-      ta("hazards", "Known hazards (additional to the standard set above)"),
+      ta("hazards", "Known hazards (one per line — Morris will produce a risk-rated row for each)"),
+      sel("overallRiskRating", "Overall risk rating for this task", ["Low", "Medium", "High"]),
+      ta("sequenceOfOperations", "Sequence of operations (step by step method statement)"),
       ta("ppe", "PPE required"),
     ],
     `Produce a full UK RAMS (Risk Assessment and Method Statement) document. Use the user's profile for company name, address, contact and trade (auto-populated). Include all of the following sections, each clearly labelled:
-1. DOCUMENT CONTROL — document reference (use the supplied reference), version number (Version 1, increments each reissue), issue date (today), review date (today + 12 months), prepared by (full name from profile), client name, principal contractor name, full site address.
-2. SCOPE OF WORKS — task, estimated duration, number of operatives, work at height yes/no.
+1. DOCUMENT CONTROL — document reference (use the supplied reference), document revision number (use the value supplied, or default to 'Rev 1' if blank), issue date (today), review date (today + 12 months), prepared by (full name from profile), supervisor / competent person (use the value supplied), client name, principal contractor name, full site address.
+2. SCOPE OF WORKS — task, estimated duration, number of operatives, work at height yes/no, overall risk rating (use the value supplied).
 3. LEGISLATION — explicitly cite ALL of: Management of Health and Safety at Work Regulations 1999; Manual Handling Operations Regulations 1992; COSHH Regulations 2002; PUWER 1998; Personal Protective Equipment at Work Regulations 1992; Work at Height Regulations 2005; Control of Noise at Work Regulations 2005; CDM 2015.
 4. PERSONS AT RISK.
-5. HAZARD AND RISK MATRIX — for each identified hazard show Likelihood (1-5), Severity (1-5), Risk Score (LxS), Control Measures, Residual Score.
+5. HAZARD AND RISK MATRIX — for EACH hazard supplied produce a row with columns: Hazard / Likelihood (1-5) / Severity (1-5) / Risk Score (LxS) / Risk Rating (Low/Medium/High) / Control Measures / Residual Score / Residual Rating. Use the overall risk rating supplied as guidance for the inherent rating before controls.
 6. CONTROL MEASURES AND PPE — list the PPE required.
-7. STEP-BY-STEP SAFE METHOD OF WORK.
+7. SEQUENCE OF OPERATIONS — produce the supplied step-by-step method statement as a numbered list. Each step on its own line. If the user did not supply one, leave a placeholder line stating 'To be completed by supervisor before works commence.'
 8. PLANT AND EQUIPMENT — list every item to be used. State: 'All plant and equipment listed above has been inspected and is in date.'
 9. COSHH — list any hazardous substances in use and state: 'COSHH assessments are available on request.' If none, write 'No hazardous substances in use on this task.'
 10. WORK AT HEIGHT — if yes, summarise rescue plan, harness inspection regime and reference to a separate Working at Height Rescue Plan document. If no, write 'No work at height activities on this task.'
 11. WELFARE ARRANGEMENTS — toilets, washing facilities, rest area, drinking water location on site.
 12. ENVIRONMENTAL CONSIDERATIONS — waste disposal method, dust and noise impact, working hours, spill management.
-13. EMERGENCY PROCEDURES — first aider name on site, assembly point location, nearest A&E, 999 contact.
+13. EMERGENCY PROCEDURES — first aider name on site, assembly point location, nearest A&E, 999 contact. Also list every emergency contact number supplied by the user in a clean two-column table (Role / Number).
 14. BRIEFING AND SIGN-OFF — table for each operative to print name, sign and date confirming they have been briefed on this RAMS.
 Close with a 'PREPARED BY' block (full name from profile, company, signature line, today's date) and a 'REVIEWED BY' block.
 Use only UK English. Do not use placeholder text. Use today's date and the auto-populated profile values throughout.`
@@ -110,15 +134,34 @@ Use only UK English. Do not use placeholder text. Use today's date and the auto-
       f("operativeCount", "Number of operatives on site", "number"),
       fo("visitors", "Visitors to site that day"),
       tao("plant", "Plant and equipment on site that day"),
+      tao("subcontractorsOnSite", "Subcontractors on site today (company name, trade, number of operatives)"),
+      tao("materialsDelivered", "Materials delivered today (item, supplier, quantity)"),
       ta("works", "Work completed today (specific description)"),
       ta("worksTomorrow", "Work planned for tomorrow"),
       sel("delaysToggle", "Delays experienced", ["No", "Yes"]),
       tao("delaysReason", "If yes, reason for delays"),
       tao("instructions", "Instructions received today (from whom and what)"),
       tao("issues", "Issues or problems encountered"),
+      sel("hsObservations", "Health and Safety observations to record?", ["No", "Yes"]),
+      tao("hsObservationsDetail", "If Yes, describe the H&S observations (near misses, incidents, hazards spotted)"),
       sel("photosAttached", "Photos attached", ["No", "Yes"]),
     ],
-    "Produce a professional UK site diary entry. Show all sub-sections in order: DATE, SITE, WEATHER (Temperature / Wind / Rain), SITE MANAGER, OPERATIVES ON SITE, VISITORS, PLANT AND EQUIPMENT, WORKS COMPLETED, WORKS PLANNED TOMORROW, DELAYS, INSTRUCTIONS RECEIVED, ISSUES, PHOTOS ATTACHED. End with a COMPLETED BY block auto-populated from the user profile (full name, company, signature line, today's date)."
+    `Produce a professional UK site diary entry. Format as follows:
+1. OPENING STATEMENT — at the very top of the document, in bold capitals on its own line, print: 'THIS IS AN OFFICIAL SITE RECORD AND MAY BE USED IN THE EVENT OF A CONTRACTUAL DISPUTE.'
+2. HEADER — DATE, SITE.
+3. WEATHER — Temperature, Wind, Rain.
+4. SITE TEAM — SITE MANAGER, OPERATIVES ON SITE, VISITORS.
+5. SUBCONTRACTORS ON SITE TODAY — if supplied, list each one; otherwise state 'None'.
+6. PLANT AND EQUIPMENT.
+7. MATERIALS DELIVERED TODAY — if supplied, list each delivery on its own line; otherwise state 'None'.
+8. WORKS COMPLETED.
+9. WORKS PLANNED TOMORROW.
+10. DELAYS — if yes, include the supplied reason; otherwise state 'No delays today'.
+11. INSTRUCTIONS RECEIVED.
+12. ISSUES.
+13. HEALTH AND SAFETY OBSERVATIONS — if yes, include the supplied detail in full. If no, state 'No H&S incidents, near misses or observations to record.'
+14. PHOTOS ATTACHED.
+End with a COMPLETED BY block auto-populated from the user profile (full name, company, signature line, today's date).`
   ),
   t("quote-builder", "Quote Builder", "documents",
     "A professional written quote / estimate covering labour, materials and timescales. Sets clear payment terms to avoid disputes.",
@@ -126,9 +169,15 @@ Use only UK English. Do not use placeholder text. Use today's date and the auto-
       f("client", "Client full name and address"),
       fp("validUntil", "Quote valid until", "today+30d", "date"),
       sel("paymentTerms", "Payment terms", ["30 days", "14 days", "On completion", "50% deposit, 50% on completion"]),
-      ta("labourBreakdown", "Labour breakdown — description, hours and rate per item"),
-      ta("materialsBreakdown", "Materials breakdown — itemised list with individual costs"),
+      ta("labourBreakdown", "Labour breakdown — one item per line: description, hours, rate"),
+      sel("labourVatRate", "VAT rate applied to labour", ["Standard Rate 20%", "Reduced Rate 5%", "Zero Rated 0%"]),
+      ta("materialsBreakdown", "Materials breakdown — one item per line: description, quantity, cost"),
+      sel("materialsVatRate", "VAT rate applied to materials", ["Standard Rate 20%", "Reduced Rate 5%", "Zero Rated 0%"]),
       tao("preliminaries", "Preliminaries (travel, parking, waste disposal)"),
+      sel("prelimsVatRate", "VAT rate applied to preliminaries", ["Standard Rate 20%", "Reduced Rate 5%", "Zero Rated 0%"]),
+      tao("provisionalSums", "Provisional Sums — items priced provisionally and subject to adjustment"),
+      tao("paymentSchedule", "Payment schedule (e.g. 25% on order, 50% on first fix, 25% on completion)"),
+      sel("depositRequirement", "Deposit requirement", ["No deposit required", "25%", "33%", "50%"]),
       f("subtotalLabour", "Subtotal labour (£)", "number"),
       f("subtotalMaterials", "Subtotal materials (£)", "number"),
       fo("subtotalPrelims", "Subtotal preliminaries (£)", "number"),
@@ -136,7 +185,22 @@ Use only UK English. Do not use placeholder text. Use today's date and the auto-
       tao("exclusions", "Exclusions — what is not included"),
       tao("assumptions", "Assumptions the quote is based on"),
     ],
-    "Produce a professional UK trade Quote. Use the user's profile for company name, address, contact number, email and UTR (auto-populated). Show: client details, quote reference (use the provided document reference), today's date, valid until date, payment terms, itemised labour breakdown, itemised materials breakdown, preliminaries, subtotals, total quote value, VAT line ONLY if the profile shows VAT registered (then show VAT amount and total including VAT), CIS applicability, exclusions, assumptions. End with a PREPARED BY block auto-populated from the user profile (full name, company, today's date) and a CLIENT ACCEPTANCE block (client full name printed, company, signature line, date). Close with: 'Client signature confirms acceptance of this quote and authorises the works described to proceed on the terms and exclusions stated.'"
+    `Produce a professional UK trade Quote. Use the user's profile for company name, address, contact number, email and UTR (auto-populated). Format the document as follows:
+1. HEADER — Quote reference (use the provided document reference, format QB-YYYY-NNN). Today's date. Valid until date.
+2. CLIENT DETAILS — full name and address supplied.
+3. ITEMISED BREAKDOWN — produce a table with these columns: Item / Description / Qty or hours / Rate / Net / VAT rate / VAT £ / Line total inc VAT. Use the supplied labour, materials and preliminaries breakdown. For EACH line item apply the VAT rate the user selected for that section (Labour, Materials, Preliminaries) — Standard Rate 20%, Reduced Rate 5% or Zero Rated 0%.
+4. VAT BREAKDOWN SUMMARY — show a small summary table at the bottom of the items with columns: Rate / Net subtotal / VAT amount, with rows for each rate applied (20%, 5%, 0%).
+5. PROVISIONAL SUMS — if any were supplied, list them clearly under a 'Provisional Sums' heading and state: 'These items are priced provisionally and are subject to a variation upon final selection or measurement.' If none, omit this section.
+6. GRAND TOTAL — auto-calculate and clearly state: Subtotal (sum of all line nets), Total VAT (sum of all VAT amounts across rates), GRAND TOTAL (Subtotal + Total VAT). All values shown in £ to two decimal places.
+7. DEPOSIT — if a deposit percentage was selected, calculate and display: 'Deposit required: {percentage} of GRAND TOTAL = £{amount}. Balance of £{remainder} due as per payment schedule.' If 'No deposit required', omit.
+8. PAYMENT SCHEDULE — produce the supplied payment schedule as a numbered list under a 'Payment Schedule' heading. If blank, state 'Payment terms: {paymentTerms}'.
+9. EXCLUSIONS — bullet the supplied exclusions.
+10. ASSUMPTIONS — bullet the supplied assumptions.
+11. VARIATIONS CLAUSE — always append the following statement: 'Any variations to the scope of works set out above will be priced and agreed in writing before being carried out. The client is responsible for paying for any agreed variations in addition to the quoted price.'
+12. ACCESS CLAUSE — always append: 'The client is responsible for providing safe and reasonable access to the working area, including parking where applicable, power and welfare facilities. Any delay caused by lack of access may incur additional charges.'
+13. TERMS OF ACCEPTANCE — always append: 'Acceptance of this quote constitutes a binding agreement between the parties on the terms, exclusions and assumptions stated. This quote is valid until the date shown above. After this date the quote may be subject to a revision.'
+14. CIS — if applicable, state 'CIS deductions will be made from the labour element of the final invoice as per HMRC rules.'
+End with a PREPARED BY block auto-populated from the user profile (full name, company, today's date) and a CLIENT ACCEPTANCE block (client full name printed, company, signature line, date).`
   ),
   t("cis-invoice", "CIS Invoice", "documents",
     "An invoice formatted correctly for the Construction Industry Scheme. showing gross labour, materials, and 20% (or 30%) CIS deduction.",
@@ -146,26 +210,76 @@ Use only UK English. Do not use placeholder text. Use today's date and the auto-
       f("clientName", "Client full legal name"),
       ta("clientAddress", "Client address"),
       ta("worksDescription", "Description of works (specific, not generic)"),
-      f("labour", "Labour amount (£)", "number"),
-      f("materials", "Materials amount (£)", "number"),
+      fo("companyRegNumber", "Company registration number (optional)"),
+      f("labour", "Labour amount (£) — CIS deductible", "number"),
+      f("materials", "Materials amount (£) — exempt from CIS deduction", "number"),
       sel("cisRate", "CIS deduction rate", [{ label: "20% (Net)", value: "20" }, { label: "30% (Unregistered)", value: "30" }, { label: "0% (Gross status)", value: "0" }]),
       sel("vatApplicable", "VAT applicable (only if VAT registered in profile)", ["No", "Yes"]),
       sel("reverseCharge", "Domestic reverse charge applicable (only if VAT registered)", ["No", "Yes"]),
       fo("poNumber", "Purchase order number"),
       sel("paymentTerms", "Payment terms", ["30 days", "14 days", "7 days", "On receipt"]),
-      tao("bankDetails", "Bank details (auto-populated from profile if stored)"),
     ],
-    "Produce a UK CIS-compliant invoice. Use the user's profile for subcontractor full name, company name, address, UTR number and CIS registration status (auto-populated — never use placeholders). Show: invoice number (use the document reference provided), invoice date, tax point date, bill-to client (full legal name + address), description of works, a clear table separating Labour and Materials on the face of the invoice as HMRC CIS rules require, gross amount (auto = labour + materials), CIS rate selected, CIS deduction amount (calculated on labour only), net amount payable. If VAT applicable: VAT line at 20% on labour only (UNLESS reverse charge is yes, in which case state 'Domestic reverse charge applies — VAT to be accounted for by the recipient'). Show PO number and payment terms. End with an ISSUED BY block auto-populated from the user profile (full name printed, company name, UTR number, today's date, signature line)."
+    `Produce a UK CIS-compliant invoice. Use the user's profile for subcontractor full name, company name, address, UTR number (auto-populated, never use placeholders). Also auto-populate National Insurance number from the profile if available. The invoice reference comes from the document reference provided — format INV-YYYY-NNN.
+1. HEADER — Invoice number (use the provided ref), Invoice date, Tax point date.
+2. FROM — subcontractor's full name, company, address, UTR number (always shown), National Insurance number (if on profile, shown on its own line labelled 'NI No:'), Company registration number (if supplied), VAT number (if VAT registered).
+3. TO — client's full legal name and address.
+4. DESCRIPTION OF WORKS — use the value supplied.
+5. CIS DEDUCTION CALCULATION — produce a clearly labelled table with these rows:
+   Gross Labour Amount: £{labour}
+   CIS Deduction Rate: {cisRate}%
+   CIS Deduction Amount: £{labour * cisRate/100}
+   Net Labour After Deduction: £{labour - cis deduction}
+   Materials Amount (exempt from CIS): £{materials}
+   TOTAL AMOUNT DUE: £{(labour - cis deduction) + materials} (or + VAT if applicable below)
+6. VAT — if VAT applicable AND reverse charge is 'No', show a VAT line at 20% on labour only and a new total inc VAT. If reverse charge is 'Yes', do NOT add VAT to the total and append a clearly bold line immediately under the totals: 'Reverse charge: Customer to pay the VAT to HMRC.'
+7. PO NUMBER and PAYMENT TERMS — display each on its own line.
+8. PAYMENT DETAILS — appended automatically by Morris under the global Payment Details block (do not repeat).
+End with an ISSUED BY block auto-populated from the user profile (full name printed, company name, UTR number, today's date, signature line).`
   ),
   t("delay-notice", "Delay Notice", "documents",
     "A formal written notice that the project has been delayed by matters outside your control. Protects your right to claim an Extension of Time and avoid Liquidated Damages.",
     [f("project", "Project"), f("cause", "Cause of delay"), f("daysLost", "Days lost so far"), ta("impact", "Impact")],
     "Produce a formal Delay Notice under JCT/NEC principles. State cause, days lost, mitigation taken, and reserve the right to claim EoT and loss & expense."
   ),
-  t("handover-certificate", "Handover Certificate", "documents",
-    "A document confirming works are complete and handed over. Starts the defects liability period and (usually) the retention release clock.",
-    [f("project", "Project"), f("date", "Handover date"), ta("worksComplete", "Works completed"), f("client", "Client representative")],
-    "Produce a formal Practical Completion / Handover Certificate stating works complete, defects liability period (typically 12 months), and triggering retention release schedule."
+  t("handover-certificate", "Practical Completion Certificate", "documents",
+    "Practical Completion / Handover Certificate. Starts the defects liability period and (usually) the retention release clock.",
+    [
+      f("project", "Project name"),
+      ta("projectAddress", "Full project address"),
+      f("client", "Client legal name"),
+      f("contractRef", "Contract reference number"),
+      fp("pcDate", "Date of Practical Completion", "today", "date"),
+      f("retentionPercent", "Retention percentage (free text, e.g. 5%, 2.5%)"),
+      f("defectsLiabilityPeriod", "Defects liability period (free text, e.g. 3 months, 6 months, 12 months, 24 months)"),
+      f("originalContractSum", "Original contract sum (£)", "number"),
+      f("approvedVariations", "Approved variations total (£)", "number"),
+      sel("snaggingListAttached", "Snagging list attached?", ["Yes", "No", "Not Applicable"]),
+      sel("oandmManuals", "O&M manuals provided?", ["Yes", "No", "Not Applicable"]),
+      sel("hsFile", "Health and Safety file provided?", ["Yes", "No", "Not Applicable"]),
+      sel("gasSafeCert", "Gas Safe certificate provided?", ["Yes", "No", "Not Applicable"]),
+      sel("niceicCert", "NICEIC electrical sign-off provided?", ["Yes", "No", "Not Applicable"]),
+      sel("buildingControlNotice", "Building control completion notice provided?", ["Yes", "No", "Not Applicable"]),
+      sel("keyHandoverLog", "Key handover log provided?", ["Yes", "No", "Not Applicable"]),
+      tao("outstandingItems", "Agreed minor outstanding items (one per line)"),
+    ],
+    `Produce a Practical Completion Certificate (UK construction). Use PCC-NNN format for the certificate number (taken from the provided document reference). Use the user's profile for the contractor name (auto-populated). Format:
+1. HEADER — Certificate number {ref}, Date of issue (today).
+2. PROJECT — Project name, full project address, Client legal name, Contract reference.
+3. CONTRACTOR — auto-populated from profile (full name, company, address).
+4. DATE OF PRACTICAL COMPLETION — use the supplied date.
+5. LEGAL STATEMENT — print verbatim, in bold capitals on its own line: 'THIS CERTIFICATE CONFIRMS THAT THE WORKS DESCRIBED HAVE BEEN EXECUTED AND COMPLETED IN ACCORDANCE WITH THE CONTRACT DOCUMENTS SAVE FOR ANY AGREED MINOR OUTSTANDING ITEMS.'
+6. AGREED MINOR OUTSTANDING ITEMS — list each supplied item as a numbered bullet. If none, state 'None outstanding.'
+7. APPENDED DOCUMENTS CHECKLIST — produce a clean table with two columns (Document / Status) showing each of the supplied checklist items: Snagging list, O&M manuals, Health and Safety file, Gas Safe certificate, NICEIC electrical sign-off, Building control completion notice, Key handover log. Use the Yes / No / Not Applicable value supplied.
+8. FINANCIAL SUMMARY — produce a clearly labelled summary:
+   Original contract sum: £{originalContractSum}
+   Approved variations: £{approvedVariations}
+   Final adjusted contract value: £{originalContractSum + approvedVariations} (auto-calculated to 2 decimals)
+   Retention percentage: {retentionPercent}
+   Retention released on PC: 50% of retention = £{(final * percent/100) / 2} (auto-calculated)
+   Retention held until end of defects liability: £{(final * percent/100) / 2} (auto-calculated)
+9. DEFECTS LIABILITY PERIOD — use the supplied value verbatim. State: 'The Defects Liability Period commences from the Date of Practical Completion stated above.'
+10. RELEASE OF RETENTION — first half released on issue of this certificate. Second half released on the issue of the Making Good Defects Certificate at the end of the Defects Liability Period.
+End with two signature blocks: CONTRACTOR (auto-populated from profile — full name, company, signature line, today's date) and CLIENT / CONTRACT ADMINISTRATOR (full name printed, company, signature line, date).`
   ),
   t("subcontract-letter", "Subcontract Letter", "documents",
     "A short subcontract / letter of intent setting out the works, price, programme and payment terms between you and a sub-trader.",
@@ -191,9 +305,35 @@ Use only UK English. Do not use placeholder text. Use today's date and the auto-
     "Produce a UK subcontract letter (legally binding once signed). Use the user's profile for the engaging party's full name, company name, address and UTR (auto-populated). Include sections: parties, site and project, scope of works, contract sum (fixed price or day rate as selected — show estimated duration if day rate), payment frequency and method, CIS deduction rate, retention if applicable, defects liability period, insurance requirements (public liability minimum), a MANDATORY 'RIGHT OF SUBSTITUTION' clause stating the subcontractor may provide a suitably qualified substitute to perform the works (critical for establishing genuine self-employed status), termination notice period, dispute resolution via adjudication under the Housing Grants, Construction and Regeneration Act 1996, governing law: England and Wales. End with two signature blocks (CONTRACTOR and SUBCONTRACTOR) each with full name printed, company, signature line, date, position. Close with: 'This agreement becomes legally binding once signed by both parties. Both parties should retain a signed copy.'"
   ),
   t("complaint-letter", "Complaint Letter", "documents",
-    "A firm, professional letter raising a complaint. late payment, defective materials, poor management. The first formal step before escalation.",
-    [f("recipient", "To"), ta("complaint", "What happened"), f("remedy", "Remedy sought")],
-    "Write a firm, professional UK complaint letter. State facts, breach, remedy required, and reserve the right to escalate (adjudication / small claims)."
+    "A firm, professional Formal Complaint letter. late payment, defective materials, poor management. The first formal step before escalation to adjudication.",
+    [
+      f("recipientName", "Recipient business / company name"),
+      ta("recipientAddress", "Recipient address"),
+      fo("recipientContactName", "Recipient contact name (if known)"),
+      ta("projectAddress", "Project address"),
+      fp("contractDate", "Original contract date", "today", "date"),
+      sel("complaintType", "Complaint type", ["Late payment", "Defective workmanship", "Defective materials", "Breach of contract", "Health & Safety failure", "Project mismanagement", "Other"]),
+      ta("issues", "Issues. One per line in this format: date | location | description | impact | evidence reference (e.g. photo P-001, email dated, RFI 003)"),
+      fo("contractValue", "Contract value (£)", "number"),
+      fo("outstandingAmount", "Outstanding amount owed / loss incurred (£)", "number"),
+      ta("priorContact", "Prior contact / correspondence already made (dates and outcome)"),
+      ta("whatYouRequire", "What you require — specific remedy sought (payment, rectification, etc.)"),
+      f("responseDeadline", "Response deadline (free text — your specific number of days, e.g. 7 days, 14 days, 21 days)"),
+    ],
+    `Write a firm, professional UK Formal Complaint letter. Use the user's profile for the sender block (auto-populated). Format:
+1. AT THE VERY TOP — print on its own line in bold capitals: 'FORMAL COMPLAINT'.
+2. SENDER BLOCK — auto-populated from profile (full name, company, address, contact, email).
+3. RECIPIENT BLOCK — recipient company, address, attention of (contact name if supplied).
+4. DATE — today's date.
+5. SUBJECT LINE — 'Re: Formal complaint relating to {projectAddress}.'
+6. OPENING STATEMENT — open with: 'I am writing to formally raise a complaint relating to the contract entered into on {contractDate} concerning the above project.'
+7. COMPLAINT TYPE — clearly state the type of complaint.
+8. ISSUES — list each supplied issue as a numbered item with columns Date / Location / Description / Impact / Evidence. Render as a clean numbered list, not a comma-separated string.
+9. CONTRACTUAL AND FINANCIAL CONTEXT — state contract value and outstanding amount / loss incurred (£) if supplied. Reference any prior contact / correspondence.
+10. WHAT I REQUIRE — list the specific remedy sought.
+11. RESPONSE DEADLINE — state: 'I require a written response within {responseDeadline} of the date of this letter.'
+12. CLOSING STATEMENT — finish with a clear warning: 'If a satisfactory resolution is not reached within the timescale stated above, I reserve the right to refer this matter to adjudication under the Housing Grants, Construction and Regeneration Act 1996 and/or to commence legal proceedings to recover any sums owed and damages incurred. All correspondence and documentation will be retained as evidence.'
+End with an ISSUED BY block auto-populated from profile (full name printed, company, signature line, today's date).`
   ),
   t("timesheet", "Timesheet", "documents",
     "A weekly timesheet broken down by day, site, hours and tasks. used for invoicing day work or proving labour for payment applications.",
@@ -257,8 +397,48 @@ Use only UK English. Do not use placeholder text. Use today's date and the auto-
   ),
   t("eot-claim", "Extension of Time Claim", "documents",
     "A formal Extension of Time claim. protects you from Liquidated Damages when delays are not your fault.",
-    [f("project", "Project"), f("eotDaysRequested", "EoT days requested"), ta("cause", "Cause of delay"), ta("evidence", "Evidence (instructions, RFIs, weather etc.)")],
-    "Produce a UK EoT claim referencing JCT/NEC contract principles, the relevant event, days lost, mitigation, and supporting evidence."
+    [
+      f("project", "Project name"),
+      ta("projectAddress", "Project address"),
+      f("contractRef", "Contract reference"),
+      f("contractorLegalName", "Contractor legal name"),
+      f("clientLegalName", "Client legal name"),
+      sel("contractClause", "Relevant contract clause", ["JCT Section 2.28", "NEC4 Clause 60.1", "Other"]),
+      fo("contractClauseOther", "If Other, specify clause"),
+      sel("delayCause", "Cause of delay", ["Variation", "Late instruction", "Late information", "Adverse weather", "Strike / industrial action", "Force majeure", "Unforeseen ground conditions", "Client default", "Other"]),
+      ta("delayDescription", "Detailed description of the delay event"),
+      fp("delayStartDate", "Delay event start date", "today", "date"),
+      f("delayEndDate", "Delay event end date"),
+      ta("mitigationEfforts", "Mitigation efforts undertaken by the contractor"),
+      f("calendarDays", "Calendar days lost", "number"),
+      f("workingDays", "Working days lost", "number"),
+      sel("methodOfAnalysis", "Method of delay analysis", ["Time Impact Analysis", "As-Planned vs As-Built", "Impacted As-Planned", "Collapsed As-Built", "Window Analysis"]),
+      f("programmeRef", "Programme reference (e.g. P-001 rev 03)"),
+      ta("impactExplanation", "Critical path impact explanation"),
+      fp("currentCompletionDate", "Current contract completion date", "today", "date"),
+      f("revisedCompletionDate", "Revised completion date requested"),
+      sel("claimingLossAndExpense", "Also claiming Loss and Expense?", ["No", "Yes"]),
+      fo("prolongedOverheads", "If yes — prolonged overheads (£)", "number"),
+      fo("plantHire", "If yes — additional plant hire (£)", "number"),
+      fo("staffCosts", "If yes — additional staff / supervision costs (£)", "number"),
+      tao("evidenceReferences", "Evidence references (instructions, RFIs, emails, drawings, weather reports — one per line)"),
+    ],
+    `Produce a UK Extension of Time Claim. Use EOT-NNN format for the claim reference (taken from the provided document reference). Use the user's profile for the contractor block (auto-populated). Format:
+1. HEADER — Claim reference {ref}, today's date.
+2. PROJECT DETAILS — Project name, address, contract reference, contractor legal name, client legal name.
+3. CONTRACT CLAUSE — quote the relevant clause (use the value supplied, with the 'Other' free text if specified).
+4. DELAY EVENT — cause, detailed description, start date and end date.
+5. CRITICAL PATH ANALYSIS — calendar days lost, working days lost, method of analysis, programme reference, impact explanation showing how the event affects the critical path.
+6. MITIGATION — describe mitigation efforts as supplied.
+7. EXTENSION REQUESTED — current contract completion date, revised completion date requested, total days requested.
+8. LOSS AND EXPENSE (only if Yes was supplied) — show a clean financial summary table:
+   Prolonged overheads: £{prolongedOverheads}
+   Additional plant hire: £{plantHire}
+   Additional staff / supervision costs: £{staffCosts}
+   Auto-calculated TOTAL LOSS AND EXPENSE: £{sum}
+9. EVIDENCE — list every evidence reference supplied as a numbered list. If none, state 'Available on request'.
+10. DECISION REQUESTED — request the client / contract administrator's written decision on the extension within 14 days.
+APPENDED STATEMENT — print verbatim on its own line as the final paragraph before the signature blocks: 'Under JCT contracts an Extension of Time does not automatically grant financial compensation. A separate Loss and Expense claim must be submitted.'`
   ),
   t("lds-dispute", "LDs Dispute", "documents",
     "A letter rejecting or disputing the application of Liquidated Damages against you.",
@@ -266,9 +446,47 @@ Use only UK English. Do not use placeholder text. Use today's date and the auto-
     "Produce a UK letter disputing Liquidated Damages. argue grounds (no Non-Completion Certificate, prevention principle, granted EoT, etc.) and request withdrawal."
   ),
   t("progress-report", "Progress Report", "documents",
-    "A weekly or monthly progress report. % complete, programme position, risks, requests. Keeps you in control of the narrative on site.",
-    [f("project", "Project"), f("period", "Period (week ending)"), ta("progress", "Progress achieved"), ta("risks", "Risks / blockers"), ta("nextWeek", "Plan for next period")],
-    "Produce a professional Progress Report: Period, % Complete, Works Achieved, Risks / Blockers, Programme Position, Next Period Plan, Requests."
+    "A weekly or monthly project progress report covering schedule, budget, H&S, risk and procurement. Keeps you in control of the narrative on site.",
+    [
+      f("project", "Project name"),
+      f("contractRef", "Contract reference"),
+      fp("periodStart", "Reporting period — start date", "today", "date"),
+      fp("periodEnd", "Reporting period — end date", "today", "date"),
+      sel("scheduleStatus", "Schedule status (traffic light)", ["Green — On Track", "Amber — At Risk", "Red — Critical Issue"]),
+      sel("budgetStatus", "Budget status (traffic light)", ["Green — On Track", "Amber — At Risk", "Red — Critical Issue"]),
+      sel("hsStatus", "Health and Safety status (traffic light)", ["Green — On Track", "Amber — At Risk", "Red — Critical Issue"]),
+      ta("progressThisPeriod", "Physical progress THIS period (specific tasks complete)"),
+      ta("progressNextPeriod", "Physical progress NEXT period (planned)"),
+      fp("scheduleBaselineDate", "Schedule baseline completion date", "today", "date"),
+      fp("scheduleForecastDate", "Schedule forecast completion date", "today", "date"),
+      f("originalContractSum", "Original contract sum (£)", "number"),
+      f("variationsApproved", "Approved variations total (£)", "number"),
+      f("totalInvoiced", "Total invoiced to date (£)", "number"),
+      f("totalCertified", "Total certified to date (£)", "number"),
+      f("hoursWorkedNoLTI", "Hours worked without an LTI (Lost Time Incident)", "number"),
+      f("accidentsThisPeriod", "Accidents this period", "number"),
+      f("nearMissesThisPeriod", "Near misses this period", "number"),
+      ta("criticalIssues", "Critical issues and actions taken"),
+      ta("procurementTracking", "Procurement tracking (long-lead items, status, expected delivery dates)"),
+    ],
+    `Produce a UK Project Progress Report. Use PR-NNN format for the report number (taken from the provided document reference). Use the user's profile for the issued-by block (auto-populated). Format:
+1. HEADER — Report number {ref}, Project name, Contract reference, Reporting period (start to end), Issued by (full name and company from profile).
+2. EXECUTIVE STATUS — display three traffic lights clearly: Schedule / Budget / Health and Safety. For each, render the supplied value in a bold capitalised line, e.g. 'Schedule: GREEN — On Track'.
+3. PHYSICAL PROGRESS — section A: this period. Section B: next period planned.
+4. SCHEDULE TRACKER — show in a labelled mini-table:
+   Baseline completion date: {scheduleBaselineDate}
+   Forecast completion date: {scheduleForecastDate}
+   Variance: {calculated variance in calendar days, positive if behind, negative if ahead}
+5. FINANCIAL SUMMARY — show in a labelled mini-table:
+   Original contract sum: £{originalContractSum}
+   Approved variations: £{variationsApproved}
+   Revised forecast value: £{originalContractSum + variationsApproved}
+   Total invoiced to date: £{totalInvoiced}
+   Total certified to date: £{totalCertified}
+6. RISK AND SAFETY — Hours worked without an LTI, Accidents this period, Near misses this period, Critical issues and actions taken.
+7. PROCUREMENT TRACKING — list long-lead items with status and expected delivery.
+8. CLOSING STATEMENT — print on its own line, in italics: 'This report is issued for information and record purposes.'
+End with an ISSUED BY block auto-populated from the user profile (full name, company, signature line, today's date).`
   ),
   t("novation-letter", "Novation Letter", "documents",
     "A letter handling the novation of an order or contract from one party to another.",
@@ -408,7 +626,27 @@ End with an ISSUED BY block from the user profile (full name printed, company, t
 11. SIGN-OFF SHEET — produce a table with one row per attendee (use the supplied names), columns: Print Name / Signature / Date. Add a final row for the person delivering the talk with the same three columns. Above the table state: 'By signing below I confirm I have attended this Toolbox Talk, understood the content and had the opportunity to ask questions.'
 Close with a PREPARED BY block from the user profile (full name, company, today's date).`),
   t("asbestos-record", "Asbestos Record", "site", "A record entry for asbestos awareness. refurbishment & demolition survey reference, suspected ACMs, actions.", [f("location", "Location"), ta("suspect", "Suspect material / location"), ta("action", "Action taken")], "Produce an Asbestos Awareness Record entry, referencing CAR 2012 and the requirement for a Refurbishment & Demolition Survey before intrusive works."),
-  t("snagging-list", "Snagging List", "site", "A snag list with item, location, photo ref, priority and status. Used at handover.", [ta("items", "Snags (one per line)")], "Produce a snagging list table: Ref / Location / Description / Priority (H/M/L) / Owner / Status / Date Closed."),
+  t("snagging-list", "Snagging List", "site",
+    "A formal snagging list with project, inspection and item-level detail. Used at handover to record every defect that must be put right.",
+    [
+      f("projectName", "Project name"),
+      ta("projectAddress", "Project address"),
+      f("unitPlotNumber", "Unit / plot number"),
+      fp("inspectionDate", "Inspection date and time", "today", "datetime-local"),
+      f("inspectedByName", "Inspected by (name)"),
+      sel("inspectedByRole", "Inspector role", ["Client", "Site Manager", "Quantity Surveyor", "Architect", "Building Surveyor", "Building Control", "Contractor", "Subcontractor", "Other"]),
+      f("contractorRepresentative", "Contractor representative (full name + company)"),
+      ta("snagItems", "Snag items. One snag per line, separated by | with these columns in order: location | item / element | defect description | severity (Low cosmetic / Medium functional / High urgent safety) | status (Open / In Progress / Closed) | target completion date"),
+    ],
+    `Produce a formal UK Snagging List. Use SNG-NNN format for the list reference (taken from the document reference). Format:
+1. HEADER — Snagging list reference {ref}, Inspection date and time, Project name, Project address, Unit / plot number, Inspected by + role, Contractor representative.
+2. SNAG ITEMS — produce a clean numbered table. Start numbering from S-001 and increment for each item supplied. Columns: Item No / Location / Item or Element / Defect Description / Severity / Status / Target Completion Date. Parse the user-supplied lines (separated by |) into the columns in order. If a row is missing a value, leave that cell blank.
+3. SEVERITY KEY — print under the table on its own line: 'SEVERITY KEY: Low — cosmetic. Medium — functional. High — urgent safety issue.'
+4. SUMMARY — auto-calculate and display three counters: 'Total snags: {count}. Open: {count}. In Progress: {count}. Closed: {count}.'
+5. STATEMENT — print verbatim on its own line, bold: 'THIS SNAGGING LIST IS AN OFFICIAL INSPECTION RECORD AND MUST BE ACTIONED WITHIN THE AGREED TIMESCALES.'
+6. NEXT ACTIONS — state that the contractor representative shall update the Status column upon completion of each item and re-issue the list to the inspector.
+End with an INSPECTED BY block (inspector name, role, signature line, today's date) and a CONTRACTOR REPRESENTATIVE acknowledgement block.`
+  ),
   t("site-access-permit", "Site Access Permit", "site", "Permit-to-work for restricted areas or high-risk activity (hot works, confined space).", [f("permitType", "Permit type"), f("location", "Location"), ta("controls", "Controls in place"), f("validity", "Valid from / to")], "Produce a Permit to Work form for the supplied activity. controls, isolation, gas tests if applicable, sign-on / sign-off."),
   t("measurement-record", "Measurement Record", "site", "A site measurement sheet. sketch references, dimensions, notes. Essential for price-work valuations.", [f("area", "Area / location"), ta("measurements", "Measurements (one per line)")], "Produce a clean Measurement Record sheet with Location / Reference / Dimensions / Quantity / Unit / Notes."),
   t("weather-log", "Weather Log", "site", "A weather log entry. temperature, wind, rain. Critical evidence for weather-related EoT claims.", [f("date", "Date"), f("conditions", "Conditions"), ta("impact", "Impact on works")], "Produce a Weather Log entry with date, conditions (temp / wind / rain / visibility), and impact on works (e.g. could not lift / could not paint externally)."),
@@ -422,6 +660,7 @@ Close with a PREPARED BY block from the user profile (full name, company, today'
   t("coshh", "COSHH Assessment", "site", "Control of Substances Hazardous to Health assessment for a specific substance you use.", [
       f("substance", "Substance / product name (as on the container)"),
       fo("manufacturer", "Manufacturer / supplier"),
+      fo("manufacturerEmergencyPhone", "Manufacturer 24/7 emergency contact number"),
       f("location", "Site / location where used"),
       ta("activity", "Activity / how the substance is used"),
       sel("hazardClass", "Hazard class (per CLP labels)", ["Irritant", "Corrosive", "Toxic / harmful", "Flammable", "Sensitiser", "Carcinogenic / mutagenic / toxic for reproduction (CMR)", "Hazardous to environment", "Other"]),
@@ -431,23 +670,25 @@ Close with a PREPARED BY block from the user profile (full name, company, today'
       ta("controlMeasures", "Control measures in place (extraction / dilution / substitution / handling)"),
       sel("ppeRequired", "PPE required", ["Gloves only", "Gloves + eye protection", "Gloves + eye protection + RPE", "Full chemical suit + RPE", "Other"]),
       ta("firstAid", "First aid measures (skin / eyes / inhalation / ingestion)"),
+      ta("targetOrgansLongTerm", "Target organs and long-term health effects (e.g. lungs, liver, skin, CNS — and any chronic effects such as sensitisation, asthma, dermatitis)"),
       sel("storage", "Storage requirements", ["Locked store", "Ventilated store", "Fire-rated cabinet", "Cool/dry place", "Other"]),
       ta("spillProcedure", "Spill procedure and waste disposal method"),
       sel("rpeRequired", "Is RPE required?", ["No", "Yes — FFP2", "Yes — FFP3", "Yes — half-mask with cartridge", "Yes — full-face with cartridge", "Yes — air-fed"]),
     ], `Produce a UK COSHH Assessment compliant with the Control of Substances Hazardous to Health Regulations 2002 (as amended). Format as follows:
-1. SUBSTANCE DETAILS — name, manufacturer, location, activity in which it is used.
+1. SUBSTANCE DETAILS — name, manufacturer, manufacturer 24/7 emergency contact number (if supplied — display it on its own line clearly labelled), location, activity in which it is used.
 2. HAZARD IDENTIFICATION — hazard class (from CLP labels), exposure route, Workplace Exposure Limit (WEL) if supplied.
 3. PERSONS AT RISK — operatives and any other persons (public, vulnerable persons).
 4. RISK MATRIX — for this substance show Likelihood (1-5), Severity (1-5), Risk Score (LxS) BEFORE controls and AFTER controls.
 5. CONTROL MEASURES — Hierarchy of control (Elimination / Substitution / Engineering / Administrative / PPE). State the measures supplied.
 6. PPE REQUIRED — list the specific PPE from the user input. If RPE is required, state the type.
 7. SAFE HANDLING & STORAGE — how to handle and store the substance safely.
-8. EMERGENCY PROCEDURES & FIRST AID — first aid for skin, eyes, inhalation and ingestion.
-9. SPILL CONTAINMENT & WASTE DISPOSAL — what to do in a spill and how to dispose of the waste lawfully (including SDS reference and registered carrier).
-10. HEALTH SURVEILLANCE — state whether health surveillance is required for this substance (e.g. for sensitisers, CMRs, dusts at the WEL).
-11. SAFETY DATA SHEET — state: 'A current Safety Data Sheet (SDS) for this substance is held on site and is available for inspection.'
-12. REVIEW — review date is 12 months from today's date OR sooner if the substance, process or controls change.
-13. BRIEFING — list a sign-off table with columns Print Name / Signature / Date for every operative who handles the substance.
+8. EMERGENCY PROCEDURES & FIRST AID — first aid for skin, eyes, inhalation and ingestion. If a manufacturer 24/7 emergency contact number is on file, repeat it at the top of this section: 'In an emergency call: {number} (manufacturer 24/7 line) AND 999.'
+9. TARGET ORGANS AND LONG-TERM HEALTH EFFECTS — produce a clearly labelled section listing the target organs and any long-term / chronic health effects supplied. If the user did not supply anything, state 'Refer to the current Safety Data Sheet section 11 (Toxicological information).'
+10. SPILL CONTAINMENT & WASTE DISPOSAL — what to do in a spill and how to dispose of the waste lawfully (including SDS reference and registered carrier).
+11. HEALTH SURVEILLANCE — state whether health surveillance is required for this substance (e.g. for sensitisers, CMRs, dusts at the WEL).
+12. SAFETY DATA SHEET — state: 'A current Safety Data Sheet (SDS) for this substance is held on site and is available for inspection.'
+13. REVIEW — review date is 12 months from today's date OR sooner if the substance, process or controls change.
+14. BRIEFING — list a sign-off table with columns Print Name / Signature / Date for every operative who handles the substance.
 Close with a PREPARED BY block from the user profile (full name, company, today's date) and a REVIEWED BY block.`),
   t("noise-assessment", "Noise Assessment", "site", "Noise at Work assessment. exposure, hearing protection required.", [f("activity", "Activity"), f("estimatedDb", "Estimated dB(A)")], "Produce a Control of Noise at Work Regulations 2005 assessment. exposure action values 80/85 dB(A), hearing protection required, signage."),
   t("manual-handling", "Manual Handling Assessment", "site", "A TILE / LITE manual handling risk assessment.", [f("load", "Load / item"), f("weight", "Weight"), ta("task", "Task description")], "Produce a Manual Handling Operations Regulations 1992 assessment using the TILE method (Task, Individual, Load, Environment) for the supplied task."),

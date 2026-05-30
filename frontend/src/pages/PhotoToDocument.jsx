@@ -1,196 +1,144 @@
-import { useState, useRef } from "react";
-import ToolHeader, { ResultActions } from "../components/ToolHeader";
-import LiveSignatureBlock from "../components/LiveSignatureBlock";
-import api from "../lib/api";
-import { useAuth } from "../lib/auth";
+import { useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import ToolHeader from "../components/ToolHeader";
 import { toast } from "sonner";
-import { Camera, Loader2, Wand2, Upload, ScanText, X } from "lucide-react";
+import { Camera, Upload, X, ArrowRight, IdCard } from "lucide-react";
 
 const TOOL = {
   id: "photo-to-document",
   name: "Photo to Document",
   section: "documents",
-  info: "Photograph a scribbled note, drawing or scrap of paper from site. Morris reads the text in your photo automatically using AI vision, produces a clean professional document, and embeds the original photo as evidence.",
+  info: "Snap a photo from site and attach it to any of your usual document forms. The original photo is embedded in the generated PDF as evidence.",
 };
 
+// Allowlist of doc types per the new spec.
+const DOC_TYPES = [
+  { id: "rams", label: "RAMS" },
+  { id: "variation-letter", label: "Variation Order" },
+  { id: "site-diary", label: "Site Diary" },
+  { id: "snagging-list", label: "Snagging List" },
+  { id: "complaint-letter", label: "Complaint Letter" },
+  { id: "quote-builder", label: "Quote" },
+  { id: "incident-log", label: "Incident Report" },
+];
+
+const STORAGE_KEY = "morris_photo_intent_v1";
+
 export default function PhotoToDocument() {
-  const { user, refresh } = useAuth();
   const [infoOpen, setInfoOpen] = useState(false);
   const [preview, setPreview] = useState(null);
-  const [extracting, setExtracting] = useState(false);
-  const [transcription, setTranscription] = useState("");
-  const [imageDescription, setImageDescription] = useState("");
-  const [description, setDescription] = useState("");
-  const [docType, setDocType] = useState("variation letter");
-  const [generating, setGenerating] = useState(false);
-  const [result, setResult] = useState("");
-  const [refNumber, setRefNumber] = useState("");
-  const [liveSignature, setLiveSignature] = useState("");
-  const [clientSignature, setClientSignature] = useState("");
+  const [docType, setDocType] = useState("variation-letter");
   const fileRef = useRef(null);
+  const nav = useNavigate();
 
-  const onFile = (e) => {
-    const f = e.target.files?.[0]; if (!f) return;
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const dataUrl = reader.result;
+  const compress = (file, maxW = 1600, quality = 0.85) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = reject;
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = reject;
+        img.onload = () => {
+          const scale = Math.min(1, maxW / img.width);
+          const w = Math.round(img.width * scale);
+          const h = Math.round(img.height * scale);
+          const c = document.createElement("canvas");
+          c.width = w; c.height = h;
+          c.getContext("2d").drawImage(img, 0, 0, w, h);
+          resolve(c.toDataURL("image/jpeg", quality));
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+  const onFile = async (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (!f.type.startsWith("image/")) { toast.error("Please choose an image file"); return; }
+    try {
+      const dataUrl = await compress(f);
       setPreview(dataUrl);
-      // Auto-OCR with Claude vision the moment a photo is loaded
-      setExtracting(true);
-      setTranscription(""); setImageDescription("");
-      try {
-        const r = await api.post("/vision/extract", { image: dataUrl });
-        const raw = r.data.result || "";
-        const tMatch = raw.match(/TRANSCRIPTION:\s*([\s\S]*?)(?=\n\s*DESCRIPTION:|$)/i);
-        const dMatch = raw.match(/DESCRIPTION:\s*([\s\S]*)$/i);
-        const t = (tMatch ? tMatch[1] : raw).trim();
-        const d = (dMatch ? dMatch[1] : "").trim();
-        setTranscription(t);
-        setImageDescription(d);
-        // Pre-fill the description field with the transcription so the user can edit if needed
-        setDescription(prev => prev ? prev : t);
-        toast.success("Photo read. Edit the text below before generating.");
-      } catch (e) {
-        if (process.env.NODE_ENV !== "production") console.error("Vision OCR failed", e);
-        toast.error("Could not read the photo automatically. Type the contents below.");
-      } finally {
-        setExtracting(false);
-      }
-    };
-    reader.readAsDataURL(f);
+      toast.success("Photo ready. Pick a document type and continue.");
+    } catch {
+      toast.error("Could not read that image");
+    }
   };
 
   const clearPhoto = () => {
-    setPreview(null); setTranscription(""); setImageDescription(""); setDescription("");
+    setPreview(null);
     if (fileRef.current) fileRef.current.value = "";
   };
 
-  const onGenerate = async () => {
-    setGenerating(true); setResult(""); setRefNumber("");
+  const onContinue = () => {
+    if (!preview) { toast.error("Add a photo first"); return; }
+    // Store the photo + target tool in localStorage so the next page
+    // (GenericToolPage) can pick it up. We keep it local. Cleared on use.
     try {
-      const r = await api.post("/generate", {
-        toolId: TOOL.id,
-        toolName: TOOL.name,
-        promptTemplate: `The user has photographed a handwritten site note. The photo has been transcribed by AI vision and the user has confirmed the contents below. Convert it into a clean professional ${docType} suitable for issuing to a client or main contractor. Use UK construction conventions. Where the transcription mentions names, dates, quantities, costs or instructions, preserve them faithfully. The original photo will be attached to the PDF as evidence — refer to it in the body as 'Attached photograph (original site note)'.`,
-        userInputs: {
-          documentType: docType,
-          aiTranscription: transcription || description,
-          imageDescription: imageDescription,
-          userConfirmedContents: description,
-        },
-        trade: user?.trade, companyName: user?.companyName, fullName: user?.fullName,
-      });
-      setResult(r.data.content);
-      setRefNumber(r.data.refNumber || "");
-      const recent = ["photo-to-document", ...(user?.recentlyUsed || []).filter(x => x !== "photo-to-document")].slice(0, 5);
-      await api.post("/profile/update", { recentlyUsed: recent });
-      await refresh();
-      toast.success("Document generated. Saved to your Vault.");
-    } catch { toast.error("Generation failed"); }
-    finally { setGenerating(false); }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        toolId: docType,
+        photo: preview,
+        createdAt: Date.now(),
+      }));
+    } catch (e) {
+      // localStorage quota exceeded — fall back to in-memory hand-off via state
+      toast.error("Photo too large to attach. Try a smaller image.");
+      return;
+    }
+    nav(`/app/tool/${docType}`);
   };
 
-  const photoCaption = preview ? `Original site photograph. ${imageDescription ? imageDescription + " " : ""}Captured ${new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}.` : "";
-
   return (
-    <div className="p-6 md:p-10 max-w-6xl mx-auto" data-testid="page-photo-to-document">
+    <div className="p-6 md:p-10 max-w-3xl mx-auto" data-testid="page-photo-to-document">
       <ToolHeader tool={TOOL} infoOpen={infoOpen} setInfoOpen={setInfoOpen} />
-      <div className="grid md:grid-cols-2 gap-6">
-        <div className="card-dark p-6">
-          <div className="text-xs uppercase tracking-widest text-[#E8A020] mb-4">Snap or upload — Morris reads it for you</div>
-          <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={onFile} className="hidden" data-testid="photo-input" />
-          <div className="flex gap-2 mb-4 flex-wrap">
-            <button onClick={() => fileRef.current?.click()} className="btn-secondary flex items-center gap-2" data-testid="capture-photo-btn">
-              <Camera size={16} /> Take photo
-            </button>
-            <button onClick={() => { if (fileRef.current) { fileRef.current.removeAttribute("capture"); fileRef.current.click(); fileRef.current.setAttribute("capture", "environment"); } }} className="btn-secondary flex items-center gap-2" data-testid="upload-photo-btn">
-              <Upload size={16} /> Upload
-            </button>
-            {preview && (
-              <button onClick={clearPhoto} className="btn-secondary flex items-center gap-2 text-[#E5635A]" data-testid="clear-photo-btn">
-                <X size={14} /> Clear
-              </button>
-            )}
-          </div>
-          {preview && (
-            <div className="mb-4 rounded-md overflow-hidden border border-[#E8A020]/30 relative">
-              <img src={preview} alt="Preview" className="w-full max-h-64 object-contain bg-black" data-testid="photo-preview" />
-              {extracting && (
-                <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center gap-3" data-testid="extracting-overlay">
-                  <Loader2 size={24} className="animate-spin text-[#E8A020]" />
-                  <div className="text-xs uppercase tracking-widest text-[#E8A020] flex items-center gap-2"><ScanText size={14}/> Reading the photo</div>
-                </div>
-              )}
-            </div>
-          )}
-          {transcription && !extracting && (
-            <div className="mb-4 p-3 rounded border border-[#E8A020]/30 bg-[#E8A020]/5" data-testid="ocr-transcription">
-              <div className="text-[10px] uppercase tracking-widest text-[#E8A020] flex items-center gap-2 mb-2">
-                <ScanText size={12}/> AI transcription
-              </div>
-              <div className="text-xs text-[#F0EDE8] whitespace-pre-wrap">{transcription}</div>
-              {imageDescription && (
-                <div className="text-[11px] text-[#A19D94] italic mt-2 pt-2 border-t border-[#E8A020]/15">{imageDescription}</div>
-              )}
-            </div>
-          )}
-          <div className="text-xs uppercase tracking-widest text-[#A19D94] mb-2">Output document type</div>
-          <select className="input-base mb-4" value={docType} onChange={(e) => setDocType(e.target.value)} data-testid="doctype-select">
-            <option>variation letter</option>
-            <option>site instruction confirmation</option>
-            <option>quote</option>
-            <option>meeting notes</option>
-            <option>scope of works</option>
-            <option>incident report</option>
-            <option>daywork sheet</option>
-            <option>verbal instruction confirmation</option>
-          </select>
-          <div className="text-xs uppercase tracking-widest text-[#A19D94] mb-2">Confirm the contents (edit if AI missed anything)</div>
-          <textarea
-            rows={6}
-            className="input-base resize-y"
-            placeholder={extracting ? "Reading the photo…" : "The AI transcription will appear here. Edit before generating if needed."}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            data-testid="photo-description"
-          />
-          <div className="mt-4 space-y-3" data-testid="signature-pads">
-            <LiveSignatureBlock
-              label="Your Signature"
-              subtitle="Sign here as the contractor / sender"
-              value={liveSignature}
-              onChange={setLiveSignature}
-              savedSignature={user?.signature}
-              testIdPrefix="live-sig"
-            />
-            <LiveSignatureBlock
-              label="Client or Contractor Signature"
-              subtitle="Optional. Leave blank for the recipient to sign on the printed PDF"
-              value={clientSignature}
-              onChange={setClientSignature}
-              allowBlank
-              testIdPrefix="client-sig"
-            />
-          </div>
-          <button onClick={onGenerate} className="btn-primary w-full mt-4 flex items-center justify-center gap-2" disabled={generating || extracting} data-testid="generate-photo-btn">
-            {generating ? <><Loader2 size={16} className="animate-spin" /> Writing…</> : <><Wand2 size={16} /> Convert to document</>}
+
+      {/* Step 1: photo */}
+      <div className="card-dark p-6 mb-4" data-testid="photo-step-1">
+        <div className="text-xs uppercase tracking-widest text-[#E8A020] mb-3">Step 1. Add a photo</div>
+        <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={onFile} className="hidden" data-testid="photo-input" />
+        <div className="flex gap-2 mb-4 flex-wrap">
+          <button onClick={() => fileRef.current?.click()} className="btn-secondary flex items-center gap-2" data-testid="capture-photo-btn">
+            <Camera size={16} /> Take photo
           </button>
-        </div>
-        <div className="card-dark p-6 min-h-[400px]">
-          <div className="text-xs uppercase tracking-widest text-[#E8A020] mb-4 flex items-center justify-between gap-2">
-            <span>Generated document</span>
-            {refNumber && <span className="text-[10px] text-[#A19D94] normal-case tracking-normal" data-testid="ref-badge">REF: {refNumber}</span>}
-          </div>
-          {generating && <div className="flex flex-col items-center py-12 gap-4 text-[#A19D94]"><div className="spinner" /><div className="text-sm">Cleaning it up…</div></div>}
-          {!generating && !result && <div className="text-sm text-[#706D66] italic">Snap a photo. Morris reads it. Your professional document appears here. The photo is embedded as evidence in the PDF.</div>}
-          {result && (
-            <>
-              <div className="tool-result text-sm" data-testid="generated-content">{result}</div>
-              <ResultActions title={`Photo to Document. ${docType}`} content={result} toolId={TOOL.id} photo={preview} photoCaption={photoCaption} liveSignature={liveSignature} clientSignature={clientSignature} />
-            </>
+          <button onClick={() => fileRef.current?.click()} className="btn-secondary flex items-center gap-2" data-testid="upload-photo-btn">
+            <Upload size={16} /> Upload from device
+          </button>
+          {preview && (
+            <button onClick={clearPhoto} className="btn-secondary flex items-center gap-2 text-[#E5635A]" data-testid="clear-photo-btn">
+              <X size={14} /> Clear
+            </button>
           )}
         </div>
+        {preview ? (
+          <div className="rounded-md overflow-hidden border border-[#E8A020]/30">
+            <img src={preview} alt="Selected" className="w-full max-h-80 object-contain bg-black" data-testid="photo-preview" />
+          </div>
+        ) : (
+          <div className="rounded-md border border-dashed border-[#3d3d3d] bg-[#0a0a0a] p-10 flex flex-col items-center justify-center text-[#706D66]" data-testid="photo-empty">
+            <IdCard size={28} className="text-[#3d3d3d] mb-2" />
+            <div className="text-xs">No photo yet. Snap one from site or upload from your device.</div>
+          </div>
+        )}
       </div>
+
+      {/* Step 2: doc type */}
+      <div className="card-dark p-6 mb-4" data-testid="photo-step-2">
+        <div className="text-xs uppercase tracking-widest text-[#E8A020] mb-3">Step 2. Choose the document type</div>
+        <select className="input-base" value={docType} onChange={(e) => setDocType(e.target.value)} data-testid="doctype-select">
+          {DOC_TYPES.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
+        </select>
+        <p className="text-[11px] text-[#706D66] mt-2">Morris will open the {DOC_TYPES.find(d => d.id === docType)?.label} form for you to fill in. The photo will be attached to the final PDF as evidence.</p>
+      </div>
+
+      {/* Step 3: go */}
+      <button
+        onClick={onContinue}
+        className="btn-primary w-full flex items-center justify-center gap-2"
+        disabled={!preview}
+        data-testid="continue-btn"
+      >
+        Continue to the {DOC_TYPES.find(d => d.id === docType)?.label} form <ArrowRight size={14} />
+      </button>
     </div>
   );
 }

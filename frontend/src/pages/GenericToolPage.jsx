@@ -55,6 +55,7 @@ export default function GenericToolPage() {
   const [missing, setMissing] = useState([]);
   const [liveSignature, setLiveSignature] = useState("");
   const [clientSignature, setClientSignature] = useState("");
+  const [attachedPhoto, setAttachedPhoto] = useState(null);
   const dual = isDualSignoff(toolId);
 
   // Initialise values with auto-defaults whenever the tool changes
@@ -72,6 +73,24 @@ export default function GenericToolPage() {
     setMissing([]);
     setLiveSignature("");
     setClientSignature("");
+
+    // Pick up any pending photo intent from Photo to Document. If the user
+    // landed here via that tool, the photo is in localStorage tagged to this
+    // toolId. We pull it once and clear it so it doesn't leak into other tools.
+    try {
+      const raw = localStorage.getItem("morris_photo_intent_v1");
+      if (raw) {
+        const intent = JSON.parse(raw);
+        if (intent?.toolId === toolId && intent?.photo) {
+          setAttachedPhoto(intent.photo);
+        }
+        localStorage.removeItem("morris_photo_intent_v1");
+      } else {
+        setAttachedPhoto(null);
+      }
+    } catch {
+      setAttachedPhoto(null);
+    }
   }, [toolId, tool]);
 
   // No required-field gating — users can generate with whatever they've entered.
@@ -129,6 +148,28 @@ export default function GenericToolPage() {
   return (
     <div className="p-6 md:p-10 max-w-6xl mx-auto" data-testid={`tool-page-${tool.id}`}>
       <ToolHeader tool={tool} infoOpen={infoOpen} setInfoOpen={setInfoOpen} />
+
+      {attachedPhoto && (
+        <div
+          className="mb-4 p-3 rounded flex items-center gap-3 flex-wrap"
+          style={{ border: "1px solid rgba(232,160,32,0.35)", background: "rgba(232,160,32,0.06)" }}
+          data-testid="attached-photo-banner"
+        >
+          <img src={attachedPhoto} alt="Attached" className="w-20 h-20 rounded object-cover border border-[#E8A020]/40" data-testid="attached-photo-thumb" />
+          <div className="flex-1 min-w-[160px]">
+            <div className="text-xs uppercase tracking-widest text-[#E8A020]">Photo attached via Photo to Document</div>
+            <div className="text-[11px] text-[#A19D94] mt-0.5">This image will be embedded in the final PDF as evidence.</div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setAttachedPhoto(null)}
+            className="text-[10px] uppercase tracking-widest text-[#706D66] hover:text-[#E5635A]"
+            data-testid="attached-photo-remove"
+          >
+            Remove
+          </button>
+        </div>
+      )}
 
       <div className="grid md:grid-cols-2 gap-6">
         <div className="card-dark p-6">
@@ -243,7 +284,7 @@ export default function GenericToolPage() {
           {result && (
             <>
               <div className="tool-result text-sm" data-testid="generated-content">{result}</div>
-              <ResultActions title={tool.name} content={result} toolId={tool.id} refNumber={refNumber} liveSignature={liveSignature} clientSignature={clientSignature} />
+              <ResultActions title={tool.name} content={result} toolId={tool.id} refNumber={refNumber} liveSignature={liveSignature} clientSignature={clientSignature} photo={attachedPhoto} photoCaption={attachedPhoto ? `Site photograph attached via Photo to Document.` : undefined} />
             </>
           )}
         </div>

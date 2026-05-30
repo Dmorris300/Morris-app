@@ -78,6 +78,8 @@ class ProfileUpdate(BaseModel):
     cscsCardFront: Optional[str] = None     # base64 image data URL
     cscsCardBack: Optional[str] = None      # base64 image data URL
     companyLogo: Optional[str] = None       # white-label logo (Enterprise only)
+    nationalInsuranceNumber: Optional[str] = None
+    companyRegNumber: Optional[str] = None
     # Bank details (split into 3 fields). shareBankDetails controls whether
     # they appear on the shared profile PDF (always appear on relevant docs).
     sortCode: Optional[str] = None
@@ -206,6 +208,7 @@ async def next_ref_number(user: dict, tool_id: str) -> str:
     """Increment the user's per-tool counter and return a formatted ref number."""
     today = datetime.now(timezone.utc)
     ymd = today.strftime("%y%m%d")
+    year_full = today.strftime("%Y")
     counter_key = f"docCounters.{tool_id}.{ymd}"
     res = await db.users.find_one_and_update(
         {"id": user["id"]},
@@ -213,6 +216,19 @@ async def next_ref_number(user: dict, tool_id: str) -> str:
         return_document=True,
     )
     seq = (((res or {}).get("docCounters") or {}).get(tool_id) or {}).get(ymd, 1)
+    # Per-tool custom ref formats (spec: tools 3, 4, 5, 7, 9, 10, 11)
+    custom = {
+        "quote-builder":         f"QB-{year_full}-{seq:03d}",
+        "price-work-quote":      f"QB-{year_full}-{seq:03d}",
+        "variation-letter":      f"VO-{seq:03d}",
+        "cis-invoice":           f"INV-{year_full}-{seq:03d}",
+        "snagging-list":         f"SNG-{seq:03d}",
+        "progress-report":       f"PR-{seq:03d}",
+        "eot-claim":             f"EOT-{seq:03d}",
+        "handover-certificate":  f"PCC-{seq:03d}",
+    }
+    if tool_id in custom:
+        return custom[tool_id]
     return f"{_ref_abbr(tool_id)}-{_ref_initials(user)}-{ymd}-{seq:03d}"
 
 
@@ -619,6 +635,12 @@ async def generate(req: GenerateReq, authorization: Optional[str] = Header(None)
         profile_lines.append(f"Email: {user_email}")
     if utr:
         profile_lines.append(f"UTR: {utr}")
+    ni_number = user.get("nationalInsuranceNumber") or ""
+    if ni_number:
+        profile_lines.append(f"National Insurance number: {ni_number}")
+    company_reg = user.get("companyRegNumber") or ""
+    if company_reg:
+        profile_lines.append(f"Company registration number: {company_reg}")
     if cis_status:
         profile_lines.append(f"CIS status: {cis_status}")
     if vat_registered is True and vat_number:

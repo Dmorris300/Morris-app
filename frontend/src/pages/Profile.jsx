@@ -23,6 +23,8 @@ export default function Profile() {
     address: user?.address || "",
     contactNumber: user?.contactNumber || user?.phone || "",
     utr: user?.utr || "",
+    nationalInsuranceNumber: user?.nationalInsuranceNumber || "",
+    companyRegNumber: user?.companyRegNumber || "",
     vatRegistered: user?.vatRegistered ?? false,
     vatNumber: user?.vatNumber || "",
     cisStatus: user?.cisStatus || "Net 20%",
@@ -190,6 +192,8 @@ export default function Profile() {
         <Row label="Address"><textarea rows={3} className="input-base" value={f.address} onChange={(e) => setF({ ...f, address: e.target.value })} data-testid="profile-address" /></Row>
         <Row label="Contact number"><input className="input-base" value={f.contactNumber} onChange={(e) => setF({ ...f, contactNumber: e.target.value })} placeholder="07700 900001" data-testid="profile-contact" /></Row>
         <Row label="UTR"><input className="input-base" value={f.utr} onChange={(e) => setF({ ...f, utr: e.target.value })} placeholder="10-digit Unique Taxpayer Reference" data-testid="profile-utr" /></Row>
+        <Row label="National Insurance number"><input className="input-base" value={f.nationalInsuranceNumber} onChange={(e) => setF({ ...f, nationalInsuranceNumber: e.target.value })} placeholder="e.g. AB123456C" data-testid="profile-ni" /></Row>
+        <Row label="Company registration number (optional)"><input className="input-base" value={f.companyRegNumber} onChange={(e) => setF({ ...f, companyRegNumber: e.target.value })} placeholder="e.g. 12345678" data-testid="profile-companyreg" /></Row>
         <Row label="VAT registered">
           <label className="flex items-center gap-3 text-sm text-[#A19D94]">
             <input type="checkbox" checked={!!f.vatRegistered} onChange={(e) => setF({ ...f, vatRegistered: e.target.checked })} data-testid="profile-vat-registered" />
