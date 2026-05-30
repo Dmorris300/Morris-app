@@ -299,19 +299,27 @@ def _signoff_instructions(tool_id: str, profile: dict, has_signature: bool) -> s
     )
 
     if tool_id in DUAL_SIGNOFF_TOOLS:
+        # The client signature box marker [SIGN HERE] is rendered by the PDF
+        # generator as an actual draw-able signature rectangle. The follow-on
+        # caption is printed verbatim below the box.
         client_block = (
             "CLIENT SIGN-OFF (to be completed by the recipient)\n"
             "Name: ____________________________\n"
             "Role: ____________________________\n"
             "Company: ____________________________\n"
             "Date and time: ____________________________\n"
-            "Signature: ____________________________\n"
+            "Signature: [SIGN HERE]\n"
+            "Please sign and return a copy for your records.\n"
         )
         return (
             "MANDATORY SIGN-OFF BLOCKS: Every document MUST end with the following two sign-off blocks, "
             "in this exact format, on their own lines, separated by a single blank line. "
-            "Use the contractor values exactly as provided. Leave the client block as labelled blank lines "
-            "with underscores so it can be completed by hand or counter-signed.\n\n"
+            "Use the contractor values exactly as provided — the contractor's saved electronic "
+            "signature is auto-applied on the PDF directly beside the 'Signature:' line. "
+            "For the CLIENT block, output the lines EXACTLY as shown including the literal text "
+            "'Signature: [SIGN HERE]' and the follow-on caption 'Please sign and return a copy for "
+            "your records.' The Morris PDF generator replaces '[SIGN HERE]' with a drawn signature "
+            "box for the recipient to sign inside. Do not substitute, omit, or paraphrase this marker.\n\n"
             + contractor_block + "\n" + client_block
         )
 

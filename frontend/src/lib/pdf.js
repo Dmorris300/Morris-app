@@ -63,7 +63,14 @@ export function generatePdf({ title, content, user, photo, photoCaption }) {
   // Detect the line that contains the contractor Signature field so we can
   // stamp the user's saved signature image directly below it.
   const sigLineMatcher = /^Signature:\s/i;
+  // Detect the dual-signoff client signature placeholder produced by the
+  // backend `_signoff_instructions` helper. The marker is rendered as an
+  // actual sign-here box on the PDF.
+  const clientSigMarker = /\[SIGN HERE\]/i;
   let sigStampedY = null;
+  // Track if we need extra vertical space after this iteration (e.g. for the
+  // client signature box we draw in place of the marker).
+  let extraSkipAfter = 0;
 
   lines.forEach((line) => {
     if (y > bottom) {
@@ -71,6 +78,39 @@ export function generatePdf({ title, content, user, photo, photoCaption }) {
       doc.addPage();
       y = 60;
     }
+
+    // ----- Client signature placeholder: draw a labelled signature box -----
+    if (sigLineMatcher.test(line) && clientSigMarker.test(line)) {
+      // Print only the "Signature:" label — drop the placeholder text.
+      doc.text("Signature:", margin, y);
+      // Make sure the box fits on the page; push to a new page if not.
+      const boxW = 240;
+      const boxH = 70;
+      if (y + boxH + 30 > bottom) {
+        addFooter(doc, pageWidth, pageHeight, user);
+        doc.addPage();
+        y = 60;
+        doc.text("Signature:", margin, y);
+      }
+      doc.setDrawColor(150, 150, 150);
+      doc.setLineWidth(0.6);
+      doc.rect(margin + 70, y - 12, boxW, boxH);
+      // Subtle in-box "Sign here" hint
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(9);
+      doc.setTextColor(170, 170, 170);
+      doc.text("Sign inside this box", margin + 70 + boxW / 2, y - 12 + boxH / 2 + 3, { align: "center" });
+      // Restore the body font/colour for the rest of the document
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10.5);
+      doc.setTextColor(20, 20, 20);
+      // Skip ahead so the next line (the caption) is rendered below the box
+      extraSkipAfter = boxH;
+      y += lineHeight + extraSkipAfter;
+      extraSkipAfter = 0;
+      return;
+    }
+
     doc.text(line, margin, y);
 
     // If this is the contractor "Signature:" line AND a signature image is on file,
