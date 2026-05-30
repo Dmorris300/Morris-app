@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import ToolHeader, { ResultActions } from "../components/ToolHeader";
+import LiveSignatureBlock from "../components/LiveSignatureBlock";
 import api from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { toast } from "sonner";
@@ -24,6 +25,8 @@ export default function PhotoToDocument() {
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState("");
   const [refNumber, setRefNumber] = useState("");
+  const [liveSignature, setLiveSignature] = useState("");
+  const [clientSignature, setClientSignature] = useState("");
   const fileRef = useRef(null);
 
   const onFile = (e) => {
@@ -151,6 +154,24 @@ export default function PhotoToDocument() {
             onChange={(e) => setDescription(e.target.value)}
             data-testid="photo-description"
           />
+          <div className="mt-4 space-y-3" data-testid="signature-pads">
+            <LiveSignatureBlock
+              label="Your Signature"
+              subtitle="Sign here as the contractor / sender"
+              value={liveSignature}
+              onChange={setLiveSignature}
+              savedSignature={user?.signature}
+              testIdPrefix="live-sig"
+            />
+            <LiveSignatureBlock
+              label="Client or Contractor Signature"
+              subtitle="Optional. Leave blank for the recipient to sign on the printed PDF"
+              value={clientSignature}
+              onChange={setClientSignature}
+              allowBlank
+              testIdPrefix="client-sig"
+            />
+          </div>
           <button onClick={onGenerate} className="btn-primary w-full mt-4 flex items-center justify-center gap-2" disabled={generating || extracting} data-testid="generate-photo-btn">
             {generating ? <><Loader2 size={16} className="animate-spin" /> Writing…</> : <><Wand2 size={16} /> Convert to document</>}
           </button>
@@ -165,7 +186,7 @@ export default function PhotoToDocument() {
           {result && (
             <>
               <div className="tool-result text-sm" data-testid="generated-content">{result}</div>
-              <ResultActions title={`Photo to Document. ${docType}`} content={result} toolId={TOOL.id} photo={preview} photoCaption={photoCaption} />
+              <ResultActions title={`Photo to Document. ${docType}`} content={result} toolId={TOOL.id} photo={preview} photoCaption={photoCaption} liveSignature={liveSignature} clientSignature={clientSignature} />
             </>
           )}
         </div>

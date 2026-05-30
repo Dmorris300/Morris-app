@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getToolById } from "../lib/tools-config";
+import { getToolById, isDualSignoff } from "../lib/tools-config";
 import ToolHeader, { ResultActions } from "../components/ToolHeader";
+import LiveSignatureBlock from "../components/LiveSignatureBlock";
 import api from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { toast } from "sonner";
@@ -52,6 +53,9 @@ export default function GenericToolPage() {
   const [result, setResult] = useState("");
   const [refNumber, setRefNumber] = useState("");
   const [missing, setMissing] = useState([]);
+  const [liveSignature, setLiveSignature] = useState("");
+  const [clientSignature, setClientSignature] = useState("");
+  const dual = isDualSignoff(toolId);
 
   // Initialise values with auto-defaults whenever the tool changes
   useEffect(() => {
@@ -66,6 +70,8 @@ export default function GenericToolPage() {
     setRefNumber("");
     setInfoOpen(false);
     setMissing([]);
+    setLiveSignature("");
+    setClientSignature("");
   }, [toolId, tool]);
 
   // No required-field gating — users can generate with whatever they've entered.
@@ -181,6 +187,30 @@ export default function GenericToolPage() {
                 Please complete: {missing.join(", ")}
               </div>
             )}
+
+            {/* Live signature pad(s) — appear above the Generate button on every tool. */}
+            <div className="space-y-3 pt-2 border-t border-[#1a1a1a]" data-testid="signature-pads">
+              <LiveSignatureBlock
+                label={dual ? "Your Signature" : "Sign before generating"}
+                subtitle={dual ? "Sign here as the contractor / sender" : "Your signature is stamped on the generated PDF"}
+                value={liveSignature}
+                onChange={setLiveSignature}
+                savedSignature={user?.signature}
+                testIdPrefix="live-sig"
+              />
+              {dual && (
+                <LiveSignatureBlock
+                  label="Client or Contractor Signature"
+                  subtitle="Optional. Leave blank for the recipient to sign on the printed PDF"
+                  value={clientSignature}
+                  onChange={setClientSignature}
+                  savedSignature={null}
+                  allowBlank
+                  testIdPrefix="client-sig"
+                />
+              )}
+            </div>
+
             <button
               onClick={onGenerate}
               className={`btn-primary w-full flex items-center justify-center gap-2 ${generateDisabled ? "opacity-50 cursor-not-allowed" : ""}`}
@@ -213,7 +243,7 @@ export default function GenericToolPage() {
           {result && (
             <>
               <div className="tool-result text-sm" data-testid="generated-content">{result}</div>
-              <ResultActions title={tool.name} content={result} toolId={tool.id} refNumber={refNumber} />
+              <ResultActions title={tool.name} content={result} toolId={tool.id} refNumber={refNumber} liveSignature={liveSignature} clientSignature={clientSignature} />
             </>
           )}
         </div>

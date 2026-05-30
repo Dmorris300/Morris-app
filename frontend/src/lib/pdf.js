@@ -1,6 +1,6 @@
 import { jsPDF } from "jspdf";
 
-export function generatePdf({ title, content, user, photo, photoCaption }) {
+export function generatePdf({ title, content, user, photo, photoCaption, clientSignature }) {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 48;
@@ -95,11 +95,20 @@ export function generatePdf({ title, content, user, photo, photoCaption }) {
       doc.setDrawColor(150, 150, 150);
       doc.setLineWidth(0.6);
       doc.rect(margin + 70, y - 12, boxW, boxH);
-      // Subtle in-box "Sign here" hint
-      doc.setFont("helvetica", "italic");
-      doc.setFontSize(9);
-      doc.setTextColor(170, 170, 170);
-      doc.text("Sign inside this box", margin + 70 + boxW / 2, y - 12 + boxH / 2 + 3, { align: "center" });
+      // If the user drew a client signature on the tool form, stamp it inside the box.
+      // Otherwise show the subtle "Sign inside this box" hint for the recipient.
+      if (clientSignature) {
+        try {
+          doc.addImage(clientSignature, "PNG", margin + 70 + 4, y - 12 + 4, boxW - 8, boxH - 8, undefined, "FAST");
+        } catch (e) {
+          if (process.env.NODE_ENV !== "production") console.error("PDF client signature embed failed", e);
+        }
+      } else {
+        doc.setFont("helvetica", "italic");
+        doc.setFontSize(9);
+        doc.setTextColor(170, 170, 170);
+        doc.text("Sign inside this box", margin + 70 + boxW / 2, y - 12 + boxH / 2 + 3, { align: "center" });
+      }
       // Restore the body font/colour for the rest of the document
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10.5);
@@ -185,13 +194,13 @@ function addFooter(doc, pageWidth, pageHeight, user) {
   }
 }
 
-export function downloadPdf({ title, content, user, photo, photoCaption }) {
-  const doc = generatePdf({ title, content, user, photo, photoCaption });
+export function downloadPdf({ title, content, user, photo, photoCaption, clientSignature }) {
+  const doc = generatePdf({ title, content, user, photo, photoCaption, clientSignature });
   const safe = (title || "morris-document").toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 60);
   doc.save(`${safe}.pdf`);
 }
 
-export function pdfBlobUrl({ title, content, user, photo, photoCaption }) {
-  const doc = generatePdf({ title, content, user, photo, photoCaption });
+export function pdfBlobUrl({ title, content, user, photo, photoCaption, clientSignature }) {
+  const doc = generatePdf({ title, content, user, photo, photoCaption, clientSignature });
   return doc.output("bloburl");
 }

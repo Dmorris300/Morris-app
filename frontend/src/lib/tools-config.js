@@ -692,6 +692,26 @@ export function requiresReview(toolId) {
   return REVIEW_REQUIRED_TOOLS.has(toolId);
 }
 
+// Tools that require a dual sign-off (contractor + client/recipient).
+// Mirrors backend `DUAL_SIGNOFF_TOOLS` so the frontend can render the right
+// number of signature pads on the tool form. Any tool not in this set falls
+// back to a single contractor sign-off pad.
+export const DUAL_SIGNOFF_TOOLS = new Set([
+  "quote-builder", "variation-letter", "verbal-to-variation",
+  "cis-invoice", "handover-certificate", "subcontract-letter",
+  "complaint-letter", "application-for-payment", "retention-chaser",
+  "final-account", "contra-charge-dispute", "eot-claim", "lds-dispute",
+  "novation-letter", "bad-debt-letter", "snagging-list", "purchase-order",
+  "subbie-payment-cert", "hire-agreement", "tender-letter",
+  "scope-of-works", "price-work-quote", "rate-increase-letter",
+  "hmrc-correspondence", "reference-letter",
+  "photo-to-document",
+]);
+
+export function isDualSignoff(toolId) {
+  return DUAL_SIGNOFF_TOOLS.has(toolId);
+}
+
 export const ACCOUNT_TOOLS = [
   { id: "favourites", name: "Favourites", section: "account", route: "/app/favourites", info: "Your starred tools, one click away." },
   { id: "history", name: "Document History", section: "account", route: "/app/history", info: "Every document you've generated, saved and ready to re-download." },
