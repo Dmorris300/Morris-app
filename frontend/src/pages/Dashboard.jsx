@@ -51,11 +51,23 @@ export default function Dashboard() {
   const [cis, setCis] = useState([]);
   const [jobs, setJobs] = useState([]);
 
+  // Empty-state prompts on the Command Centre are only shown on the user's
+  // first ever visit. The flag is keyed to the user id so a second account
+  // on the same device still sees the welcome prompts once.
+  const seenKey = user?.id ? `morris_cc_seen_${user.id}` : "morris_cc_seen";
+  const [hideEmptyPrompts, setHideEmptyPrompts] = useState(() => {
+    try { return !!localStorage.getItem(seenKey); } catch { return false; }
+  });
+
   useEffect(() => {
     api.get("/documents").then(r => setDocs(r.data)).catch((e) => { if (process.env.NODE_ENV !== "production") console.error("Documents load failed", e); });
     api.get("/cis/payments").then(r => setCis(r.data)).catch((e) => { if (process.env.NODE_ENV !== "production") console.error("CIS payments load failed", e); });
     api.get("/jobs").then(r => setJobs(r.data)).catch((e) => { if (process.env.NODE_ENV !== "production") console.error("Jobs load failed", e); });
-  }, []);
+    // Mark this user as having seen the Command Centre. From the NEXT
+    // dashboard mount onwards (next login, refresh after navigation, etc.)
+    // the empty-state prompts will be suppressed automatically.
+    try { localStorage.setItem(seenKey, String(Date.now())); } catch { /* ignore */ }
+  }, [seenKey]);
 
   const favs = (user?.favourites || []).map(id => [...TOOLS, ...WOW_TOOLS].find(t => t.id === id)).filter(Boolean);
   const recent = (user?.recentlyUsed || []).map(id => [...TOOLS, ...WOW_TOOLS].find(t => t.id === id)).filter(Boolean);
