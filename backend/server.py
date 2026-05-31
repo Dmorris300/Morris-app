@@ -109,15 +109,34 @@ class DocumentSave(BaseModel):
     metadata: Optional[Dict[str, Any]] = None
 
 class CISPayment(BaseModel):
+    """A CIS payment received from a contractor.
+    
+    Frontend sends the new structured fields (grossLabour, materials, cisRate).
+    The server computes deduction, gross, and net so the user can never type
+    those manually.
+    """
     date: str
     contractor: str
-    gross: float
-    deduction: float
-    net: float
+    grossLabour: Optional[float] = None
+    materials: Optional[float] = 0.0
+    cisRate: Optional[float] = 0.20  # 0.20 (registered) or 0.30 (unregistered)
+    # Legacy fields kept so older records still deserialise cleanly.
+    gross: Optional[float] = None
+    deduction: Optional[float] = None
+    net: Optional[float] = None
+    notes: Optional[str] = ""
+
+
+class ExpenseEntry(BaseModel):
+    """An allowable business expense logged by the user."""
+    date: str
+    category: str  # tools | fuel | ppe | training | insurance | accountant | phone | marketing | materials | mileage | other
+    description: Optional[str] = ""
+    amount: float
     notes: Optional[str] = ""
 
 # ---------- Jobs ----------
-JOB_STATUSES = ["active", "invoiced", "completed", "disputed"]
+JOB_STATUSES = ["active", "invoiced", "paid", "completed", "disputed"]
 
 class JobCreate(BaseModel):
     clientName: str
@@ -135,6 +154,8 @@ class JobUpdate(BaseModel):
     expectedCompletion: Optional[str] = None
     status: Optional[str] = None
     notes: Optional[str] = None
+    disputeNote: Optional[str] = None
+    paidDate: Optional[str] = None
 
 # ---------- Helpers ----------
 def hash_pw(pw: str) -> str:
@@ -660,13 +681,23 @@ async def generate(req: GenerateReq, authorization: Optional[str] = Header(None)
 
     system_prompt = (
         "You are Morris, an AI document writer for UK construction tradespeople. "
-        "Always write in UK English. Reference UK construction law and practice where relevant, "
-        "including the Construction Industry Scheme (CIS), HMRC, HSE, CDM 2015 regulations, "
-        "and the Housing Grants, Construction and Regeneration Act 1996 (as amended). "
-        "Output professional, plain English documents — clear, firm, polite and well-structured. "
-        "Never use markdown headings (#) or asterisks; use clean text, paragraph breaks, and capitalised section labels (e.g. 'SUBJECT:', 'TO:'). "
-        "STRICT FORMATTING RULE: Do not use dashes, hyphens, em-dashes, en-dashes or any similar punctuation anywhere in the output unless the user has typed them in themselves as part of their own input. Use clean spacing, line breaks and capitalised section labels instead. "
-        "STRICT PLACEHOLDER RULE: Never output placeholder text such as '[Your Company]', '[Insert Date]', 'TBC' or anything in square brackets. Use the auto-populated profile data below for every name, company, address, contact, UTR, VAT and CIS reference. If a profile field is missing, leave it out cleanly instead of using a placeholder. "
+        "Always write in UK English.\n\n"
+        "TONE AND LANGUAGE — STRICT, GLOBAL, NEVER OVERRIDE:\n"
+        "Write in plain direct construction English at all times. Short sentences. One idea per sentence. Say exactly what you mean. No padding. "
+        "Write as if you are an experienced tradesperson briefing your own gang. Confident, direct, professional enough to pass a principal contractor's site manager. Not corporate. Not cautious. "
+        "BANNED WORDS AND PHRASES — never use these or anything similar: 'kinetic', 'facilitate', 'endeavour', 'utilise', 'operatives are advised', 'activities involving', 'implement', 'undertake', 'in order to', 'ensure that', 'shall be undertaken', 'prior to'. "
+        "Write actions as direct instructions. Example: write 'Two-man lift anything over 10kg' NOT 'manual handling assessments to be conducted prior to lifting operations'. "
+        "When describing a risk, state it plainly. Example: write 'Risk of falling from height' NOT 'activities involving elevation above ground level present a risk of gravitational impact'. "
+        "Never explain legislation in paragraph form. List the Act or Reg by name, one line, and move on. "
+        "Do NOT include BS EN reference numbers in PPE lists unless the user typed them in. "
+        "Never add information the user did not ask for. "
+        "Financial documents: clear and exact. Figures, dates, amounts with no ambiguity. "
+        "Legal documents: firm but plain. A tradesperson must be able to read it out loud without stumbling.\n\n"
+        "Reference UK construction law and practice where directly relevant: CIS, HMRC, HSE, CDM 2015, Housing Grants Construction and Regeneration Act 1996 (as amended). List by name, do not lecture.\n\n"
+        "FORMATTING:\n"
+        "Never use markdown headings (#) or asterisks. Use clean text, paragraph breaks, and capitalised section labels (e.g. 'SUBJECT:', 'TO:', 'SCOPE:').\n"
+        "Do not use dashes, hyphens, em-dashes or en-dashes anywhere in the output unless the user typed them in themselves. Use clean spacing and line breaks.\n"
+        "Never output placeholder text such as '[Your Company]', '[Insert Date]', 'TBC' or anything in square brackets. Use the auto-populated profile data below. If a field is missing, leave it out cleanly.\n\n"
         "DOCUMENT HEADER RULE: Every document MUST begin with a header block in this exact format:\n"
         "DOCUMENT REFERENCE: {ref}\n"
         "DATE: {today}\n"
@@ -704,6 +735,31 @@ async def generate(req: GenerateReq, authorization: Optional[str] = Header(None)
         # We deliberately keep ASCII hyphens because legitimate inputs (postcodes,
         # phone numbers, double-barrelled names) may contain them.
         cleaned = (response or "").replace("\u2014", " ").replace("\u2013", " ")
+        # Safety net: strip the worst consultant-style phrases. We replace,
+        # not fail, so the user always gets a document back.
+        BANNED_REPLACEMENTS = {
+            "operatives are advised to ": "",
+            "operatives are advised ": "",
+            "activities involving ": "",
+            "in order to ": "to ",
+            "shall be undertaken ": "happens ",
+            "is to be undertaken ": "happens ",
+            "is to be implemented ": "is in place ",
+            "shall be implemented ": "is in place ",
+            "ensure that ": "make sure ",
+            " utilise ": " use ",
+            " utilised": " used",
+            " endeavour to ": " try to ",
+            " endeavour ": " try ",
+            " facilitate ": " help with ",
+            " kinetic ": " ",
+            " prior to ": " before ",
+        }
+        lc = cleaned
+        for bad, repl in BANNED_REPLACEMENTS.items():
+            lc = lc.replace(bad, repl)
+            lc = lc.replace(bad.capitalize(), repl.capitalize() if repl else "")
+        cleaned = lc
         await record_usage(db, user, req.toolId)
         # Auto-save every generated document to the user's Document Vault
         try:
@@ -838,10 +894,29 @@ async def delete_job(job_id: str, authorization: Optional[str] = Header(None)):
 async def add_cis(p: CISPayment, authorization: Optional[str] = Header(None)):
     token = authorization.replace("Bearer ", "") if authorization else None
     user = await get_user(token)
+
+    # Server-side authoritative calc. Frontend cannot override deduction/net.
+    gross_labour = float(p.grossLabour if p.grossLabour is not None else (p.gross or 0))
+    materials = float(p.materials or 0)
+    cis_rate = float(p.cisRate if p.cisRate is not None else 0.20)
+    if cis_rate not in (0.20, 0.30, 0.0):
+        cis_rate = 0.20
+    deduction = round(gross_labour * cis_rate, 2)
+    gross_total = round(gross_labour + materials, 2)
+    net = round(gross_total - deduction, 2)
+
     doc = {
         "id": str(uuid.uuid4()),
         "userId": user["id"],
-        **p.model_dump(),
+        "date": p.date,
+        "contractor": p.contractor,
+        "grossLabour": round(gross_labour, 2),
+        "materials": round(materials, 2),
+        "cisRate": cis_rate,
+        "deduction": deduction,
+        "gross": gross_total,   # legacy alias — total gross invoice value
+        "net": net,
+        "notes": p.notes or "",
         "createdAt": datetime.now(timezone.utc).isoformat(),
     }
     await db.cis_payments.insert_one(doc)
@@ -853,6 +928,15 @@ async def list_cis(authorization: Optional[str] = Header(None)):
     token = authorization.replace("Bearer ", "") if authorization else None
     user = await get_user(token)
     items = await db.cis_payments.find({"userId": user["id"]}, {"_id": 0}).sort("date", -1).to_list(500)
+    # Backfill grossLabour / materials / cisRate on older records so the
+    # frontend can render them consistently.
+    for it in items:
+        if "grossLabour" not in it or it.get("grossLabour") is None:
+            it["grossLabour"] = float(it.get("gross") or 0)
+            it["materials"] = 0.0
+            ded = float(it.get("deduction") or 0)
+            gl = it["grossLabour"]
+            it["cisRate"] = round(ded / gl, 2) if gl > 0 else 0.20
     return items
 
 @api_router.delete("/cis/payments/{pid}")
@@ -860,6 +944,49 @@ async def del_cis(pid: str, authorization: Optional[str] = Header(None)):
     token = authorization.replace("Bearer ", "") if authorization else None
     user = await get_user(token)
     await db.cis_payments.delete_one({"id": pid, "userId": user["id"]})
+    return {"ok": True}
+
+
+# ---------- Allowable Expenses ----------
+EXPENSE_CATEGORIES = ["tools", "fuel", "ppe", "training", "insurance", "accountant", "phone", "marketing", "materials", "mileage", "other"]
+
+
+@api_router.post("/expenses")
+async def add_expense(e: ExpenseEntry, authorization: Optional[str] = Header(None)):
+    token = authorization.replace("Bearer ", "") if authorization else None
+    user = await get_user(token)
+    cat = (e.category or "other").lower()
+    if cat not in EXPENSE_CATEGORIES:
+        cat = "other"
+    doc = {
+        "id": str(uuid.uuid4()),
+        "userId": user["id"],
+        "date": e.date,
+        "category": cat,
+        "description": e.description or "",
+        "amount": round(float(e.amount or 0), 2),
+        "notes": e.notes or "",
+        "source": "manual",
+        "createdAt": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.expenses.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@api_router.get("/expenses")
+async def list_expenses(authorization: Optional[str] = Header(None)):
+    token = authorization.replace("Bearer ", "") if authorization else None
+    user = await get_user(token)
+    items = await db.expenses.find({"userId": user["id"]}, {"_id": 0}).sort("date", -1).to_list(2000)
+    return items
+
+
+@api_router.delete("/expenses/{eid}")
+async def del_expense(eid: str, authorization: Optional[str] = Header(None)):
+    token = authorization.replace("Bearer ", "") if authorization else None
+    user = await get_user(token)
+    await db.expenses.delete_one({"id": eid, "userId": user["id"], "source": "manual"})
     return {"ok": True}
 
 # ---------- Team Management ----------

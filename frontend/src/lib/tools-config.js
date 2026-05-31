@@ -833,7 +833,7 @@ export const WOW_TOOLS = [
   { id: "photo-to-document", name: "Photo to Document", section: "documents", route: "/app/wow/photo-to-document",
     info: "Snap a photo of a scribbled note, drawing or scrap of paper. Morris turns it into a clean professional document." },
   { id: "tax-pot", name: "Tax Pot", section: "finance", route: "/app/taxpot",
-    info: "Set aside 23% of every CIS net payment. Morris keeps your running tax pot total alongside your Self Assessment deadline countdown." },
+    info: "Set aside 8% of every CIS net payment to cover your end-of-year National Insurance. Morris keeps your running tax pot total alongside your Self Assessment deadline countdown." },
   { id: "company-checker", name: "Company Checker", section: "soletrader", route: "/app/company-checker",
     info: "Look up any UK contractor on Companies House before you commit labour. See active / dissolved status, accounts overdue and red flags." },
 ];

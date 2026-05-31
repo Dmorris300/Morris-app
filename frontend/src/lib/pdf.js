@@ -1,107 +1,94 @@
 import { jsPDF } from "jspdf";
 
-export function generatePdf({ title, content, user, photo, photoCaption, clientSignature }) {
+// ----- Morris brand mark (gold-on-black M) — drawn vectorially as a fallback
+// when the user has not uploaded a company logo. Keeps the PDF clean and self
+// contained (no external image fetches).
+function drawMorrisMark(doc, x, y, size = 28) {
+  // Rounded gold square
+  doc.setFillColor(232, 160, 32);
+  doc.roundedRect(x, y, size, size, 4, 4, "F");
+  // Bold black M
+  doc.setTextColor(10, 10, 10);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(size * 0.7);
+  doc.text("M", x + size / 2, y + size * 0.74, { align: "center" });
+}
+
+function extractRef(content) {
+  // Pull the DOCUMENT REFERENCE: line out of the body if it exists.
+  if (!content) return null;
+  const m = content.match(/DOCUMENT REFERENCE:\s*([A-Z0-9\-]+)/i);
+  return m ? m[1].trim() : null;
+}
+
+export function generatePdf({ title, content, user, photo, photoCaption, clientSignature, refNumber }) {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 48;
   const usable = pageWidth - margin * 2;
 
-  // Branded header bar
-  doc.setFillColor(6, 6, 6);
-  doc.rect(0, 0, pageWidth, 70, "F");
-  // Gold accent strip
-  doc.setFillColor(232, 160, 32);
-  doc.rect(0, 70, pageWidth, 3, "F");
+  // --- White background. No watermarks. No grain. Clean. ---
+  doc.setFillColor(255, 255, 255);
+  doc.rect(0, 0, pageWidth, pageHeight, "F");
 
-  // White-label: if the user has uploaded a company logo, stamp it in the
-  // header (left side) in place of the MORRIS wordmark. Falls back to MORRIS
-  // when no logo is on file (i.e. non-Enterprise tiers).
-  if (user?.companyLogo) {
-    try {
-      doc.addImage(user.companyLogo, "PNG", margin, 12, 110, 46, undefined, "FAST");
-    } catch (e) {
-      // Fall back to the wordmark if the data URL is unusable
-      doc.setTextColor(232, 160, 32);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(22);
-      doc.text("MORRIS", margin, 42);
-    }
-  } else {
-    // Brand mark "MORRIS"
-    doc.setTextColor(232, 160, 32);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(22);
-    doc.text("MORRIS", margin, 42);
-  }
+  const today = new Date().toLocaleDateString("en-GB");
+  const ref = refNumber || extractRef(content) || "";
+  const userName = user?.fullName || user?.username || "";
+  const company = user?.companyName || userName;
 
-  // Company / user line — when white-labelled, this is the user's company.
-  // Otherwise it's still the user's company alongside the Morris wordmark.
-  doc.setTextColor(240, 237, 232);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  const company = user?.companyName || user?.fullName || user?.username || "";
-  doc.text(company.toUpperCase(), pageWidth - margin, 30, { align: "right" });
-  doc.text(`${new Date().toLocaleDateString("en-GB")}`, pageWidth - margin, 44, { align: "right" });
+  // --- Header on first page ---
+  drawHeader(doc, pageWidth, margin, user, company, today, title);
 
-  // Title
-  doc.setTextColor(0, 0, 0);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
-  doc.text(title || "Document", margin, 110);
-
-  // Body
+  // --- Body ---
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10.5);
   doc.setTextColor(20, 20, 20);
 
   const lines = doc.splitTextToSize(content || "", usable);
-  let y = 135;
-  const pageHeight = doc.internal.pageSize.getHeight();
-  const bottom = pageHeight - 60;
+  let y = 150;
+  const bottom = pageHeight - 70;
   const lineHeight = 14;
 
-  // Detect the line that contains the contractor Signature field so we can
-  // stamp the user's saved signature image directly below it.
   const sigLineMatcher = /^Signature:\s/i;
-  // Detect the dual-signoff client signature placeholder produced by the
-  // backend `_signoff_instructions` helper. The marker is rendered as an
-  // actual sign-here box on the PDF.
   const clientSigMarker = /\[SIGN HERE\]/i;
   let sigStampedY = null;
-  // Track if we need extra vertical space after this iteration (e.g. for the
-  // client signature box we draw in place of the marker).
-  let extraSkipAfter = 0;
 
   lines.forEach((line) => {
     if (y > bottom) {
-      addFooter(doc, pageWidth, pageHeight, user);
+      addFooter(doc, pageWidth, pageHeight, user, ref, today, userName);
       doc.addPage();
-      y = 60;
+      // White background on every new page
+      doc.setFillColor(255, 255, 255);
+      doc.rect(0, 0, pageWidth, pageHeight, "F");
+      drawHeader(doc, pageWidth, margin, user, company, today, null);
+      y = 110;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10.5);
+      doc.setTextColor(20, 20, 20);
     }
 
-    // ----- Client signature placeholder: draw a labelled signature box -----
     if (sigLineMatcher.test(line) && clientSigMarker.test(line)) {
-      // Print only the "Signature:" label — drop the placeholder text.
       doc.text("Signature:", margin, y);
-      // Make sure the box fits on the page; push to a new page if not.
       const boxW = 240;
       const boxH = 70;
       if (y + boxH + 30 > bottom) {
-        addFooter(doc, pageWidth, pageHeight, user);
+        addFooter(doc, pageWidth, pageHeight, user, ref, today, userName);
         doc.addPage();
-        y = 60;
+        doc.setFillColor(255, 255, 255);
+        doc.rect(0, 0, pageWidth, pageHeight, "F");
+        drawHeader(doc, pageWidth, margin, user, company, today, null);
+        y = 110;
         doc.text("Signature:", margin, y);
       }
       doc.setDrawColor(150, 150, 150);
       doc.setLineWidth(0.6);
       doc.rect(margin + 70, y - 12, boxW, boxH);
-      // If the user drew a client signature on the tool form, stamp it inside the box.
-      // Otherwise show the subtle "Sign inside this box" hint for the recipient.
       if (clientSignature) {
         try {
           doc.addImage(clientSignature, "PNG", margin + 70 + 4, y - 12 + 4, boxW - 8, boxH - 8, undefined, "FAST");
         } catch (e) {
-          if (process.env.NODE_ENV !== "production") console.error("PDF client signature embed failed", e);
+          if (process.env.NODE_ENV !== "production") console.error("PDF client sig embed failed", e);
         }
       } else {
         doc.setFont("helvetica", "italic");
@@ -109,26 +96,19 @@ export function generatePdf({ title, content, user, photo, photoCaption, clientS
         doc.setTextColor(170, 170, 170);
         doc.text("Sign inside this box", margin + 70 + boxW / 2, y - 12 + boxH / 2 + 3, { align: "center" });
       }
-      // Restore the body font/colour for the rest of the document
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10.5);
       doc.setTextColor(20, 20, 20);
-      // Skip ahead so the next line (the caption) is rendered below the box
-      extraSkipAfter = boxH;
-      y += lineHeight + extraSkipAfter;
-      extraSkipAfter = 0;
+      y += lineHeight + boxH;
       return;
     }
 
     doc.text(line, margin, y);
 
-    // If this is the contractor "Signature:" line AND a signature image is on file,
-    // stamp the signature 4pt below the text on the same row.
     if (sigStampedY === null && user?.signature && sigLineMatcher.test(line)) {
       try {
         const sigW = 130;
         const sigH = 46;
-        // Place image slightly to the right of "Signature:" label
         doc.addImage(user.signature, "PNG", margin + 60, y - 32, sigW, sigH, undefined, "FAST");
         sigStampedY = y;
       } catch (e) {
@@ -139,19 +119,20 @@ export function generatePdf({ title, content, user, photo, photoCaption, clientS
     y += lineHeight;
   });
 
-  // Embed the photo at the end of the body so it appears WITH the document.
-  // Stays on the current page if there is room, otherwise pushes to a new page.
+  // Photo
   if (photo) {
     const imgWidth = usable * 0.7;
-    const imgHeight = imgWidth * 0.75; // approximate aspect; jsPDF will respect the data URL's aspect after add
+    const imgHeight = imgWidth * 0.75;
     if (y + imgHeight + 40 > bottom) {
-      addFooter(doc, pageWidth, pageHeight, user);
+      addFooter(doc, pageWidth, pageHeight, user, ref, today, userName);
       doc.addPage();
-      y = 80;
+      doc.setFillColor(255, 255, 255);
+      doc.rect(0, 0, pageWidth, pageHeight, "F");
+      drawHeader(doc, pageWidth, margin, user, company, today, null);
+      y = 110;
     } else {
       y += 20;
     }
-    // Photo caption (date / time / description) — single styled line above the image
     if (photoCaption) {
       doc.setFont("helvetica", "italic");
       doc.setFontSize(9);
@@ -161,12 +142,10 @@ export function generatePdf({ title, content, user, photo, photoCaption, clientS
       y += 6;
     }
     try {
-      // jsPDF accepts data URLs directly. Inferring type from prefix.
       const format = (photo.startsWith("data:image/png") ? "PNG" : "JPEG");
       doc.addImage(photo, format, margin, y, imgWidth, imgHeight, undefined, "FAST");
-      // Gold border around photo
-      doc.setDrawColor(232, 160, 32);
-      doc.setLineWidth(0.5);
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(0.4);
       doc.rect(margin, y, imgWidth, imgHeight);
       y += imgHeight + 10;
     } catch (e) {
@@ -174,33 +153,74 @@ export function generatePdf({ title, content, user, photo, photoCaption, clientS
     }
   }
 
-  addFooter(doc, pageWidth, pageHeight, user);
-
+  addFooter(doc, pageWidth, pageHeight, user, ref, today, userName);
   return doc;
 }
 
-function addFooter(doc, pageWidth, pageHeight, user) {
-  doc.setDrawColor(232, 160, 32);
-  doc.setLineWidth(0.5);
-  doc.line(48, pageHeight - 46, pageWidth - 48, pageHeight - 46);
-  doc.setTextColor(110, 110, 110);
-  doc.setFontSize(8);
-  if (user?.companyLogo && user?.companyName) {
-    // White-label footer — drop the Morris branding line entirely.
-    doc.text(`${user.companyName}  •  Document prepared by ${user.fullName || user.username || ""}`, 48, pageHeight - 28);
+function drawHeader(doc, pageWidth, margin, user, company, today, title) {
+  // White header. Logo top-left. Company / date top-right. Single thin gold rule under.
+  const logoSize = 40;
+  const logoY = 30;
+  if (user?.companyLogo) {
+    try {
+      doc.addImage(user.companyLogo, "PNG", margin, logoY, 100, logoSize, undefined, "FAST");
+    } catch (e) {
+      drawMorrisMark(doc, margin, logoY, logoSize);
+    }
   } else {
-    doc.text("Generated by Morris  •  morrisapp.co.uk  •  Built by a tradesman. For tradesmen.", 48, pageHeight - 28);
-    doc.text("Morris Construction Tech Ltd  •  ICO C1923529", pageWidth - 48, pageHeight - 28, { align: "right" });
+    drawMorrisMark(doc, margin, logoY, logoSize);
+  }
+
+  // Right side: company name + date (small, neutral, no shouting)
+  doc.setTextColor(60, 60, 60);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  if (company) doc.text(company.toUpperCase(), pageWidth - margin, logoY + 14, { align: "right" });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(120, 120, 120);
+  doc.text(today, pageWidth - margin, logoY + 30, { align: "right" });
+
+  // Gold accent rule
+  doc.setDrawColor(232, 160, 32);
+  doc.setLineWidth(0.8);
+  doc.line(margin, logoY + logoSize + 16, pageWidth - margin, logoY + logoSize + 16);
+
+  // Title (only on the first page)
+  if (title) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.setTextColor(15, 15, 15);
+    doc.text(title, margin, logoY + logoSize + 40);
   }
 }
 
-export function downloadPdf({ title, content, user, photo, photoCaption, clientSignature }) {
-  const doc = generatePdf({ title, content, user, photo, photoCaption, clientSignature });
-  const safe = (title || "morris-document").toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 60);
-  doc.save(`${safe}.pdf`);
+function addFooter(doc, pageWidth, pageHeight, user, ref, today, userName) {
+  // Thin grey rule
+  doc.setDrawColor(220, 220, 220);
+  doc.setLineWidth(0.4);
+  doc.line(48, pageHeight - 56, pageWidth - 48, pageHeight - 56);
+
+  // Footer top line: ref | date | user name
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(100, 100, 100);
+  const refStr = ref ? `Ref: ${ref}` : "";
+  const parts = [refStr, today, userName].filter(Boolean).join("   ·   ");
+  doc.text(parts, 48, pageHeight - 40);
+
+  // Footer attribution line (always — required by the global spec)
+  doc.setTextColor(140, 140, 140);
+  doc.text("Generated by Morris  ·  morrisapp.co.uk  ·  Morris Construction Tech Ltd  ·  ICO C1923529", 48, pageHeight - 26);
 }
 
-export function pdfBlobUrl({ title, content, user, photo, photoCaption, clientSignature }) {
-  const doc = generatePdf({ title, content, user, photo, photoCaption, clientSignature });
-  return doc.output("bloburl");
+export function downloadPdf({ title, content, user, photo, photoCaption, clientSignature, refNumber }) {
+  const d = generatePdf({ title, content, user, photo, photoCaption, clientSignature, refNumber });
+  const safe = (title || "morris-document").toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 60);
+  d.save(`${safe}.pdf`);
+}
+
+export function pdfBlobUrl({ title, content, user, photo, photoCaption, clientSignature, refNumber }) {
+  const d = generatePdf({ title, content, user, photo, photoCaption, clientSignature, refNumber });
+  return d.output("bloburl");
 }

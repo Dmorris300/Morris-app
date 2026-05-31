@@ -2,13 +2,14 @@ import { useEffect, useState } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import api from "../lib/api";
 import { toast } from "sonner";
-import { ArrowLeft, FileText, Trash2, MapPin, Calendar, Wallet } from "lucide-react";
+import { ArrowLeft, FileText, Trash2, MapPin, Calendar, Wallet, AlertCircle, Save } from "lucide-react";
 
-const STATUSES = ["active", "invoiced", "completed", "disputed"];
+const STATUSES = ["active", "invoiced", "paid", "completed", "disputed"];
 const STATUS_COLORS = {
   active:    { fg: "#E8A020", bg: "rgba(232,160,32,0.08)", border: "rgba(232,160,32,0.3)" },
   invoiced:  { fg: "#5B9BFF", bg: "rgba(91,155,255,0.08)", border: "rgba(91,155,255,0.3)" },
-  completed: { fg: "#5BC97A", bg: "rgba(91,201,122,0.08)", border: "rgba(91,201,122,0.3)" },
+  paid:      { fg: "#5BC97A", bg: "rgba(91,201,122,0.08)", border: "rgba(91,201,122,0.3)" },
+  completed: { fg: "#9AA0A6", bg: "rgba(154,160,166,0.08)", border: "rgba(154,160,166,0.3)" },
   disputed:  { fg: "#E5635A", bg: "rgba(229,99,90,0.08)",  border: "rgba(229,99,90,0.3)" },
 };
 
@@ -36,14 +37,35 @@ export default function JobDetail() {
   useEffect(() => { load(); }, [jobId]);
 
   const setStatus = async (status) => {
+    // Disputed → ask for a note up front if there isn't one already
+    let extra = {};
+    if (status === "disputed" && !job.disputeNote) {
+      const note = window.prompt("What is the dispute about? (kept on the job so you remember why)");
+      if (note === null) return; // user cancelled
+      extra.disputeNote = note.trim();
+    }
+    if (status === "paid" && !job.paidDate) {
+      extra.paidDate = new Date().toISOString().slice(0, 10);
+    }
     setSavingStatus(true);
     try {
-      const r = await api.patch(`/jobs/${jobId}`, { status });
+      const r = await api.patch(`/jobs/${jobId}`, { status, ...extra });
       setJob(r.data);
       toast.success(`Status set to ${status}`);
     } catch (e) {
       if (process.env.NODE_ENV !== "production") console.error("Status update failed", e);
       toast.error("Could not update status");
+    } finally { setSavingStatus(false); }
+  };
+
+  const saveDisputeNote = async (note) => {
+    setSavingStatus(true);
+    try {
+      const r = await api.patch(`/jobs/${jobId}`, { disputeNote: note });
+      setJob(r.data);
+      toast.success("Dispute note saved");
+    } catch {
+      toast.error("Could not save note");
     } finally { setSavingStatus(false); }
   };
 
@@ -118,7 +140,17 @@ export default function JobDetail() {
             );
           })}
         </div>
+        {job.status === "invoiced" && (
+          <p className="text-xs text-[#A19D94] mt-3">This invoice value feeds into Outstanding Invoices on your Command Centre. Mark it Paid when the cash lands.</p>
+        )}
+        {job.status === "paid" && job.paidDate && (
+          <p className="text-xs text-[#5BC97A] mt-3">Paid on {new Date(job.paidDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}. Added to Earnings YTD.</p>
+        )}
       </div>
+
+      {job.status === "disputed" && (
+        <DisputeBlock job={job} onSave={saveDisputeNote} saving={savingStatus} />
+      )}
 
       <div className="mb-10">
         <h2 className="font-display text-2xl mb-4 flex items-center gap-2"><FileText size={18} className="text-[#E8A020]" /> Documents on this job ({docs.length})</h2>
@@ -154,6 +186,34 @@ function Meta({ icon, label, value }) {
     <div>
       <div className="text-[10px] uppercase tracking-[0.2em] text-[#706D66] mb-1 flex items-center gap-1">{icon}{label}</div>
       <div className="text-sm text-[#F0EDE8]">{value}</div>
+    </div>
+  );
+}
+
+function DisputeBlock({ job, onSave, saving }) {
+  const [note, setNote] = useState(job.disputeNote || "");
+  return (
+    <div className="card-dark p-6 mb-6" style={{ borderColor: "rgba(229,99,90,0.4)" }} data-testid="job-dispute-block">
+      <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.25em] text-[#E5635A] mb-3">
+        <AlertCircle size={14}/> Dispute note
+      </div>
+      <p className="text-xs text-[#A19D94] mb-3">Write down what the dispute is about. Kept on the job so you can chase it without trying to remember the detail.</p>
+      <textarea
+        rows={4}
+        className="input-base resize-y w-full mb-3"
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        placeholder="e.g. Client says the extra sockets weren't agreed. Variation letter sent 12 May, no reply."
+        data-testid="job-dispute-note-input"
+      />
+      <button
+        onClick={() => onSave(note)}
+        disabled={saving || note === (job.disputeNote || "")}
+        className="btn-primary flex items-center gap-2 disabled:opacity-50"
+        data-testid="job-dispute-save"
+      >
+        <Save size={14}/> {saving ? "Saving…" : "Save note"}
+      </button>
     </div>
   );
 }

@@ -5,12 +5,9 @@ import api from "../lib/api";
 import { TOOLS, WOW_TOOLS, emojiFor, getToolById } from "../lib/tools-config";
 import { recommendationsFor } from "../lib/trade-recommendations";
 import { Star, FileText, Mic, Camera, Calculator, ArrowRight, TrendingUp, Clock, HardHat, AlertTriangle, ShieldCheck, IdCard, PiggyBank, Receipt, Wallet, Gauge, Hammer, Plus, Briefcase } from "lucide-react";
+import { thisTaxYear, aggregateCis, refundCalc, taxPotFor, fGBPnoDp, currentTaxYearLabel } from "../lib/finance";
 
 // ---------- Command Centre helpers ----------
-const PERSONAL_ALLOWANCE = 12570; // 2025/26 UK Personal Allowance
-const BASIC_RATE = 0.20;
-const TAX_POT_RATE = 0.23; // Recommended set-aside per Prompt 7
-
 function daysUntil(iso) {
   if (!iso) return null;
   const target = new Date(iso);
@@ -74,20 +71,27 @@ export default function Dashboard() {
   const recIds = recommendationsFor(user?.trade);
   const recommended = recIds.map(id => getToolById(id)).filter(Boolean);
 
-  // ---------- Command Centre figures ----------
-  const totalGross = cis.reduce((a, x) => a + (x.gross || 0), 0);
-  const totalDeduction = cis.reduce((a, x) => a + (x.deduction || 0), 0);
-  const totalNet = cis.reduce((a, x) => a + (x.net || 0), 0);
-  const taxPot = totalNet * TAX_POT_RATE;
-  // Simple refund estimate: (CIS deducted) minus (basic-rate tax owed on profit over PA)
-  const taxableProfit = Math.max(0, totalGross - PERSONAL_ALLOWANCE);
-  const estimatedTaxBill = taxableProfit * BASIC_RATE;
-  const cisRefundEstimate = Math.max(0, totalDeduction - estimatedTaxBill);
+  // ---------- Command Centre figures (all tax-year aware) ----------
+  const ytdCis = thisTaxYear(cis);
+  const totals = aggregateCis(ytdCis);
+  const taxPot = taxPotFor(totals.net);
+  const calc = refundCalc({
+    grossLabourYtd: totals.grossLabour,
+    materialsYtd: totals.materials,
+    cisDeductedYtd: totals.deduction,
+  });
+  // Show refund estimate (£0 if owed); separate display for owed below if needed.
+  const cisRefundEstimate = calc.refund;
 
-  // Outstanding invoices = total contract value of jobs in 'invoiced' status (i.e. invoiced but not yet completed)
-  const outstandingInvoiced = jobs
-    .filter(j => j.status === "invoiced")
-    .reduce((a, j) => a + (Number(j.contractValue) || 0), 0);
+  // Job tracker → finance integration
+  // Outstanding invoices = sum of invoiced jobs (not paid, not disputed)
+  const invoicedJobs = jobs.filter(j => j.status === "invoiced");
+  const disputedJobs = jobs.filter(j => j.status === "disputed");
+  const paidJobs = jobs.filter(j => j.status === "paid");
+  const outstandingInvoiced = invoicedJobs.reduce((a, j) => a + (Number(j.contractValue) || 0), 0);
+  const outstandingDisputed = disputedJobs.reduce((a, j) => a + (Number(j.contractValue) || 0), 0);
+  const paidYtdFromJobs = paidJobs.reduce((a, j) => a + (Number(j.contractValue) || 0), 0);
+  const earningsYtd = totals.grossLabour + paidYtdFromJobs;
   const activeJobs = jobs.filter(j => j.status === "active").length;
 
   const insuranceStatus = expiryStatus(user?.insuranceExpiry);
@@ -99,16 +103,16 @@ export default function Dashboard() {
   const saDays = daysUntil(saDeadline.toISOString().slice(0, 10));
   const recentDocs = docs.slice(0, 5);
 
-  const formatGBP = (n) => `£${Number(n || 0).toLocaleString("en-GB", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+  const formatGBP = (n) => fGBPnoDp(n);
 
   return (
     <div className="p-6 md:p-10 max-w-7xl mx-auto" data-testid="dashboard-page">
       <div className="mb-8">
-        <div className="text-[#E8A020] text-xs uppercase tracking-widest mb-2">Command Centre</div>
+        <div className="text-[#E8A020] text-xs uppercase tracking-widest mb-2">Command Centre · Tax year {currentTaxYearLabel()}</div>
         <h1 className="font-display text-5xl md:text-6xl" data-testid="welcome-name">
           {user?.fullName ? `Hello, ${user.fullName.split(" ")[0]}.` : "Hello."}
         </h1>
-        <p className="text-[#A19D94] mt-3 text-sm">
+        <p className="text-[#A19D94] mt-3 text-sm" data-testid="cc-trade-line">
           <span className="text-[#F0EDE8]">{user?.trade || "Trade not set"}</span>
           {user?.companyName ? <> <span className="text-[#706D66]">·</span> <span className="text-[#F0EDE8]">{user.companyName}</span></> : null}
         </p>
@@ -119,23 +123,28 @@ export default function Dashboard() {
         <FinanceCard
           label="Tax pot to set aside"
           value={formatGBP(taxPot)}
-          subtitle="23% of net CIS payments"
+          subtitle="8% of net cash received"
           icon={<PiggyBank size={16} />}
-          to="/app/earnings"
+          to="/app/taxpot"
           testId="cc-tax-pot"
         />
         <FinanceCard
-          label="CIS refund estimate"
-          value={formatGBP(cisRefundEstimate)}
-          subtitle={`Of £${totalDeduction.toFixed(0)} deducted`}
+          label={calc.delta >= 0 ? "CIS refund estimate" : "Tax owed estimate"}
+          value={formatGBP(Math.abs(calc.delta))}
+          subtitle={`Of ${formatGBP(totals.deduction)} deducted`}
           icon={<Receipt size={16} />}
           to="/app/cis-predictor"
           testId="cc-cis-refund"
+          warn={calc.delta < 0}
         />
         <FinanceCard
           label="Outstanding invoices"
           value={formatGBP(outstandingInvoiced)}
-          subtitle={jobs.length > 0 ? `${activeJobs} active · ${jobs.filter(j => j.status === "invoiced").length} invoiced` : "Create a job to track"}
+          subtitle={
+            jobs.length > 0
+              ? `${invoicedJobs.length} invoiced${outstandingDisputed > 0 ? ` · ${disputedJobs.length} disputed (${formatGBP(outstandingDisputed)})` : ""}`
+              : "Create a job to track"
+          }
           icon={<Wallet size={16} />}
           to="/app/jobs"
           testId="cc-outstanding"
@@ -143,8 +152,8 @@ export default function Dashboard() {
         />
         <FinanceCard
           label="Earnings YTD"
-          value={formatGBP(totalGross)}
-          subtitle={`${cis.length} payment${cis.length === 1 ? "" : "s"} logged`}
+          value={formatGBP(earningsYtd)}
+          subtitle={`${ytdCis.length} CIS payment${ytdCis.length === 1 ? "" : "s"}${paidJobs.length > 0 ? ` · ${paidJobs.length} paid job${paidJobs.length === 1 ? "" : "s"}` : ""}`}
           icon={<Gauge size={16} />}
           to="/app/earnings"
           testId="cc-earnings"
@@ -272,15 +281,15 @@ export default function Dashboard() {
   );
 }
 
-function FinanceCard({ label, value, subtitle, icon, to, testId, muted }) {
+function FinanceCard({ label, value, subtitle, icon, to, testId, muted, warn }) {
   return (
     <Link
       to={to}
       className={`card-dark p-4 hover:border-[#E8A020]/40 transition block ${muted ? "opacity-70" : ""}`}
       data-testid={testId}
     >
-      <div className="text-[#E8A020] flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] mb-2">{icon}{label}</div>
-      <div className="font-display text-3xl text-[#F0EDE8] leading-tight">{value}</div>
+      <div className={`flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] mb-2 ${warn ? "text-[#E5635A]" : "text-[#E8A020]"}`}>{icon}{label}</div>
+      <div className="font-display text-3xl leading-tight" style={{ color: warn ? "#E5635A" : "#F0EDE8" }}>{value}</div>
       <div className="text-[10px] text-[#706D66] mt-1">{subtitle}</div>
     </Link>
   );

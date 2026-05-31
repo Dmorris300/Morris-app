@@ -8,6 +8,7 @@ const STATUS_CHIPS = [
   { id: "all", label: "All" },
   { id: "active", label: "Active" },
   { id: "invoiced", label: "Invoiced" },
+  { id: "paid", label: "Paid" },
   { id: "completed", label: "Completed" },
   { id: "disputed", label: "Disputed" },
 ];
@@ -15,7 +16,8 @@ const STATUS_CHIPS = [
 const STATUS_COLORS = {
   active:    { fg: "#E8A020", bg: "rgba(232,160,32,0.08)", border: "rgba(232,160,32,0.3)" },
   invoiced:  { fg: "#5B9BFF", bg: "rgba(91,155,255,0.08)", border: "rgba(91,155,255,0.3)" },
-  completed: { fg: "#5BC97A", bg: "rgba(91,201,122,0.08)", border: "rgba(91,201,122,0.3)" },
+  paid:      { fg: "#5BC97A", bg: "rgba(91,201,122,0.08)", border: "rgba(91,201,122,0.3)" },
+  completed: { fg: "#9AA0A6", bg: "rgba(154,160,166,0.08)", border: "rgba(154,160,166,0.3)" },
   disputed:  { fg: "#E5635A", bg: "rgba(229,99,90,0.08)",  border: "rgba(229,99,90,0.3)" },
 };
 
