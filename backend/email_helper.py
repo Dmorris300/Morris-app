@@ -2,15 +2,29 @@
 import os
 import asyncio
 import logging
+from pathlib import Path
+from dotenv import dotenv_values
 import resend
 
 logger = logging.getLogger(__name__)
 
-RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
-SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "onboarding@resend.dev")
-APP_BRAND = os.environ.get("APP_BRAND_NAME", "Morris")
+# Read keys directly from the .env file so import-order doesn't matter
+# (server.py imports this module BEFORE calling load_dotenv()).
+_DOTENV = dotenv_values(Path(__file__).parent / ".env")
+
+
+def _cfg(key: str, default: str = "") -> str:
+    v = _DOTENV.get(key)
+    if v:
+        return v
+    return os.environ.get(key, default)
+
+
+RESEND_API_KEY = _cfg("RESEND_API_KEY", "")
+SENDER_EMAIL = _cfg("SENDER_EMAIL", "onboarding@resend.dev")
+APP_BRAND = _cfg("APP_BRAND_NAME", "Morris")
 # All admin notifications (new signup, churn, failed payment) are sent here.
-ADMIN_NOTIFICATION_EMAIL = os.environ.get("ADMIN_NOTIFICATION_EMAIL", "hello@morrisapp.co.uk")
+ADMIN_NOTIFICATION_EMAIL = _cfg("ADMIN_NOTIFICATION_EMAIL", "hello@morrisapp.co.uk")
 
 if RESEND_API_KEY:
     resend.api_key = RESEND_API_KEY
@@ -56,6 +70,52 @@ async def send_email(to: str, subject: str, html: str, preheader: str = "") -> b
     except Exception as e:
         logger.warning(f"Resend send failed for {to}: {e}")
         return False
+
+
+async def send_email_with_pdf(to: str, subject: str, html: str, pdf_bytes: bytes, filename: str, reply_to: str = "", preheader: str = "") -> bool:
+    """Send an email with a single PDF attachment via Resend."""
+    full_html = _wrap(html, preheader)
+    if not RESEND_API_KEY:
+        logger.info(f"[MOCK EMAIL+PDF] To={to} Subject={subject} file={filename} bytes={len(pdf_bytes)}")
+        return False
+    try:
+        params = {
+            "from": f"{APP_BRAND} <{SENDER_EMAIL}>",
+            "to": [to],
+            "subject": subject,
+            "html": full_html,
+            "attachments": [{
+                "filename": filename,
+                "content": list(pdf_bytes),  # Resend accepts a byte array
+            }],
+        }
+        if reply_to:
+            params["reply_to"] = reply_to
+        await asyncio.to_thread(resend.Emails.send, params)
+        return True
+    except Exception as e:
+        logger.warning(f"Resend PDF send failed for {to}: {e}")
+        return False
+
+
+async def send_refund_summary(to: str, sender_name: str, sender_email: str, tax_year: str, pdf_bytes: bytes) -> bool:
+    """Email a CIS refund summary PDF to an accountant on behalf of the tradesperson."""
+    subject = f"CIS refund summary {tax_year} — {sender_name}".strip()
+    html = f"""
+    <p style="font-size:18px;color:#F0EDE8;margin:0 0 12px 0;">CIS refund summary for {tax_year}</p>
+    <p>{sender_name or 'Your client'} has sent you their CIS refund working from Morris.</p>
+    <p>The attached PDF shows every CIS payment logged this tax year, gross labour and materials split out, total deducted, and the six-step refund estimate.</p>
+    <p style="color:#A19D94;font-size:13px;">Figures are a guide based on logged payments, personal allowance of £12,570, 20% income tax and 6% Class 4 NI. Not a tax return.</p>
+    """
+    return await send_email_with_pdf(
+        to=to,
+        subject=subject,
+        html=html,
+        pdf_bytes=pdf_bytes,
+        filename=f"morris-refund-summary-{tax_year.replace('/', '-')}.pdf",
+        reply_to=sender_email,
+        preheader=f"CIS refund summary {tax_year}",
+    )
 
 
 async def send_password_reset(to: str, reset_link: str) -> bool:

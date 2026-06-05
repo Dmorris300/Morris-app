@@ -7,6 +7,7 @@ import logging
 import secrets
 import uuid
 import bcrypt
+import base64
 from pathlib import Path
 from pydantic import BaseModel, Field, EmailStr
 from typing import List, Optional, Dict, Any
@@ -15,7 +16,7 @@ from datetime import datetime, timezone, timedelta
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 from email_helper import (
     send_password_reset, send_welcome, send_subscription_receipt,
-    send_admin_signup,
+    send_admin_signup, send_refund_summary,
 )
 from billing import build_router as build_billing_router, build_webhook_router, check_can_generate, record_usage, effective_plan
 
@@ -637,7 +638,6 @@ async def generate(req: GenerateReq, authorization: Optional[str] = Header(None)
     vat_registered = user.get("vatRegistered")
     vat_number = user.get("vatNumber") or ""
     user_email = user.get("email") or ""
-    bank_details_legacy = user.get("bankDetails") or ""
     vehicle_reg = user.get("vehicleReg") or ""
 
     ref_number = await next_ref_number(user, req.toolId)
@@ -945,6 +945,45 @@ async def del_cis(pid: str, authorization: Optional[str] = Header(None)):
     user = await get_user(token)
     await db.cis_payments.delete_one({"id": pid, "userId": user["id"]})
     return {"ok": True}
+
+
+# ---------- CIS Refund Summary → email to accountant ----------
+class RefundSummaryEmail(BaseModel):
+    accountantEmail: EmailStr
+    accountantName: Optional[str] = ""
+    taxYear: str  # "2025/26"
+    pdfBase64: str  # data URL or raw base64 of the PDF generated client-side
+
+
+@api_router.post("/cis/refund-summary/email")
+async def email_refund_summary(req: RefundSummaryEmail, authorization: Optional[str] = Header(None)):
+    token = authorization.replace("Bearer ", "") if authorization else None
+    user = await get_user(token)
+
+    # Strip data URL prefix if present, decode base64
+    raw = req.pdfBase64
+    if "," in raw:
+        raw = raw.split(",", 1)[1]
+    try:
+        pdf_bytes = base64.b64decode(raw)
+    except Exception as e:
+        raise HTTPException(400, f"Could not decode PDF: {e}")
+    if len(pdf_bytes) < 200:
+        raise HTTPException(400, "PDF is empty or unreadable.")
+    if len(pdf_bytes) > 8 * 1024 * 1024:
+        raise HTTPException(400, "PDF too large. Keep under 8MB.")
+
+    sender_name = user.get("fullName") or user.get("username") or ""
+    sender_email = user.get("email") or ""
+
+    ok = await send_refund_summary(
+        to=str(req.accountantEmail),
+        sender_name=sender_name,
+        sender_email=sender_email,
+        tax_year=req.taxYear,
+        pdf_bytes=pdf_bytes,
+    )
+    return {"ok": True, "emailSent": ok, "to": str(req.accountantEmail)}
 
 
 # ---------- Allowable Expenses ----------

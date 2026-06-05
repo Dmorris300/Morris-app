@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import api from "../lib/api";
 import { toast } from "sonner";
-import { Plus, Trash2, TrendingUp, Info, Star, X, AlertCircle } from "lucide-react";
+import { Plus, Trash2, TrendingUp, Info, Star, X, AlertCircle, Download, Mail, Send, Loader2 } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import {
   thisTaxYear, aggregateCis, refundCalc, fGBP, currentTaxYearLabel,
 } from "../lib/finance";
+import { downloadRefundSummary, refundSummaryPdfBase64 } from "../lib/refundSummaryPdf";
 
 const TOOL = {
   id: "cis-refund-predictor",
@@ -29,6 +30,11 @@ export default function CISRefundPredictor() {
   const [loading, setLoading] = useState(true);
   const [infoOpen, setInfoOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [accountantOpen, setAccountantOpen] = useState(false);
+  const [accountantEmail, setAccountantEmail] = useState(() => {
+    try { return localStorage.getItem("morris_accountant_email") || ""; } catch { return ""; }
+  });
+  const [sending, setSending] = useState(false);
 
   const isFav = (user?.favourites || []).includes(TOOL.id);
   const toggleFav = async () => {
@@ -83,6 +89,26 @@ export default function CISRefundPredictor() {
     catch (e) { if (process.env.NODE_ENV !== "production") console.error("CIS delete failed", e); }
   };
 
+  const sendToAccountant = async () => {
+    const e = (accountantEmail || "").trim();
+    if (!e || !/.+@.+\..+/.test(e)) { toast.error("Enter a valid email"); return; }
+    setSending(true);
+    try {
+      const pdfBase64 = refundSummaryPdfBase64({ user, cisPayments: items });
+      await api.post("/cis/refund-summary/email", {
+        accountantEmail: e,
+        taxYear: currentTaxYearLabel(),
+        pdfBase64,
+      });
+      try { localStorage.setItem("morris_accountant_email", e); } catch { /* ignore */ }
+      toast.success(`Summary sent to ${e}`);
+      setAccountantOpen(false);
+    } catch (err) {
+      const d = err?.response?.data?.detail;
+      toast.error(typeof d === "string" ? d : "Could not send. Try downloading instead.");
+    } finally { setSending(false); }
+  };
+
   // Tax-year filtered totals
   const ytdItems = thisTaxYear(items);
   const totals = aggregateCis(ytdItems);
@@ -102,6 +128,24 @@ export default function CISRefundPredictor() {
         <div className="flex items-center gap-2">
           <button onClick={() => setInfoOpen(true)} className="btn-secondary flex items-center gap-2" data-testid="cis-info-btn"><Info size={16} /> Info</button>
           <button onClick={toggleFav} className={`btn-secondary flex items-center gap-2 ${isFav ? "text-[#E8A020] border-[#E8A020]/40" : ""}`} data-testid="cis-fav-btn"><Star size={16} fill={isFav ? "#E8A020" : "none"} /> Favourite</button>
+          <button
+            onClick={() => downloadRefundSummary({ user, cisPayments: items })}
+            disabled={items.length === 0}
+            title={items.length === 0 ? "Log a payment first" : "Download a one-page summary PDF"}
+            className="btn-secondary flex items-center gap-2 disabled:opacity-50"
+            data-testid="cis-download-summary"
+          >
+            <Download size={16} /> Download summary
+          </button>
+          <button
+            onClick={() => setAccountantOpen(true)}
+            disabled={items.length === 0}
+            title={items.length === 0 ? "Log a payment first" : "Email a one-page summary to your accountant"}
+            className="btn-primary flex items-center gap-2 disabled:opacity-50"
+            data-testid="cis-email-accountant"
+          >
+            <Mail size={16} /> Send to accountant
+          </button>
         </div>
       </div>
 
@@ -118,6 +162,41 @@ export default function CISRefundPredictor() {
               <div style={{ fontSize: 12, color: "#A19D94", lineHeight: 1.6 }}>
                 This is a guide only. Based on your logged payments, personal allowance of £12,570, 20% income tax and 6% Class 4 NI. Not a tax return. Speak to an accountant for your final figures.
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {accountantOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)" }} onClick={() => !sending && setAccountantOpen(false)} data-testid="cis-accountant-overlay">
+          <div onClick={(e) => e.stopPropagation()} className="card-dark max-w-md w-full p-6" style={{ borderColor: "#E8A020" }} data-testid="cis-accountant-popup">
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.2em] text-[#E8A020] mb-1">Send to accountant</div>
+                <h3 className="font-display text-2xl text-[#F0EDE8]">Email refund summary</h3>
+              </div>
+              <button onClick={() => !sending && setAccountantOpen(false)} className="text-[#A19D94] hover:text-[#F0EDE8]" data-testid="cis-accountant-close"><X size={18} /></button>
+            </div>
+            <p className="text-sm text-[#A19D94] mb-4">
+              We'll attach a one-page PDF: every CIS payment this tax year, gross labour and materials split, total deducted, and the six-step refund calc. Your name and email go in the reply-to.
+            </p>
+            <label className="block mb-4">
+              <div className="text-xs uppercase tracking-widest text-[#A19D94] mb-1">Accountant email</div>
+              <input
+                type="email"
+                className="input-base"
+                value={accountantEmail}
+                onChange={(e) => setAccountantEmail(e.target.value)}
+                placeholder="hello@youraccountant.co.uk"
+                autoFocus
+                data-testid="cis-accountant-email-input"
+              />
+            </label>
+            <div className="flex gap-2">
+              <button onClick={() => setAccountantOpen(false)} disabled={sending} className="btn-secondary flex-1" data-testid="cis-accountant-cancel">Cancel</button>
+              <button onClick={sendToAccountant} disabled={sending} className="btn-primary flex-1 flex items-center justify-center gap-2" data-testid="cis-accountant-send">
+                {sending ? <><Loader2 size={14} className="animate-spin"/> Sending</> : <><Send size={14}/> Send</>}
+              </button>
             </div>
           </div>
         </div>
