@@ -862,9 +862,140 @@ Rules: never invent facts. If a field is blank, leave it out cleanly. No square-
 End with an ISSUED BY block auto-populated from the user profile (full name, company, signature line, today's date).`
   ),
   t("novation-letter", "Novation Letter", "documents",
-    "A letter handling the novation of an order or contract from one party to another.",
-    [f("originalParty", "Original party"), f("newParty", "New party"), f("project", "Project"), ta("scope", "Scope being novated")],
-    "Produce a UK Novation Letter formally transferring rights and obligations under a specified contract from one party to another, with effective date."
+    "A formal Novation Letter transferring the rights and obligations of an existing contract from one party to another. Common at handover from developer to main contractor on design-and-build jobs, or when a head contractor changes mid-job. Three-party document — signed by the outgoing party, the incoming party, and the contractor (you). Captures every detail needed for a UK construction novation to be effective.",
+    [
+      f("project", "Project / Site name"),
+      f("siteAddress", "Site address"),
+      f("originalContractRef", "Original contract reference number"),
+      sel("originalContractForm", "Original contract form", ["JCT Design and Build", "JCT Standard Building Contract", "JCT Intermediate", "JCT Minor Works", "NEC4 ECC", "NEC4 ECSC", "Bespoke / Other"]),
+      fp("originalContractDate", "Original contract date", "today", "date"),
+      f("originalContractSum", "Original contract sum (£)", "number"),
+      sel("novationType", "Novation type", [
+        "Standard — full novation (all rights and obligations)",
+        "Ab initio — incoming party treated as if always the original",
+        "Consultant switch — design team novated to D&B contractor",
+        "Partial novation (set out in scope below)"
+      ]),
+      f("outgoingPartyName", "OUTGOING party name (the party leaving the contract)"),
+      f("outgoingPartyAddress", "Outgoing party address"),
+      fo("outgoingPartyCompanyNo", "Outgoing party company number"),
+      f("incomingPartyName", "INCOMING party name (the party taking over)"),
+      f("incomingPartyAddress", "Incoming party address"),
+      fo("incomingPartyCompanyNo", "Incoming party company number"),
+      fp("effectiveDate", "Effective date of the novation", "today", "date"),
+      ta("scopeBeingNovated", "Scope being novated — what the incoming party is taking over (one point per line)"),
+      tao("scopeExcluded", "Anything specifically EXCLUDED from the novation (optional, one per line)"),
+      sel("paymentPosition", "Payment position at novation date", [
+        "All sums to date paid by outgoing party — incoming pays from effective date",
+        "Outstanding sums remain liability of outgoing party",
+        "Outstanding sums transfer to incoming party",
+        "Set out in scope above"
+      ]),
+      sel("retentionPosition", "Retention position at novation date", [
+        "Retention held to date transfers to incoming party",
+        "Retention held to date remains with outgoing party",
+        "Released back to contractor at novation",
+        "No retention applies",
+        "Other (set out in notes)"
+      ]),
+      sel("collateralWarranties", "Collateral warranties", [
+        "Existing warranties remain in place",
+        "Existing warranties to be re-issued in favour of incoming party",
+        "New warranties to be issued by contractor",
+        "Not required"
+      ]),
+      sel("insuranceContinuity", "Insurance continuity", [
+        "Contractor's insurance continues unchanged",
+        "Incoming party to be added as additional insured",
+        "Outgoing party removed from policy on effective date",
+        "Set out in notes"
+      ]),
+      ta("reasonForNovation", "Reason for the novation (one short paragraph)"),
+      fp("signByDate", "Date by which signed copies are requested back", "today+14d", "date"),
+      tao("notes", "Any other notes (optional)"),
+    ],
+    `Produce a UK Novation Letter (Deed of Novation in letter form). Three parties: OUTGOING, INCOMING, and CONTRACTOR (the user). Plain direct construction English. No padding. No banned consultant words.
+
+1. HEADER — DOCUMENT REFERENCE, DATE.
+
+2. TITLE — exactly: 'NOVATION OF CONTRACT — {project}'.
+
+3. PARTIES — list each party clearly under separate subheadings, each on its own block of lines. Skip any blank lines cleanly:
+
+   OUTGOING PARTY
+   {outgoingPartyName}
+   {outgoingPartyAddress}
+   Company number: {outgoingPartyCompanyNo}
+
+   INCOMING PARTY
+   {incomingPartyName}
+   {incomingPartyAddress}
+   Company number: {incomingPartyCompanyNo}
+
+   CONTRACTOR (the party providing the works)
+   (auto-populate from profile: Name, Company, Address, Company Number if held, VAT Number if held)
+
+4. ORIGINAL CONTRACT — list on separate lines:
+   Project: {project}
+   Site: {siteAddress}
+   Original contract reference: {originalContractRef}
+   Contract form: {originalContractForm}
+   Original contract date: {originalContractDate}
+   Original contract sum: £{originalContractSum}
+
+5. REASON FOR NOVATION — print {reasonForNovation} as one short paragraph. If blank, omit this section.
+
+6. NOVATION TERMS — bold capitalised opening line: 'IT IS AGREED'. Then number the operative clauses, one per line:
+
+   1. With effect from {effectiveDate} the OUTGOING PARTY transfers all its rights and obligations under the original contract identified above to the INCOMING PARTY.
+
+   2. The INCOMING PARTY accepts the transfer and undertakes to perform all obligations and observe all terms of the original contract as if it had been the original party from the outset / from the effective date (use 'from the outset' if {novationType} is 'Ab initio — incoming party treated as if always the original'; otherwise use 'from the effective date').
+
+   3. The CONTRACTOR releases the OUTGOING PARTY from all future obligations under the original contract from the effective date.
+
+   4. Novation type: {novationType}.
+
+   5. Scope being novated: [numbered list from {scopeBeingNovated}].
+
+   6. Excluded from the novation: [numbered list from {scopeExcluded} — omit this clause entirely if blank].
+
+   7. Payment position: {paymentPosition}.
+
+   8. Retention position: {retentionPosition}.
+
+   9. Collateral warranties: {collateralWarranties}.
+
+   10. Insurance: {insuranceContinuity}.
+
+   11. Save as varied by this novation, the original contract continues in full force and effect.
+
+   12. This novation is governed by the laws of England and Wales.
+
+7. SIGNATURES REQUIRED — one short paragraph: 'Please sign and return a copy of this letter to confirm the novation. Signed copies are requested back by {signByDate}.'
+
+8. NOTES — only if {notes} supplied. Print verbatim under a 'NOTES' label.
+
+9. SIGN-OFF — render THREE separate signature blocks, each on its own group of lines. This is a three-party deed:
+
+   SIGNED for and on behalf of the OUTGOING PARTY
+   Name: {outgoingPartyName}
+   Signature: [SIGN HERE]
+   Date: ____________________
+   Position: ____________________
+
+   SIGNED for and on behalf of the INCOMING PARTY
+   Name: {incomingPartyName}
+   Signature: [SIGN HERE]
+   Date: ____________________
+   Position: ____________________
+
+   SIGNED for and on behalf of the CONTRACTOR
+   (auto-populate name and company from profile)
+   Signature: (auto-insert contractor's saved signature from profile)
+   Date: {effectiveDate}
+   Position: (auto from profile if held)
+
+Rules: this is a legal deed, so language must be firm and plain, but never sloppy. No square-bracket placeholders in narrative text — placeholders are only allowed where shown above for the signature lines and the [SIGN HERE] boxes. If a field is blank, leave the line out entirely. No 'kinetic', 'utilise', 'endeavour', 'facilitate', 'prior to', 'operatives are advised'. Short sentences. Read it out loud and it should sound like a properly drafted UK construction novation, not a consultant memo.`
   ),
   t("bad-debt-letter", "Bad Debt Letter", "documents",
     "Final demand letter before legal action. small claims, statutory demand, or instructing a debt recovery solicitor.",
