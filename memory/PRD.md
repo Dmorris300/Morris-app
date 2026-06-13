@@ -105,6 +105,15 @@ Dark-themed construction administration SaaS web application for UK tradespeople
   - Document output: clean minute set with all sections plus footer "These notes are a record of the meeting and should be circulated to all attendees within 24 hours. Any corrections should be notified within 5 working days."
   - Verified end-to-end: all 13 acceptance checks pass.
 
+- ✅ **[REBUILD] Weather Log — dedicated page** (Feb 13, 2026)
+  - New page `/app/frontend/src/pages/WeatherLog.jsx`, wired through `App.js`, `GenericToolPage`, `tools-config.js`.
+  - Bug fixed: Date is now a true date picker defaulting today, rendered in DD/MM/YYYY throughout.
+  - **Live daily log** — card-based dynamic rows with: Date, Temperature, Wind (5-option dropdown), Rainfall (6), Visibility (4), Overall Conditions (6), Did Work Proceed (4), Hours Lost, Impact on Works, Works Affected. "+ Add Day" / per-row remove.
+  - **Live summary panel**: Total days logged, Days fully stopped (gold when >0), Days partially stopped (gold), Total hours lost (gold), Date range covered (first → last entry, auto-derived).
+  - **Gold "Important Note" banner**: contemporaneous evidence guidance + Delay Notice / EoT support reference.
+  - Document output: full table per row, summary panel, footer "This log has been maintained on a daily basis as a contemporaneous record of weather conditions affecting the works. It is available for inspection upon request." + sign-off.
+  - Verified end-to-end: all 11 acceptance checks pass.
+
 ### Previous session (pre-fork, captured in handoff)
 - Stripe live keys + price IDs + Customer Portal endpoint
 - Resend integration with PDF attachments (`/api/refund-summary/email`)

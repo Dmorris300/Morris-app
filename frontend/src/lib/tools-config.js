@@ -1371,7 +1371,11 @@ End with an INSPECTED BY block (inspector name, role, signature line, today's da
   ),
   t("site-access-permit", "Site Access Permit", "site", "Permit-to-work for restricted areas or high-risk activity (hot works, confined space).", [f("permitType", "Permit type"), f("location", "Location"), ta("controls", "Controls in place"), f("validity", "Valid from / to")], "Produce a Permit to Work form for the supplied activity. controls, isolation, gas tests if applicable, sign-on / sign-off."),
   t("measurement-record", "Measurement Record", "site", "A site measurement sheet. sketch references, dimensions, notes. Essential for price-work valuations.", [f("area", "Area / location"), ta("measurements", "Measurements (one per line)")], "Produce a clean Measurement Record sheet with Location / Reference / Dimensions / Quantity / Unit / Notes."),
-  t("weather-log", "Weather Log", "site", "A weather log entry. temperature, wind, rain. Critical evidence for weather-related EoT claims.", [f("date", "Date"), f("conditions", "Conditions"), ta("impact", "Impact on works")], "Produce a Weather Log entry with date, conditions (temp / wind / rain / visibility), and impact on works (e.g. could not lift / could not paint externally)."),
+  t("weather-log", "Weather Log", "site",
+    "Live daily weather log. Add a row every working day to build contemporaneous evidence supporting delay claims and Extension of Time claims.",
+    [],
+    "Produce a UK Weather Log (see the dedicated page for full inputs)."
+  ),
   t("prestart-meeting", "Pre-Start Meeting Checklist", "site",
     "Completed before works begin on a project or new phase. Confirms all parties have been briefed on scope, health and safety, site rules, programme, and responsibilities. Everyone present signs it off.",
     [],
