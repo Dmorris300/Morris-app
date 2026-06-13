@@ -579,9 +579,111 @@ Rules: never invent figures. Always show the maths. If a field is blank, drop th
 Rules: never invent figures. Always show the maths. If a field is blank, drop the line entirely — do not write £0 unless the user typed 0. No square-bracket placeholders. No 'kinetic', 'utilise', 'endeavour', 'facilitate', 'prior to', 'operatives are advised'. Short sentences. A QS must be able to audit every line without asking a question.`
   ),
   t("contra-charge-dispute", "Contra Charge Dispute", "documents",
-    "A letter disputing an unfair or undocumented contra charge / back-charge deducted from your payment.",
-    [f("project", "Project"), f("chargeAmount", "Contra charge amount (£)"), ta("reasonStated", "Reason stated by payer"), ta("yourResponse", "Your position")],
-    "Produce a UK letter disputing a contra charge. Reference HGCRA 1996 pay-less notice requirements, request substantiation, and reserve the right to adjudicate."
+    "A formal letter disputing a contra charge / back-charge deducted from your payment. Captures every detail needed to reject the deduction under UK construction law (HGCRA 1996, Late Payment Act 1998, the contract terms).",
+    [
+      f("project", "Project / Site name"),
+      f("siteAddress", "Site address"),
+      f("contractRef", "Contract reference number"),
+      sel("contractForm", "Contract form", ["JCT Design and Build", "JCT Standard Building Contract", "JCT Intermediate", "JCT Minor Works", "NEC4 ECC", "NEC4 ECSC", "Bespoke / Other"]),
+      f("clientName", "Client / Employer / Main contractor name (the party applying the contra charge)"),
+      f("clientAddress", "Their address"),
+      fo("clientReference", "Their reference / debit note number"),
+      fp("contraNotifiedDate", "Date contra charge was notified to you", "today", "date"),
+      f("invoiceOrAppRef", "Invoice or Application number it was deducted from"),
+      f("chargeAmount", "Contra charge amount (£)", "number"),
+      f("chargeAmountVat", "Was VAT applied to the deduction? (£ if yes, 0 if no)", "number"),
+      sel("chargeNature", "Nature of the contra charge", [
+        "Defective works alleged",
+        "Damage to client property",
+        "Use of client's labour / plant",
+        "Use of client's materials",
+        "Failure to attend / no-show",
+        "Health and safety breach alleged",
+        "Welfare / facilities charge",
+        "Programme delay alleged",
+        "Other (set out below)"
+      ]),
+      ta("reasonStated", "Reason stated by the payer for the deduction (paste their wording or summarise)"),
+      sel("payLessNoticeServed", "Was a Pay Less Notice served in time?", ["Yes — and valid", "Yes — but late or invalid", "No"]),
+      fpo("payLessNoticeDate", "Date Pay Less Notice was served (if any)", "today", "date"),
+      fpo("finalDateForPayment", "Final date for payment under the contract", "today", "date"),
+      sel("evidenceProvided", "Did the payer provide evidence of the loss?", ["Yes — sufficient", "Yes — but inadequate", "No evidence at all"]),
+      sel("workInspected", "Was the alleged defect / damage inspected with you?", ["Yes — and disputed", "Yes — and agreed", "No — not inspected with us"]),
+      sel("opportunityToRectify", "Were you given an opportunity to rectify before the deduction?", ["Yes — and refused", "Yes — and we did rectify", "No"]),
+      sel("primaryGround", "Primary ground for dispute", [
+        "Pay Less Notice not served in time (HGCRA 1996)",
+        "Pay Less Notice invalid (does not specify the sum or basis)",
+        "No evidence of the loss provided",
+        "Charge is excessive — not a genuine pre-estimate of loss",
+        "Works were not defective",
+        "Damage / loss not caused by us",
+        "We were given no opportunity to rectify",
+        "Charge is outside the scope of the contract",
+        "Other (set out in grounds below)"
+      ]),
+      ta("groundsForDispute", "Grounds for dispute — facts and contract clauses you rely on (one point per line)"),
+      ta("supportingEvidence", "Supporting evidence summary (e.g. Site Diary, photos, sign-offs, emails — one per line)"),
+      sel("requestedOutcome", "Requested outcome", [
+        "Full withdrawal of the contra charge and repayment in full",
+        "Withdrawal of the contra charge",
+        "Reduction to the correctly evidenced sum",
+        "Inspection meeting on site within 7 days",
+        "Referral to adjudication if not resolved"
+      ]),
+      f("amountToBeRepaid", "Amount to be withdrawn or repaid (£)", "number"),
+      fp("responseDeadline", "Date by which a written response is required", "today+14d", "date"),
+      tao("additionalNotes", "Anything else you want included (optional)"),
+    ],
+    `Produce a UK letter disputing a contra charge / back-charge. Plain direct construction English. No padding. No banned consultant words.
+
+1. HEADER — DOCUMENT REFERENCE, DATE.
+
+2. TO — Client / Employer / Main contractor name and address.
+
+3. FROM — Issued-by block from profile (Name, Company, Address, Contact, VAT number if VAT-registered).
+
+4. SUBJECT line — exactly: 'DISPUTE OF CONTRA CHARGE — {project} — £{chargeAmount} deducted from {invoiceOrAppRef}'.
+
+5. OPENING — One short paragraph stating the contra charge of £{chargeAmount} is disputed in full / in part, and a written response is required by {responseDeadline}. Reference the payer's debit note or reference number if supplied.
+
+6. CONTRA CHARGE DETAILS — list on separate lines, skip any blank line cleanly:
+   Project: {project}
+   Site: {siteAddress}
+   Contract reference: {contractRef}
+   Contract form: {contractForm}
+   Invoice / Application deducted from: {invoiceOrAppRef}
+   Date contra charge was notified: {contraNotifiedDate}
+   Amount deducted: £{chargeAmount}
+   VAT on the deduction: £{chargeAmountVat}
+   Nature of the charge: {chargeNature}
+   Pay Less Notice served: {payLessNoticeServed}
+   Pay Less Notice date: {payLessNoticeDate}
+   Final date for payment under contract: {finalDateForPayment}
+
+7. PAYER'S STATED REASON — print {reasonStated} verbatim under a 'PAYER STATES' subheading. If blank, write 'No written reason has been provided.'
+
+8. GROUNDS FOR DISPUTE — start with the primary ground in a bold capitalised line, e.g. 'PRIMARY GROUND: {primaryGround}'. Then list the detailed grounds the user supplied as numbered points. Where relevant, cite the standard authorities by name without lecturing:
+   - Housing Grants Construction and Regeneration Act 1996 (as amended) — Section 111 (Pay Less Notice requirements)
+   - JCT D&B 2.32 / equivalent contractual notice requirement
+   - Cavendish v Makdessi 2015 (penalty doctrine — only if 'Charge is excessive' is the ground)
+   Cite only the clauses that actually apply. Never lecture.
+
+9. EVIDENCE POSITION — three short lines:
+   Evidence of the loss provided by the payer: {evidenceProvided}
+   Defect / damage inspected with us: {workInspected}
+   Opportunity to rectify given: {opportunityToRectify}
+
+10. OUR SUPPORTING EVIDENCE — numbered list of every evidence item the user supplied. If none, write 'Available on request.'
+
+11. REQUESTED OUTCOME — one bold line: '{requestedOutcome}'. Then a single line: 'Amount to be withdrawn or repaid: £{amountToBeRepaid}'.
+
+12. NEXT STEPS — one short paragraph: a written response is required by {responseDeadline}. If not received the matter will be referred to adjudication under the Housing Grants Construction and Regeneration Act 1996 (as amended). Add a short line: 'Late Payment of Commercial Debts (Interest) Act 1998 applies to any sum unlawfully withheld.'
+
+13. ADDITIONAL NOTES — if {additionalNotes} supplied, print verbatim under a 'FURTHER NOTES' heading. Otherwise omit.
+
+14. SIGN-OFF — global dual sign-off block (contractor signed; client SIGN HERE box).
+
+Rules: never invent facts. If a field is blank, leave the line out cleanly. No square-bracket placeholders. No 'kinetic', 'utilise', 'endeavour', 'facilitate', 'prior to', 'operatives are advised'. Short sentences. Firm but plain. Read it out loud and it should sound like a contractor protecting his money, not a consultant.`
   ),
   t("eot-claim", "Extension of Time Claim", "documents",
     "A formal Extension of Time claim. protects you from Liquidated Damages when delays are not your fault.",
