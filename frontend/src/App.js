@@ -26,6 +26,7 @@ import NoiseAssessment from "./pages/NoiseAssessment";
 import WorkingAtHeightRescue from "./pages/WorkingAtHeightRescue";
 import ManualHandling from "./pages/ManualHandling";
 import VariationInstructionLog from "./pages/VariationInstructionLog";
+import RetentionChaser from "./pages/RetentionChaser";
 import VatThreshold from "./pages/VatThreshold";
 import Earnings from "./pages/Earnings";
 import TaxPot from "./pages/TaxPot";
@@ -120,6 +121,7 @@ function App() {
             <Route path="working-at-height-rescue" element={<ProfileGate><WorkingAtHeightRescue /></ProfileGate>} />
             <Route path="manual-handling" element={<ProfileGate><ManualHandling /></ProfileGate>} />
             <Route path="variation-instruction-log" element={<ProfileGate><VariationInstructionLog /></ProfileGate>} />
+            <Route path="retention-chaser" element={<ProfileGate><RetentionChaser /></ProfileGate>} />
             <Route path="company-checker" element={<ProfileGate><CompanyChecker /></ProfileGate>} />
             <Route path="offline-mode" element={<OfflineMode />} />
             <Route path="team" element={<TeamManagement />} />

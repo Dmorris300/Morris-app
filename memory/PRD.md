@@ -83,6 +83,13 @@ Dark-themed construction administration SaaS web application for UK tradespeople
   - Document output preserves all rows verbatim, summary verbatim, important note + footer ("Retain with the project file") verbatim.
   - Verified end-to-end: all 11 acceptance checks pass.
 
+- ✅ **[REBUILD] Retention Chaser — dedicated page** (Feb 13, 2026)
+  - New page `/app/frontend/src/pages/RetentionChaser.jsx`, wired through `App.js`, `GenericToolPage`, `tools-config.js`.
+  - Three bold selectable stage buttons matching Payment Chaser style (replaces the broken numeric "1" input).
+  - New fields added: Main Contractor / Client Name, Original Contract Value, Retention Percentage (3% / 5% / Other), Which retention release (First half / Second half / Full — second half conditionally reveals Defects Liability End Date), Practical Completion Date, Days Overdue auto-calc, Previous Chase Attempts (Stage 2+), Statutory Interest Yes/No (Stage 2+), Total Now Due auto-calc, Bank details auto-pulled from profile.
+  - Stage 1: polite reminder. Stage 2: firm + statutory interest (8% + BoE base). Stage 3: "NOTICE OF INTENTION TO PURSUE LEGAL ACTION" with Late Payment Act 1998, Scheme for Construction Contracts 1998, HGCRA 1996 references, 7-day deadline, dual sign-off.
+  - Verified end-to-end: all 11 acceptance checks pass.
+
 ### Previous session (pre-fork, captured in handoff)
 - Stripe live keys + price IDs + Customer Portal endpoint
 - Resend integration with PDF attachments (`/api/refund-summary/email`)

@@ -536,9 +536,9 @@ End with an ISSUED BY block auto-populated from profile (full name printed, comp
 Rules: never invent figures. Always show the maths. If a field is blank, drop the line entirely — do not write £0 unless the user typed 0. No square-bracket placeholders. No 'kinetic', 'utilise', 'endeavour', 'facilitate', 'prior to', 'operatives are advised'. Short sentences. Read it out loud and it should sound like a QS, not a consultant.`
   ),
   t("retention-chaser", "Retention Chaser", "documents",
-    "Three escalating letters chasing your retention release. Many tradesmen never get retention back. these letters get it moving.",
-    [f("project", "Project"), f("retentionAmount", "Retention amount (£)"), f("dueDate", "Originally due"), f("stage", "Stage (1 polite / 2 firm / 3 final notice)", "text", "1")],
-    "Produce a UK retention release chase letter at the requested escalation stage (1 polite reminder, 2 firm with HGCRA reference, 3 final notice before adjudication / small claims). Personalise to the trade."
+    "Three escalating letters chasing your retention release. Stage 1 polite. Stage 2 firm with statutory interest. Stage 3 Letter Before Action under the Late Payment of Commercial Debts (Interest) Act 1998 and the Scheme for Construction Contracts.",
+    [],
+    "Produce a UK Retention Chaser letter (see the dedicated page for full inputs)."
   ),
   t("final-account", "Final Account Statement", "documents",
     "A formal Final Account Statement bringing every line of money together at the end of a job — original contract sum, variations, dayworks, omissions, loss and expense, retention release, previously paid. Captures every detail needed under JCT / NEC for sign-off and final payment.",
