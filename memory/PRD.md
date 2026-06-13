@@ -1,200 +1,91 @@
 # Morris — Product Requirements Document
 
-## Original Problem Statement
-Dark-themed construction administration SaaS for UK tradespeople and sole traders. Built by Darren Morris, a UK duct fitter. Company: Morris Construction Tech Ltd (ICO C1923529). Slogan: "Built on the Tools." Tagline: "Built by a tradesman. For tradesmen." Brand: gold #E8A020 on near-black #060606 with off-white #F0EDE8 text. Bebas Neue wordmark + DM Sans body. 90+ tools across Documents / Finance / Site Tools / Price Work / Sole Trader / Contractors / Account. Three wow features: Verbal to Variation, Photo to Document, CIS Refund Predictor. AI document generation via Claude. Pricing tiers: Free / Solo £12.99 / Pro £24.99 / Business £59.99 / Enterprise £299+.
+## Original problem statement
+Dark-themed construction administration SaaS web application for UK tradespeople.
+- Authentication (JWT + OTP, mocked SMS, real email via Resend)
+- 88+ trades-specific tools (Site Tools, Documents, Finance, Compliance)
+- AI document generation via Claude (Emergent LLM Key, claude-sonnet-4-5-20250929)
+- PDF exports (jspdf), Live signature pads, dual sign-off
+- Stripe live subscriptions (Solo / Business / Pro / Enterprise) + Customer Portal
+- UK legal compliance: CIS, HMRC, HSE, CDM 2015, HGCRA 1996
+- "Plain construction English" tone — no corporate jargon
 
-## Stack (adapted from Vite+Vercel → CRA+FastAPI+MongoDB)
-- Frontend: React (CRA), Tailwind, lucide-react, sonner, jspdf, react-router-dom v7
-- Backend: FastAPI + Motor (MongoDB)
-- LLM: Claude Sonnet 4.5 via `emergentintegrations` + EMERGENT_LLM_KEY
-- Payments: Stripe Checkout via `emergentintegrations.payments.stripe.checkout` (currently MOCK MODE until real Stripe key provided)
-- Email: Resend (live, key configured)
-- Auth: bcrypt + opaque session token (uuid) on user doc; session stored in localStorage on client
+## Architecture
+```
+/app/
+├── backend/
+│   ├── server.py        # AI generate, profile, refs (~1340 lines)
+│   ├── billing.py       # Stripe live + Customer Portal
+│   ├── email_helper.py  # Resend (incl. PDF attachments)
+├── frontend/src/
+│   ├── components/      # GenericToolPage, LiveSignatureBlock
+│   ├── lib/tools-config.js   # 88+ tools (~1950 lines)
+│   ├── pages/           # Profile, MeasurementRecord, SelfAssessmentPrep,
+│                          PaymentChaser, MileageTracker
+│   └── App.js
+```
 
-## User Personas
-1. Sole-trader UK tradesman (32 trades) — on-site, on a phone. Wants to produce paperwork fast and get paid.
-2. Small contractor (2–10 staff) — managing subbies, RAMS, payment cycles.
-3. Apprentice / new starter — needs admin scaffolding to look professional.
+## What's been implemented
 
-## What's Implemented
-### Iteration 1 (initial build)
-- Landing page (hero, wow features, 90+ tool grid, 5-tier pricing, founder section, footer ICO C1923529)
-- Auth: signup/OTP-verify/login/trade selection
-- App shell: collapsible sidebar (search, Recently Used, 7 accordion sections)
-- Generic tool framework (~75 form-driven tools) calling Claude
-- 3 wow features: Verbal to Variation, Photo to Document, CIS Refund Predictor
-- Finance widgets: Earnings, Mileage (45p/25p HMRC), VAT (£90k progress)
-- Action buttons: Save / Copy / PDF (branded letterhead) / Email / WhatsApp text / WhatsApp PDF
-- Profile, Favourites, History
+### Feb 2026 (this session, after fork)
+- ✅ **[FIX] CIS Invoice — National Insurance Number guaranteed render** (Feb 12, 2026)
+  - Strengthened system prompt: explicit STRICT instruction injected for `cis-invoice` when NI is set on profile.
+  - Added backend post-processing safety net: if generated CIS Invoice content is missing the NI line but profile has one, server auto-injects `NI No: {value}` directly under the UTR line before returning.
+  - Verified: 3/3 runs include `NI No: AB123456C` when set; correctly omitted when blank.
 
-### Iteration 2 (auth additions)
-- Email field on signup (unique-indexed)
-- Password reset via email link (mocked) or phone code
-- Login by username OR email
-- 81 punctuation dashes stripped for cleaner copy
+### Previous session (pre-fork, captured in handoff)
+- Stripe live keys + price IDs + Customer Portal endpoint
+- Resend integration with PDF attachments (`/api/refund-summary/email`)
+- Finance overhaul: 8% NI tax pot, split labour/materials, itemised expenses, CIS refund maths
+- Fixed `GenericToolPage` auto-prefill regex (date pickers incorrectly triggered)
+- New form types: toggle, checkboxes, time, warningBanner, helperText
+- Global AI prompt rewrite — "plain construction English" + banned word post-filter
+- Rebuilt tools: LDs Dispute, Application for Payment, Final Account, Contra Charge,
+  Price Work, Standing Time, Defects Tracker, Novation Letter, Delay Notice,
+  Toolbox Talk, Mileage Log, Payment Chaser, Asbestos Record, Self Assessment Prep,
+  Measurement Record
 
-### Iteration 3 (Stripe + Resend + free-tier)
-- Stripe billing (Mock mode while `STRIPE_API_KEY='sk_test_emergent'`)
-- 3-day free trial (no card needed)
-- 4 paid tiers self-serve, Enterprise via mailto
-- Mock checkout page for demos; real Stripe checkout activated on real key swap
-- Free-tier enforcement on `/api/generate`: 3 different tools + 5 docs per month → 402
-- Real password-reset emails via Resend with branded HTML template
-- Welcome email on signup
-- Subscription receipt email after payment
-- Trade switcher available on every tool page header + sidebar footer
-- "Recommended for [Trade]" section on dashboard
-- Founder photo removed from landing
-- "Favourite" label (was "Starred")
-- Tool emojis next to every tool name
+## Pending backlog
 
-### Iteration 10 (Feb 2026 — Live Stripe Subscriptions)
-- Switched `/app/backend/.env` from mock-Stripe placeholder to **real live keys** (`sk_live_…`, `pk_live_…`) plus the 4 live price IDs (Solo / Pro / Business / Enterprise). All keys are in `.env` only — never hard-coded.
-- Fixed env-var precedence bug: `STRIPE_API_KEY=sk_test_emergent` was hard-baked into the pod's shell environment and was overriding `.env`. `billing.py` now uses `dotenv_values()` to read Stripe keys directly from the `.env` file so it always wins. Other env vars (Mongo, LLM key, Resend) untouched.
-- The `emergentintegrations.payments.stripe.checkout` helper hard-codes `mode='payment'` (one-off) and cannot do subscriptions. Switched checkout creation to use the **official `stripe` SDK directly** (`stripe.checkout.Session.create` with `mode='subscription'`) for proper recurring billing. The helper is still used for status polling and webhook signature verification.
-- Added 4th plan **Enterprise £199.99** as a subscribable plan (was previously "Contact us"). Removed `contact: true` so the Enterprise card shows a real "Choose Enterprise" button.
-- Hard-block on `darrenhustle300`: `is_unlimited_admin()` check in `create_checkout` returns 400 with "Your account already has unlimited access. No subscription required." — the admin can never create a Stripe session and can never be charged.
-- Verified end-to-end on live preview: all 4 plans return real `cs_live_…` session IDs and `checkout.stripe.com` URLs. Webhook handler already wired at `POST /api/webhook/stripe` for `checkout.session.completed`, `invoice.paid`, `invoice.payment_failed`, `customer.subscription.updated`, `customer.subscription.deleted`.
+### P0 — Blockers
+_None._
 
-### Iteration 9 (Feb 2026 — Priority Tools deep field overhaul: 9 tools)
-- **Backend**: extended Profile with `vehicleReg` and `bankDetails` fields. Both injected into Claude system prompt's Author Profile block so all generated documents auto-populate without placeholders. Bank details are now pulled into CIS invoices and Payment Chasers automatically.
-- **tools-config.js**: introduced new field helpers — `fo()` for optional fields, `sel()` for dropdowns, `fp()` for prefilled date-style fields with patterns (`today`, `today+30d`, `today+7d`). `GenericToolPage` now renders selects natively and prefills any field declared with a `prefill` pattern.
-- **8 priority tools rewritten with full new field lists + auto-calculation + signature blocks**:
-  1. **Variation Letter** — 15 fields: contract ref + date, instructor name + role (dropdown), instruction datetime + location, original scope, variation, labour/materials cost breakdown, time impact, instruction method (dropdown), clause ref (optional). Issued-by block from profile + client acceptance block + HGCRA 1996 footer reference + "sign and return" close.
-  2. **CIS Invoice** — 13 fields: invoice date + tax point auto-prefilled, client legal name + address, works description, labour + materials (separate as HMRC requires), CIS rate dropdown (20% / 30% / 0% gross), VAT applicable (conditional on profile), domestic reverse charge (conditional on profile), PO number (optional), payment terms (dropdown), bank details (auto from profile). Issued-by block with UTR from profile.
-  3. **Payment Chaser** — 7 fields: client, invoice number / date / amount, outstanding amount, previous chase attempts (optional), payment deadline (defaults to today + 7d). Days overdue calculated by Claude. Late Payment of Commercial Debts (Interest) Act 1998 + 8% above base rate interest + £40-£100 fixed compensation language embedded in prompt. Issued-by block.
-  4. **Site Diary** — 16 fields: date prefilled, site, weather (3 dropdowns for Temperature / Wind / Rain), site manager, operative count, visitors, plant, works today, works tomorrow, delays (yes/no + reason), instructions received, issues, photos attached. Completed-by block from profile.
-  5. **Daywork Sheet** — 12 fields: daywork date prefilled, contract ref, labour rate, uplift %, plant rate, start + finish times, works description, materials list + total, plant list + total, PO. Operative + Site Manager signature blocks + payment caveat close.
-  6. **Timesheet** — 22 fields: week commencing prefilled, project, site, job ref, per-day Mon-Fri start/finish/break times, overtime hours + rate, day or hourly rate + basis, PO, payment terms. CIS rate auto-applied to labour only from profile. Operative + Supervisor signature blocks + CIS-rate-from-profile note baked into the document.
-  7. **Quote Builder** — 13 fields: client, valid-until (defaults to today + 30d), payment terms (dropdown), labour/materials/preliminaries breakdowns + subtotals, CIS applicable, exclusions, assumptions. VAT line conditional on profile. Prepared-by + Client acceptance signature blocks.
-  8. **Subcontract Letter** — 18 fields: subcontractor name/company/address/UTR, contract dates, site + project, scope, fixed price vs day rate selector, payment frequency (dropdown), CIS rate (dropdown), retention %, defects period, insurance min, termination notice. Mandatory **Right of Substitution** clause baked into prompt. Already in REVIEW_REQUIRED_TOOLS so review checkbox blocks Send/Download.
-- **9th tool — Mileage Tracker**: complete rebuild. New required-input form: date prefilled, journey purpose (with HMRC compliance check that rejects generic words like "site" or "work"), start address, end address, miles, round-trip toggle (doubles mileage), vehicle reg (auto-prefilled from profile). Live tax-year detection (6 April → 5 April). Automatic threshold split between 45p/mile (first 10,000 in tax year) and 25p/mile (above). 3 stat cards: Miles YTD, Claim YTD, This journey at current rate. **Annual Report (PDF)** button generates a complete tax-year report with monthly breakdown + individual journeys + HMRC compliance note, ready for accountant. HMRC contemporaneous-record warning displayed at top.
+### P1 — High priority
+- Replace mock SMS OTP with real Twilio integration
+- Refactor `tools-config.js` (1950+ lines) — split into category files
+- Refactor `server.py` (1340+ lines) — extract routes into `/app/backend/routes/`
+- User sign-off on Measurement Record tool (code complete, visual review pending)
 
-### Iteration 8 (Feb 2026 — Job Tracker)
-- **Backend**: `db.jobs` collection + 5 routes — POST `/api/jobs` (auto-issues `JOB-{INITIALS}-{NNNN}` ref via per-user counter), GET `/api/jobs`, GET `/api/jobs/:id` (returns job + linked documents), PATCH `/api/jobs/:id` (status enum: active|invoiced|completed|disputed), DELETE `/api/jobs/:id` (orphans linked docs rather than deleting them).
-- **Documents** schema: added `jobId` field. `/api/generate` and `/api/documents/save` both accept an optional `jobId` and link the doc automatically.
-- **Frontend pages**:
-  - `/app/jobs` — list with 5 status filter chips (All / Active / Invoiced / Completed / Disputed) showing counts, empty state, gold "New job" button opening a modal form with required client name + optional address/value/dates.
-  - `/app/jobs/:jobId` — detail page with status pill, job metadata (site/value/started/expected), 4-button status switcher, list of linked documents, delete with confirm.
-- **AppShell sidebar**: pinned "Job Tracker" link at the very top of the navigation (above Recently Used).
-- **Command Centre**: Outstanding Invoices card now wired to real data — sums contract values of jobs in `invoiced` status. New "Jobs" quick-action button added (now 5 quick-actions: Jobs / New invoice / New variation / New RAMS / Log mileage).
-- Both pages are wrapped in `ProfileGate` so incomplete-profile users are redirected to /app/profile first.
+### P2 — Nice to have
+- Real Web Speech API for Verbal-to-Variation tool (currently mocked)
 
-### Iteration 7 (Feb 2026 — Command Centre Dashboard + lint cleanup)
-**Command Centre (Prompt 7's first feature):**
-- Replaced the basic Dashboard top section with a full Command Centre block. New blocks rendered above the existing "What Morris Offers"/Recommended/Favourites:
-  1. **Top stats grid (4 cards)** — Tax pot to set aside (23% of net CIS payments), CIS refund estimate (totalDeduction − basic-rate tax on profit over PA £12,570), Outstanding invoices (Coming soon — placeholder until Payment Tracker is built), Earnings YTD (sum of all logged CIS gross).
-  2. **Expiry traffic-light strip (3 cards)** — Public liability insurance, CSCS card, Self Assessment deadline (next 31 Jan). Status colours: green > 60 days, amber 30–60 days, red < 30 / expired, grey if unset. Each card is tappable and links to Profile or Self Assessment Prep tool.
-  3. **Quick actions (4 buttons)** — New invoice → /app/tool/cis-invoice; New variation → /app/tool/variation-letter; New RAMS → /app/tool/rams; Log mileage → /app/mileage. Per Prompt 7's "four most used tools available in one tap".
-  4. **Recent documents** — Last 5 documents from the Vault. Each shows its refNumber + ISO date. Tap to open History.
-- All cards live-update from `/api/documents` + `/api/cis/payments` + the user profile fields. Greeting now displays "Hello, {firstName}" with trade + company subline.
+## Key API endpoints
+- `POST /api/auth/signup`, `POST /api/auth/login`, `GET /api/auth/me`
+- `POST /api/profile/update`
+- `POST /api/generate` — Claude doc generation (with CIS-specific NI hardening)
+- `POST /api/billing/portal` — Stripe Customer Portal
+- `POST /api/refund-summary/email` — Resend PDF dispatch
+- Job tracker: `POST/GET /api/jobs`
+- Documents: `POST /api/documents/save`, `GET /api/documents`, `DELETE /api/documents/{id}`
 
-**Lint / code-review cleanup:**
-- Replaced `random.randint` → `secrets.randbelow(900000) + 100000` for OTP and SMS reset code (server.py:185, 295). Removed unused `random` import. Real cryptographic security improvement.
-- Empty `catch {}` blocks → `catch (e) { console.error(...) }` in CISRefundPredictor.jsx and Billing.jsx for debuggability.
-- Pushed back on the rest of the code-review report (hardcoded test secrets / localStorage / hook deps / complexity / type hints in tests) as either false positives or out-of-scope refactors.
+## Key DB schema (`users`)
+`{_id, username, email, phone, plan, isAdmin, isUnlimited, trade, companyName,
+fullName, address, contactNumber, utr, vatRegistered, vatNumber, cisStatus,
+nationalInsuranceNumber, companyRegNumber, vehicleReg, signature, signatureRole,
+cscsCardFront, cscsCardBack, companyLogo, sortCode, accountNumber, bankName,
+shareBankDetails, stripeCustomerId, stripeSubscriptionId, planExpiresAt,
+favourites, recentlyUsed, docCounters, usageDocs, usageTools, usageMonth}`
 
-### Iteration 6 (Feb 2026 — Global Rules Phase 1A + 1B + 1C)
-**Phase 1A:**
-- Enterprise tier price updated £199 → £199.99 on Landing & Billing pages.
-- NO DASHES rule added to Claude system prompt + server-side post-process safety net stripping any em-dash/en-dash from output.
-- Strict PLACEHOLDER RULE added to system prompt (no [Your Company] / TBC / square-bracketed placeholders).
-- `darrenhustle300` is now an admin / unlimited account: `is_unlimited_admin()` helper bypasses `check_can_generate` and `record_usage`. `/api/billing/status` returns `plan='unlimited'`, `isUnlimited=true`. `/api/auth/me` returns `isAdmin=true`, `isUnlimited=true`. The account was promoted via a one-off DB update (`isAdmin: true`, password reset to `hustle1234`).
-- Global disclaimer wording on ResultActions footer replaced with the required "This tool is for guidance and estimation purposes only. It does not constitute legal, tax or financial advice…" copy.
-- SMS button added to every generated document's action row (data-testid='action-sms') alongside Email + WhatsApp text/PDF — uses `sms:?body=` URL scheme so the native messages app opens with body pre-filled.
+## 3rd-party integrations
+- Anthropic Claude — via Emergent LLM Key (text generation)
+- Resend — user-provided API key (emails + PDF attachments)
+- Stripe — live keys (subscriptions + Customer Portal)
 
-**Phase 1B:**
-- Backend Unique Reference Number system: per-user per-tool per-day counter in MongoDB. `/api/generate` issues a refNumber in format `{TYPE}-{INITIALS}-{YYMMDD}-{NNN}` (e.g. `RAMS-DM-260525-001`), injects it into the Claude prompt as a mandatory document header, and returns it in the response payload. System prompt now requires every document to start with `DOCUMENT REFERENCE: …`, `DATE: …`, and `REVIEW DATE: …` (compliance docs).
-- Auto date population: GenericToolPage auto-fills any date-style field on mount. Defensive matching by both `field.type === 'date'` and field name pattern (`date|review|valid|start|end|expir|handover|taxpoint|completion`). Review-style fields default to today + 12 months.
-- Yellow asterisk + required validation: every tool field defaults to required unless explicitly flagged `optional: true`. Generate button is disabled while any required field is empty. Missing-fields toast + inline red border + red message list shown on submit.
-- Auto-save to Document Vault: every successful `/api/generate` call now writes the document directly into `db.documents` with `autoSaved=true` + the refNumber, so nothing is ever lost.
-- Result panel shows the `REF: <number>` badge top-right; toast on success now reads "Document generated. Saved to your Vault."
+## Health
+- Broken: none
+- Mocked: Twilio SMS OTP, Web Speech API
 
-**Phase 1C:**
-- Profile model extended with `contactNumber`, `vatRegistered` (bool), `insuranceExpiry` (date), `cscsExpiry` (date). All mandatory fields on the Profile page marked with yellow asterisk.
-- New `ProfileGate` route wrapper in `App.js`. Any tool route (Generic, all 3 wow features, CIS Predictor, Mileage, VAT, Earnings) is wrapped — if the user's profile is incomplete (any of fullName/companyName/address/contactNumber/utr/trade/cisStatus/insuranceExpiry/cscsExpiry missing), they're auto-redirected to `/app/profile?complete=1` with a gold "Complete your profile to unlock the tools" banner. Admin / unlimited users bypass.
-- Claude system prompt now receives a full Author Profile block (Name, Trade, Company, Address, Contact, Email, UTR, CIS status, VAT). Documents are auto-populated with real values; "[Your Company]" / "TBC" / square-bracket placeholders are explicitly forbidden in the prompt. Verified end-to-end: a generated CIS Invoice now contains the real company name, address, contact, UTR and VAT number.
-- Mandatory review checkbox on 12 high-risk tools (`requiresReview()` in tools-config): RAMS, COSHH, Noise, Manual Handling, Working at Height Rescue, HMRC Correspondence, Subbi Compliance Checker, H&S Policy, Hire Agreement, Subcontract Letter, New Starter Pack, Apprentice Manager. All 7 action buttons (Save/Copy/PDF/Email/WhatsApp text/WhatsApp PDF/SMS) are disabled until the user ticks "I have reviewed this document". Gold-bordered alert box with checkbox renders above the actions.
-- 88+ tool count standardised everywhere — Landing hero strip, tools section H2, Billing Solo features, trial CTA.
-
-### Iteration 5 (Feb 2026 — Cinematic intro + CIS disclaimer)
-- Cinematic intro overlay on Landing (CinematicIntro.jsx): two-line gold shimmer sweep — "Built By A Tradesman, For Tradesmen" (large, 2s sweep) + "The Paperwork Sorted. You Stay On The Tools." (smaller, sweeps in at 2.2s). ~5.4s total runtime, scroll-locked then released. Replays only once per session via `sessionStorage.morris_intro_shown`. (User reverted from the alternate 4.5s "MORRIS / slogan / rule / mark" design back to this original 2-line shimmer intro.)
-- Fixed critical timer-restart bug in CinematicIntro: useEffect dep changed to `[]` with an `onDoneRef` so parent re-renders no longer clear the dismiss timer.
-- "Wow Features" → "What Morris Offers" rename across nav + footer.
-- CIS Refund Predictor: added Info `i` + Favourite star buttons in header. Info opens a modal popup overlay (#0D0D0D bg, gold border) with "What this tool does" copy and a blue-bordered Tax Notice box (🧮 calculator emoji) clarifying the estimate-only nature of the prediction. Favourite toggle wired to `/api/profile/update`.
-
-## Verified (Testing Agent iterations 1+2+3)
-- Backend: 36/36 pytest pass (auth + generate + documents + CIS + billing + free-tier + email)
-- Frontend: full E2E happy path verified — signup → OTP → trade → tool generation → mock checkout → plan activation → free-tier 402 cascade
-
-## Mocked / Deferred
-- **OTP via SMS** — still mocked (returned in response). Twilio integration pending.
-- **Stripe** — currently MOCK MODE. Swap `STRIPE_API_KEY` env var to a real `sk_test_...` or `sk_live_...` to activate. No code changes needed.
-- **Domain for Resend** — using `onboarding@resend.dev` until DNS verified for `morrisapp.co.uk`.
-- **Multi-user invites** for Pro/Business/Enterprise seats — deferred.
-- **Offline Mode** — listed in sidebar as "(Coming soon)".
-- **Real OCR on Photo-to-Document** — currently user describes the photo and Claude formats.
-
-## Prioritised Backlog
-- **P0**: Real Stripe key swap when founder has a Stripe account
-- **P0**: Verify Morris domain on Resend (DKIM records) → enables sending to any address from `hello@morrisapp.co.uk`
-- **P1**: Twilio for real SMS OTP
-- **P1**: Multi-user invites
-- **P1**: Real OCR (Tesseract or Claude vision) on Photo-to-Document — DONE Feb 2026 (Claude vision via /api/vision/extract auto-fired on photo upload)
-- **P2**: Custom company logo upload onto branded PDF letterhead
-- **P2**: Stripe Customer Portal link for self-serve cancel/update card
-- **P2**: Annual billing option (20% discount)
-- **P3**: PWA + offline mode (IndexedDB queue) — Offline page + localStorage queue shipped; PWA service worker still pending
-
-## Iteration 13 (Feb 2026 — New subscription tiers + team management + white-label)
-- **Pricing tiers updated**: Solo £29.99 (1 seat), Business £59.99 (5 seats), Pro £99.99 (15 seats), Enterprise £249.99 (unlimited + white-label + contact-only). Plan card order on Billing page is now Solo → Business → Pro → Enterprise.
-- **Enterprise contact-only**: `POST /api/billing/checkout planId='enterprise'` is blocked server-side with the message "Enterprise plans are contact-only. Email contact@morrisapp.co.uk and we will onboard you within 24 hours." Frontend Billing card shows a "Contact us to set up" button that triggers a toast and a `mailto:contact@morrisapp.co.uk` deep-link.
-- **Team Management** (`/app/team`, sidebar Account section, default-open):
-  - Owners and Admins can invite by email, assign Member / Admin / Manager (Enterprise only) roles, and remove members.
-  - Invite emails sent via Resend with a `/accept-invite?token=…` deep-link (14-day expiry).
-  - `lastActiveAt` field is bumped on every authed call (`get_user`) so the team dashboard shows live activity (just-now / X min ago / X hr ago).
-  - Solo / Free / Trial users see an upgrade CTA instead of the team dashboard.
-  - Pending invites can be cancelled by owners/admins.
-- **Role logic** (consistent across `invite` and `update_role` via shared `_can_use_manager_role(plan)` helper):
-  - Owner — pays the bill, full access.
-  - Admin — invite + remove + role changes, full tool access. (Pro & Enterprise.)
-  - Manager — view + edit team documents, full tool access. (Enterprise only.)
-  - Member — create + download own docs. Default for all invites.
-- **Team-member plan inheritance**: `check_can_generate` now looks up the team owner and grants the owner's plan benefits to all team members — so an invitee on a Business team gets full tool access automatically.
-- **White-label PDF branding (Enterprise/admin)**: Profile page exposes a logo uploader (gated to Enterprise plan; non-Enterprise see a locked message). Uploaded logos are auto-compressed to 600px-wide PNG. `pdf.js` swaps the MORRIS wordmark in the header for the uploaded logo, uses the user's company name in the top-right, and replaces the footer with `{Company name}  •  Document prepared by {Author}` (no Morris branding).
-- **AcceptInvite page** (`/accept-invite?token=…`): public route — invitees pick a username and password (no OTP needed), are auto-logged-in, redirected to `/select-trade` then `/app`.
-- **Sidebar search fix**: extracted account-section tools to a reusable `ACCOUNT_TOOLS` export — they now show up in the sidebar text search AND the global ⌘K palette (Team, Billing, Profile, Document History etc. all searchable).
-- **Tested**: Iteration 8 test report — 8/8 backend pytest pass, 100% on stated frontend acceptance criteria. Manager-role gating consistency fix re-tested end-to-end after the report.
-
-
-- **Profile**: Added `signature` (base64 PNG data URL) and `signatureRole` fields. New `SignaturePad.jsx` canvas component on the Profile page — user draws their signature once with finger/mouse/stylus, saved to MongoDB on profile save. Cleared via an Eraser button. Saved signatures load back into the canvas on next visit.
-- **Backend (server.py)**: Added `SINGLE_SIGNOFF_TOOLS` (32 tools) and `DUAL_SIGNOFF_TOOLS` (26 tools) classification sets, and a `_signoff_instructions(tool_id, profile, has_signature)` helper that builds the mandatory sign-off block instructions injected into the Claude system prompt for EVERY `/api/generate` call. This is a single global setting — never per-tool.
-  - SINGLE block: Contractor only (Name + Role + Company + Date/time + Signature line).
-  - DUAL block: Contractor block (auto-populated from profile) + Client block (labelled blank lines for hand-signing or counter-signing).
-  - Signature line varies: if a signature is on file → "Signature: (signed electronically. saved signature on file)"; else → "Signature: Add your signature in profile settings to complete this document."
-- **PDF (pdf.js)**: When rendering the body, detects any `Signature:` line and stamps the user's saved signature PNG (130×46pt with a transparent background) directly to the right of the label — so the downloaded PDF carries the real signature image.
-- **Tested end-to-end** via curl: site-diary → SINGLE block at the foot, variation-letter → DUAL block at the foot. The "saved electronically" / "add your signature in profile settings" copy switches correctly based on profile state.
-
-## Iteration 12 (Feb 2026 — Global sign-off blocks + CSCS upload + Share My Profile)
-- **Global sign-off blocks** (covered above in Iteration 12 details).
-- **CSCS card photo upload**: `cscsCardFront`/`cscsCardBack` fields on profile; auto-resized to 1100px JPEG@82% to keep payload small.
-- **Share My Profile**: `/lib/profilePdf.js` generates a one-page branded Trade Profile PDF (contact, CIS, insurance, CSCS expiries, both CSCS card photos, signature). Buttons on profile page: Download / Email / WhatsApp / SMS. When photos are missing, shows the "Add your CSCS card photos in profile settings…" guidance.
-
-## Iteration 11 (Feb 2026 — Prompts 2 / 3 / 4 / 5 / 6 / 7 / 8 / 9 batch)
-- **Prompt 8 (Admin notifications via Resend)**: New `send_admin_signup`, `send_admin_payment_success`, `send_admin_payment_failed`, `send_admin_churn` helpers in `email_helper.py` (all routed to `ADMIN_NOTIFICATION_EMAIL=hello@morrisapp.co.uk`). Wired into signup, mock-complete, status/{session_id}, and the Stripe webhook. Webhook now parses raw event types and handles `checkout.session.completed`, `invoice.payment_failed`, and `customer.subscription.deleted` for full churn / failed-payment / signup admin alerting. Resend send falls back to mock logging if `RESEND_API_KEY` is empty (which it currently is — confirmed end-to-end mocked).
-- **Prompt 2 (remaining Documents deep-field overhauls)**: 4 more compliance tools rebuilt with their full required-field sets and detailed AI prompts. `toolbox-talk` (10 fields incl. attendees → sign-off sheet), `coshh` (15 fields with CLP hazard class + WEL + RPE selectors → full COSHH 2002 doc), `hire-agreement` (15 fields → full CPA 2011/2021 agreement with mandatory clauses + signature blocks), `hs-policy` (14 fields → full HSWA s.2(3) statement with insurance details + responsibilities + signed statement). All four are already in `REVIEW_REQUIRED_TOOLS` so the mandatory review checkbox blocks Send/Download until ticked.
-- **Prompt 3 (Finance category)**: `Earnings.jsx` rebuilt — adds allowable expenses input, taxable profit calc, 2025/26 banded income tax (20%/40%/45%) + Class 4 NI (6%/2%), CIS refund-vs-balance owed delta, 12-month monthly bar chart of CIS gross by month. `VatThreshold.jsx` rebuilt — proper rolling 12-month grid where users enter each month's turnover, with run-rate forecast and projected months-to-breach. CIS Refund Predictor was already production-ready and untouched.
-- **Prompt 4 (Site Tools + Photo to Document AI vision)**: PhotoToDocument now **auto-OCRs every uploaded photo** via `/api/vision/extract` (Claude Sonnet 4.5 vision). User sees an "Extracting" overlay, then a gold-bordered AI Transcription card with the read text + a one-line image description. Transcription pre-fills the description field so the user can edit before generating. The original photo is then embedded in the final PDF as evidence with a generated caption. Backend now returns 422 (not 500) on unprocessable images. Two site tools rebuilt: `photo-evidence-log` (8 fields → numbered photo evidence table with chain-of-custody statement), `verbal-instruction-recorder` (13 fields → proper CVI letter with scope/cost/time impact analysis and 48-72h written-confirmation request).
-- **Prompt 5 (Price Work) + Prompt 6 (Contractors)**: `scope-of-works` rebuilt (12 fields → tight scope doc with inclusions/exclusions/assumptions/preliminaries/deliverables and acceptance signatures). `subbie-compliance` rebuilt (12 fields → full PASS/FAIL/OUTSTANDING checklist covering CIS, PL, EL, CSCS, RAMS, training, right-to-work + overall RAG status + 30-day review).
-- **Prompt 7 (Three new tools)**:
-  1. **Tax Pot** (`/app/taxpot`) — log every weekly deposit, recommended pot = 23% of net CIS, live shortfall + £/week-to-catch-up calc, Self Assessment 31 Jan countdown banner.
-  2. **Company Checker** (`/app/company-checker`) — Companies House public search with active/dissolved badges, accounts-overdue and CS01-overdue red-flag warnings, deep-link to the official record.
-  3. **Offline Mode** (`/app/offline-mode`) — live online/offline status pill, queue UI for drafts saved in localStorage, "Sync now" button that pushes queued items via `/documents/save` and `/cis/payments` when reconnected. Exported `enqueueOffline()` helper for future wiring from any tool.
-- **Prompt 9 (Navigation & UX revamp)**:
-  1. **Breadcrumbs** on every `/app/*` page (except `/app` root). Smart routing — knows tool sections, jobs, billing checkout etc.
-  2. **Global Cmd+K / Ctrl+K command palette** — full-screen overlay with arrow-key navigation, type to filter across all 90+ tools + nav routes, ↩ to open.
-  3. **OnboardingTour** — 6-step gold-progress-bar modal that appears once on first session (gated by `morris_onboarding_done_v1` localStorage flag). Tour covers: welcome → Command Centre → 3 wow features → auto-save Vault → Tax Pot → Cmd+K. Finishes by sending the user to `/app/profile?complete=1`.
-  4. **⌘K hint chip** added to the sidebar search input.
-- **Backend quality-of-life fixes**: `/api/auth/login` now returns `isAdmin` / `isUnlimited` for admin accounts (removes the extra `/auth/me` round-trip). `/api/vision/extract` returns 422 (not 500) when Anthropic rejects an image.
-- **Tested**: Iteration 7 test report — 6/6 backend pytest pass, 100% frontend page-load coverage of all new pages + breadcrumbs + Cmd+K + onboarding. PhotoToDocument vision auto-OCR fires correctly on file upload.
-
+## Critical notes
+- **Production**: deployed to `morrisapp.co.uk`. Preview ≠ Production until user explicitly redeploys.
+- **HMRC integrity**: NEVER override UK statutory figures with user typos (e.g. mileage stays 45p, NOT 55p).
+- **Tone**: STRICT "plain construction English" — no `facilitate`, `utilise`, `kinetic`, etc. Backend has a banned-word post-filter and per-prompt instruction.

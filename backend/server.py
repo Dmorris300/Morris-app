@@ -709,7 +709,10 @@ async def generate(req: GenerateReq, authorization: Optional[str] = Header(None)
         .format(ref=ref_number, today=today_str, review=review_date_str)
         + "AUTHOR PROFILE (use these exact values wherever a name, company, address, UTR, VAT or CIS reference is needed):\n"
         + profile_block + "\n"
-        "Personalise the document to this profile. Do not invent details.\n\n"
+        "Personalise the document to this profile. Do not invent details.\n"
+        + ("STRICT: For CIS Invoices, the subcontractor's National Insurance number MUST appear in the FROM block on its own line labelled 'NI No:'. This is non-negotiable for HMRC compliance.\n"
+           if (req.toolId == "cis-invoice" and ni_number) else "")
+        + "\n"
         + (bank_block + "\n\n" if bank_block else "")
         + _signoff_instructions(req.toolId, user, bool(user.get("signature")))
     )
@@ -762,6 +765,33 @@ async def generate(req: GenerateReq, authorization: Optional[str] = Header(None)
             lc = lc.replace(bad, repl)
             lc = lc.replace(bad.capitalize(), repl.capitalize() if repl else "")
         cleaned = lc
+
+        # Safety net: CIS Invoice MUST always carry the subcontractor's National
+        # Insurance number if it is on the profile. HMRC compliance requirement.
+        # If the model dropped it, inject it under the UTR line.
+        if req.toolId == "cis-invoice" and ni_number:
+            ni_present = ("NI No" in cleaned) or (ni_number in cleaned) or ("National Insurance" in cleaned)
+            if not ni_present:
+                # Try to inject right after the UTR line (case-insensitive scan).
+                lines = cleaned.split("\n")
+                injected = False
+                for idx, line in enumerate(lines):
+                    if "UTR" in line.upper():
+                        lines.insert(idx + 1, f"NI No: {ni_number}")
+                        injected = True
+                        break
+                if not injected:
+                    # Fallback: prepend under the FROM block if present.
+                    for idx, line in enumerate(lines):
+                        if line.strip().upper().startswith("FROM"):
+                            lines.insert(idx + 1, f"NI No: {ni_number}")
+                            injected = True
+                            break
+                if not injected:
+                    # Last resort: stick it at the very top of the body.
+                    lines.insert(0, f"NI No: {ni_number}")
+                cleaned = "\n".join(lines)
+
         await record_usage(db, user, req.toolId)
         # Auto-save every generated document to the user's Document Vault
         try:
