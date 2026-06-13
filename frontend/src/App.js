@@ -40,6 +40,8 @@ import ContractReview from "./pages/ContractReview";
 import HmrcCorrespondence from "./pages/HmrcCorrespondence";
 import BadDebtLetter from "./pages/BadDebtLetter";
 import PriceWorkVariationTracker from "./pages/PriceWorkVariationTracker";
+import TenderLetter from "./pages/TenderLetter";
+import PaymentTracker from "./pages/PaymentTracker";
 import VatThreshold from "./pages/VatThreshold";
 import Earnings from "./pages/Earnings";
 import TaxPot from "./pages/TaxPot";
@@ -148,6 +150,8 @@ function App() {
             <Route path="hmrc-correspondence" element={<ProfileGate><HmrcCorrespondence /></ProfileGate>} />
             <Route path="bad-debt-letter" element={<ProfileGate><BadDebtLetter /></ProfileGate>} />
             <Route path="pricework-variation-tracker" element={<ProfileGate><PriceWorkVariationTracker /></ProfileGate>} />
+            <Route path="tender-letter" element={<ProfileGate><TenderLetter /></ProfileGate>} />
+            <Route path="payment-tracker" element={<ProfileGate><PaymentTracker /></ProfileGate>} />
             <Route path="company-checker" element={<ProfileGate><CompanyChecker /></ProfileGate>} />
             <Route path="offline-mode" element={<OfflineMode />} />
             <Route path="team" element={<TeamManagement />} />

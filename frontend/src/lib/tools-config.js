@@ -1723,7 +1723,11 @@ Rules:
   t("rams-library", "RAMS Library", "contractors", "Index of your RAMS documents by trade / activity.", [ta("entries", "RAMS in library")], "Produce a RAMS Library index: Reference / Activity / Trade / Version / Date / Review Due."),
   t("contract-mgmt", "Contract Management", "contractors", "Contract register. parties, value, dates, key clauses.", [ta("contracts", "Contracts (one per line)")], "Produce a Contract Register: Ref / Parties / Value / Start / End / Retention / Key Clauses / Status."),
   t("multiuser-site-diary", "Multi-user Site Diary", "contractors", "A consolidated daily diary across multiple gangs / sub-trades.", [f("date", "Date"), ta("gangs", "Gangs and their works")], "Produce a consolidated multi-gang Site Diary for the supplied date."),
-  t("payment-tracker", "Payment Tracker", "contractors", "Tracks money in and money out across all live jobs.", [ta("entries", "Payment entries")], "Produce a Payment Tracker: Job / Application / Date / Net / Due Date / Status / Notes."),
+  t("payment-tracker", "Payment Tracker", "contractors",
+    "Live financial register of every invoice across all active jobs. Auto-calculates CIS deductions and net amount due per row, and rolls up the totals you need for Self Assessment — total invoiced, total CIS deducted, total received, retention held, outstanding balance, plus an overdue counter.",
+    [],
+    "Produce a UK Payment Tracker (see the dedicated page for full inputs)."
+  ),
   t("incident-log", "Incident Log", "contractors", "Master incident & near-miss log across jobs.", [ta("incidents", "Incidents")], "Produce an Incident & Near Miss Log: Date / Site / Type / Description / Action / RIDDOR? / Closed."),
   t("labour-allocation", "Labour Allocation", "contractors", "Daily labour allocation across multiple sites.", [f("date", "Date"), ta("allocation", "Labour allocation")], "Produce a Labour Allocation sheet: Operative / Trade / Site / Hours / Task."),
   t("purchase-order", "Purchase Order", "contractors", "A formal Purchase Order to a supplier or subcontractor.", [f("supplier", "Supplier"), ta("items", "Items"), f("total", "Total (£)")], "Produce a formal UK Purchase Order with PO number, supplier, line items, total, delivery address, payment terms."),
@@ -1884,7 +1888,11 @@ Rules: this is a register, not a letter — keep it tight. Never invent defects.
 10. TERMINATION — either party may terminate on written notice; outstanding charges immediately due on termination.
 11. GOVERNING LAW — England and Wales.
 End with two signature blocks: OWNER (user profile: full name, company, today's date, signature line) and HIRER (full name printed, company, address, today's date, signature line). Close with: 'This agreement is legally binding once signed by both parties. Both parties should retain a signed copy. Hire is subject to the CPA Model Conditions referenced above, copies available on request.'`),
-  t("tender-letter", "Tender Letter", "contractors", "A professional tender submission cover letter.", [f("client", "Client"), f("project", "Project"), f("tenderSum", "Tender sum (£)")], "Produce a professional UK tender cover letter. confirming sum, basis, validity (typically 90 days), and key exclusions."),
+  t("tender-letter", "Tender Letter", "contractors",
+    "Professional cover letter accompanying a tender submission. Covers tender reference, scope, inclusions, exclusions, programme, proposed start, payment terms, price status (fixed / fixed for validity / subject to survey / indicative), key points, and the attachments enclosed. Validity defaults to 30 days from today.",
+    [],
+    "Produce a UK Tender Letter (see the dedicated page for full inputs)."
+  ),
 ];
 
 // Pseudo tools with custom routes (not generic form-based)
