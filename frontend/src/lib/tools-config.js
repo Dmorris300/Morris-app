@@ -1177,7 +1177,7 @@ End with an ISSUED BY block from the user profile (full name printed, company, t
   t("dispute-timeline", "Dispute Timeline", "site", "Builds a chronological timeline of a dispute from your bullet points. essential for adjudication.", [ta("events", "Events (one per line: date. what happened)")], "Convert the supplied events into a clean chronological dispute timeline with dates, parties, and document references."),
   t("incident-report", "Incident Report", "site", "RIDDOR-aware incident report. near misses, injuries, dangerous occurrences.", [f("date", "Date / time"), f("location", "Location"), f("persons", "Persons involved"), ta("description", "What happened"), ta("actions", "Immediate actions taken")], "Produce a HSE / RIDDOR-aware Incident Report with sections: Incident Details, Persons Involved, Description, Immediate Actions, Root Cause, Lessons Learned, Reportable under RIDDOR? (yes/no/possibly)."),
   t("reminders", "Reminders", "site", "Custom reminders for inspections, certificates, calibrations, insurance renewals.", [ta("items", "Items to remind (one per line)")], "Produce a Reminders Register with Item / Frequency / Last Done / Next Due / Owner / Status."),
-  t("toolbox-talk", "Toolbox Talk", "site", "A short, trade-specific toolbox talk briefing. 5–10 minutes, signed by the crew.", [
+  t("toolbox-talk", "Toolbox Talk", "site", "A short, trade-specific toolbox talk briefing. 5–10 minutes, signed by the crew. Captures every field a UK principal contractor's site manager expects to see on a toolbox talk audit record.", [
       f("topic", "Topic / subject of the talk"),
       fp("talkDate", "Date of talk", "today", "date"),
       f("siteName", "Site name and address"),
@@ -1186,21 +1186,60 @@ End with an ISSUED BY block from the user profile (full name printed, company, t
       f("attendeesCount", "Number of attendees", "number"),
       ta("attendeesNames", "Attendees (one name per line — will form the sign-off sheet)"),
       tao("specificHazards", "Site-specific hazards related to this topic (optional, will be added to the standard set)"),
+      ta("controlMeasures", "Control measures in place — what controls are being used to manage the hazards above? (e.g. barriers, spotters, permits, safe systems of work)"),
+      f("firstAiderName", "Nearest First Aider on site (name)"),
+      f("musterPoint", "Muster / Assembly Point"),
+      f("emergencyContactNumber", "Emergency contact number"),
+      ta("keyPointsCovered", "Key points covered — summarise the main safety points discussed in the talk (this becomes the audit record of what was said)"),
       sel("ppeRequired", "PPE required for this activity", ["Standard (hard hat, hi-vis, boots, gloves, glasses)", "Standard + RPE", "Standard + harness", "Standard + ear defenders", "Other"]),
       tao("ppeOther", "If 'Other' PPE — specify"),
-    ], `Produce a UK toolbox talk briefing for the user's trade on the supplied topic. Format the document as follows:
-1. HEADER — Topic, Date, Site, Delivered by, Duration, Number of attendees.
-2. PURPOSE — One short paragraph explaining why this talk matters today.
-3. RELEVANT LEGISLATION — cite the applicable UK regulations (e.g. Work at Height Regulations 2005, Manual Handling Operations Regulations 1992, COSHH 2002, Control of Noise at Work Regulations 2005, PUWER 1998, CDM 2015) depending on the topic.
-4. KEY HAZARDS — bulleted list of the main hazards including any site-specific hazards supplied.
-5. CONTROL MEASURES — bulleted list of how those hazards are controlled.
-6. DO'S — short list of must-do actions.
-7. DON'TS — short list of must-not actions.
-8. PPE REQUIRED — list the PPE supplied.
-9. EMERGENCY PROCEDURES — first aider, assembly point, raising the alarm.
-10. QUESTIONS & DISCUSSION — placeholder line for site-specific questions raised.
-11. SIGN-OFF SHEET — produce a table with one row per attendee (use the supplied names), columns: Print Name / Signature / Date. Add a final row for the person delivering the talk with the same three columns. Above the table state: 'By signing below I confirm I have attended this Toolbox Talk, understood the content and had the opportunity to ask questions.'
-Close with a PREPARED BY block from the user profile (full name, company, today's date).`),
+      tao("actionsFollowUp", "Actions / follow-up required — any actions raised? List them with the person responsible and target date (one per line: Action | Responsible | Due) (optional)"),
+      tao("workerFeedback", "Worker feedback / questions raised — did anyone raise questions or concerns? (optional)"),
+    ], `Produce a UK Toolbox Talk record sheet for the user's trade on the supplied topic. Plain direct construction English. No padding. No banned consultant words. Format the document as a clean audit-ready record:
+
+1. HEADER — DOCUMENT REFERENCE (auto from system), Company name (auto from profile), Date: {talkDate}, Site: {siteName}, Topic: {topic}.
+
+2. TALK DETAILS — three lines:
+   Delivered by: {deliveredBy}
+   Duration: {durationMinutes} minutes
+   Number of attendees: {attendeesCount}
+
+3. PURPOSE — One short paragraph explaining why this talk matters today.
+
+4. RELEVANT LEGISLATION — list by name only (no paragraph explanation): the applicable UK regulations (e.g. Work at Height Regulations 2005, Manual Handling Operations Regulations 1992, COSHH 2002, Control of Noise at Work Regulations 2005, PUWER 1998, CDM 2015) depending on the topic. One per line.
+
+5. KEY POINTS COVERED — capitalised section label. Print {keyPointsCovered} verbatim as the audit record of what was said. If blank, write 'Key points to be added by the person delivering the talk.'
+
+6. KEY HAZARDS — bulleted list of the main hazards for this topic, including any from {specificHazards}.
+
+7. CONTROL MEASURES IN PLACE — bulleted list, combine the standard controls for the topic with the user's specific {controlMeasures}. Print the user's controls verbatim first, then any standard ones not already covered.
+
+8. DO'S — short list of must-do actions.
+
+9. DON'TS — short list of must-not actions.
+
+10. PPE REQUIRED — list the PPE from {ppeRequired}. If 'Other' is selected, append {ppeOther}.
+
+11. EMERGENCY INFORMATION — print this section as a prominent boxed block, three lines clearly labelled:
+   First Aider on site: {firstAiderName}
+   Muster / Assembly Point: {musterPoint}
+   Emergency contact number: {emergencyContactNumber}
+
+12. ACTIONS / FOLLOW-UP — if {actionsFollowUp} supplied, render as a table with three columns: Action | Responsible Person | Due Date. Parse the user's pipe-separated lines. If blank, write 'No actions raised.'
+
+13. WORKER FEEDBACK / QUESTIONS RAISED — if {workerFeedback} supplied, print verbatim under this heading. If blank, write 'No questions or concerns raised at the time of the talk.'
+
+14. ATTENDEE SIGN-OFF SHEET — produce a table with one row per attendee (use the supplied {attendeesNames}, one name per row), three columns: Print Name | Signature | Date. Above the table state: 'By signing below I confirm I have attended this Toolbox Talk, understood the content and had the opportunity to ask questions.'
+
+15. SUPERVISOR SIGN-OFF — separate block below the attendee table:
+   Delivered by: {deliveredBy}
+   Signature: (auto-insert user's saved signature from profile if held; otherwise '____________________')
+   Date: {talkDate}
+   Position: (auto from profile if held)
+
+Close with a PREPARED BY block from the user profile (full name, company, today's date).
+
+Rules: never invent attendee names — use only what the user supplied. If a field is blank, drop the line cleanly. No 'kinetic', 'utilise', 'endeavour', 'facilitate', 'prior to', 'operatives are advised'. Short sentences. Read it out loud and it should sound like a foreman briefing his gang on site, not a consultant.`),
   t("asbestos-record", "Asbestos Record", "site", "A record entry for asbestos awareness. refurbishment & demolition survey reference, suspected ACMs, actions.", [f("location", "Location"), ta("suspect", "Suspect material / location"), ta("action", "Action taken")], "Produce an Asbestos Awareness Record entry, referencing CAR 2012 and the requirement for a Refurbishment & Demolition Survey before intrusive works."),
   t("snagging-list", "Snagging List", "site",
     "A formal snagging list with project, inspection and item-level detail. Used at handover to record every defect that must be put right.",
