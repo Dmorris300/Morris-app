@@ -32,13 +32,18 @@ const autoDefaultFor = (field) => {
     if (m) return inDaysIso(parseInt(m[1], 10));
   }
   const name = (field.name || "").toLowerCase();
-  // Numeric/days-count fields must never be auto-prefilled as dates, even if the field name starts with 'day*'.
+  // Numeric/count fields must never be auto-prefilled as dates, even if the field name starts with 'day*'.
   if (field.type === "number") return "";
   const isDaysCount = /(daysLost|days_lost|daysclaimed|days_claimed|daysclaim|hoursstanding|hours_standing|menstanding|men_standing)/i.test(field.name);
   if (isDaysCount) return "";
+  // Invoice / reference number / order number fields are NOT dates. The previous regex matched 'inv*' which incorrectly prefilled
+  // invoice number / invoice reference / invoice amount fields with today's date.
+  const isInvoiceNonDate = /^(invNo|invoiceNo|invoiceNumber|invoiceRef|invoiceReference|invoiceAmount|invAmount|invNumber|invRef|orderNo|orderNumber|orderRef|poNumber|poRef|appNo|applicationNo|applicationNumber|jobNo|jobNumber|refNumber|reference)$/i.test(field.name);
+  if (isInvoiceNonDate) return "";
   const looksLikeDate = field.type === "date"
     || /(^|_)(date)(s)?$/i.test(field.name)
-    || /^(date|valid|review|start|end|expir|handover|tax(point)?|completion|inv(oice)?|week)/i.test(field.name);
+    || /^(date|valid|review|start|end|expir|handover|tax(point)?|completion|week)/i.test(field.name)
+    || /^(invDate|invoiceDate)$/i.test(field.name);
   if (!looksLikeDate) return "";
   if (name.includes("review")) return inOneYearIso();
   if (name.includes("valid")) return inDaysIso(30);
@@ -109,6 +114,7 @@ export default function GenericToolPage() {
   if (tool.id === "mileage-tracker") return <RedirectTo path="/app/mileage" />;
   if (tool.id === "vat-threshold") return <RedirectTo path="/app/vat" />;
   if (tool.id === "cis-refund-predictor") return <RedirectTo path="/app/cis-predictor" />;
+  if (tool.id === "payment-chaser") return <RedirectTo path="/app/payment-chaser" />;
 
   const onGenerate = async () => {
     if (missingRequired.length > 0) {
