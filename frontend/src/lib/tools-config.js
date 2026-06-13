@@ -376,9 +376,92 @@ End with an ISSUED BY block auto-populated from profile (full name printed, comp
     "Produce a UK Daywork Sheet. Use the user's profile for operative name, company name, address and UTR (auto-populated). Show: daywork reference (use document reference), contract reference, date, agreed daywork rates (labour rate, uplift %, plant rate), start and finish times, total hours worked (calculate from start/finish), labour cost (= hours × rate), itemised materials with total, itemised plant with total, the agreed uplift applied to materials and plant, total daywork value including uplift, PO number. End with two signature blocks: an OPERATIVE block (full name printed, signature line, date signed) and a SITE MANAGER CONFIRMATION block (full name printed, company name, signature line, date signed). Close with: 'Site manager signature confirms the hours, materials and plant listed on this sheet are agreed. Unsigned daywork sheets may not be accepted for payment.'"
   ),
   t("application-for-payment", "Application for Payment", "documents",
-    "A formal interim payment application under HGCRA 1996. Sets the value of works done and starts the statutory payment timeline.",
-    [f("appNo", "Application number"), f("project", "Project"), f("valuationDate", "Valuation date"), f("grossValue", "Gross value of works (£)"), f("previouslyPaid", "Previously paid (£)")],
-    "Produce a UK interim Application for Payment under HGCRA 1996. Show contract sum, value of works to date, variations, retention, previously certified, net due. State the final date for payment and that this is a Notice under the Act."
+    "A formal interim Application for Payment under the Housing Grants Construction and Regeneration Act 1996 (as amended). Sets the value of works done, calculates the net sum due, and starts the statutory payment timeline. Every field a UK quantity surveyor or contract administrator expects to see is captured here.",
+    [
+      f("project", "Project / Site name"),
+      f("siteAddress", "Site address"),
+      f("contractRef", "Contract reference number"),
+      sel("contractForm", "Contract form", ["JCT Design and Build", "JCT Standard Building Contract", "JCT Intermediate", "JCT Minor Works", "NEC4 ECC", "NEC4 ECSC", "Bespoke / Other"]),
+      f("clientName", "To (Client / Employer / Main contractor)"),
+      f("clientAddress", "Their address"),
+      fo("clientReference", "Their reference / payment order"),
+      f("appNo", "Application number (e.g. 7)"),
+      fp("valuationDate", "Valuation date (works valued up to)", "today", "date"),
+      fp("applicationDate", "Application date", "today", "date"),
+      fp("dueDate", "Due date for payment (typically 7 days after application)", "today+7d", "date"),
+      fp("finalDateForPayment", "Final date for payment (typically valuation + 30 days)", "today+30d", "date"),
+      f("originalContractSum", "Original contract sum (£)", "number"),
+      f("variationsApproved", "Approved variations to date (£)", "number"),
+      fo("variationsPending", "Pending variations submitted (£)", "number"),
+      f("dayworks", "Dayworks claimed this period (£)", "number"),
+      f("materialsOnSite", "Materials on site not yet fixed (£)", "number"),
+      f("materialsOffSite", "Materials off site (with vesting certificate) (£)", "number"),
+      f("grossValueToDate", "Gross value of works completed to date (£)", "number"),
+      sel("retentionPercent", "Retention rate", ["0%", "3%", "5%", "10%"]),
+      f("previouslyApplied", "Previously applied for cumulative (£)", "number"),
+      f("previouslyCertified", "Previously certified / paid cumulative (£)", "number"),
+      sel("vatStatus", "VAT status", ["Standard rate 20%", "Reduced rate 5%", "Zero rated", "Domestic reverse charge (CIS)", "Not VAT registered"]),
+      sel("cisApplicable", "CIS deduction applies?", ["Yes — 20%", "Yes — 30%", "Yes — Gross", "No"]),
+      tao("worksDescription", "Brief description of works completed this period (multi-line)"),
+      tao("variationsList", "List of variations included (one per line: VO ref — description — £value)"),
+      tao("notes", "Any other notes (optional)"),
+    ],
+    `Produce a UK interim Application for Payment under the Housing Grants Construction and Regeneration Act 1996 (as amended). Plain direct construction English. No padding. No banned consultant words.
+
+1. HEADER — DOCUMENT REFERENCE, DATE.
+
+2. APPLICATION TITLE — exactly: 'APPLICATION FOR PAYMENT No. {appNo}'. Underneath: 'Valuation date: {valuationDate}   Application date: {applicationDate}'.
+
+3. TO — Client / Employer / Main contractor name and address.
+
+4. FROM — Issued-by block from profile (Name, Company, Address, Contact, UTR if CIS applies, VAT number if VAT-registered).
+
+5. PROJECT REFERENCE — three lines:
+   Project: {project}
+   Site: {siteAddress}
+   Contract reference: {contractRef}
+   Contract form: {contractForm}
+
+6. VALUATION — a clear money table, one line per row, with £ values right-aligned. Use ONLY the fields the user supplied (skip any blank cleanly). Build it in this exact order, then auto-calculate the totals where indicated:
+
+   Original contract sum                          £{originalContractSum}
+   Approved variations to date                  + £{variationsApproved}
+   Pending variations submitted                 + £{variationsPending}
+   Dayworks this period                         + £{dayworks}
+   Materials on site (not yet fixed)            + £{materialsOnSite}
+   Materials off site (vesting certificate)     + £{materialsOffSite}
+   ___________________________________________________________
+   GROSS VALUE OF WORKS TO DATE                   £{grossValueToDate}
+   Less retention at {retentionPercent}            - £[calc: gross × retention%]
+   ___________________________________________________________
+   NET VALUE AFTER RETENTION                      £[calc: gross - retention]
+   Less previously certified / paid             - £{previouslyCertified}
+   ___________________________________________________________
+   NET SUM DUE THIS APPLICATION                   £[calc: net after retention - previously certified]
+
+   If CIS applies, add a CIS deduction line on labour only and show the cash payable after CIS.
+   If VAT is standard or reduced rated, add a VAT line and show the gross amount payable.
+   If 'Domestic reverse charge (CIS)' is selected, add a single line: 'VAT: Domestic reverse charge — VAT to be accounted for by the customer.'
+   Show all calculation working transparently so the QS can audit it.
+
+7. WORKS COMPLETED THIS PERIOD — short paragraph from {worksDescription}. If blank, omit.
+
+8. VARIATIONS INCLUDED — numbered list from {variationsList}. If blank, write 'None this period'.
+
+9. PAYMENT TIMELINE — three lines, exactly:
+   Due date for payment: {dueDate}
+   Final date for payment: {finalDateForPayment}
+   Payment terms: Section 110 Housing Grants Construction and Regeneration Act 1996 (as amended).
+
+10. STATUTORY NOTICE BLOCK — one short paragraph: 'This is a Notice for Payment served under Section 110 of the Housing Grants Construction and Regeneration Act 1996 (as amended). If a Pay Less Notice is not served by the prescribed period before the final date for payment, the sum applied for becomes the notified sum and is payable in full.'
+
+11. INTEREST WARNING — one short line: 'Late Payment of Commercial Debts (Interest) Act 1998 applies. Interest accrues at 8% above the Bank of England base rate plus £40 to £100 fixed compensation per debt.'
+
+12. NOTES — only if {notes} is supplied. Print verbatim under a 'NOTES' label.
+
+13. SIGN-OFF — single contractor sign-off block (auto from profile).
+
+Rules: never invent figures. Always show the maths. If a field is blank, drop the line entirely — do not write £0 unless the user typed 0. No square-bracket placeholders. No 'kinetic', 'utilise', 'endeavour', 'facilitate', 'prior to', 'operatives are advised'. Short sentences. Read it out loud and it should sound like a QS, not a consultant.`
   ),
   t("retention-chaser", "Retention Chaser", "documents",
     "Three escalating letters chasing your retention release. Many tradesmen never get retention back. these letters get it moving.",
