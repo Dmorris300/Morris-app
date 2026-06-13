@@ -21,7 +21,7 @@ Dark-themed construction administration SaaS web application for UK tradespeople
 │   ├── components/      # GenericToolPage, LiveSignatureBlock
 │   ├── lib/tools-config.js   # 88+ tools (~1950 lines)
 │   ├── pages/           # Profile, MeasurementRecord, SelfAssessmentPrep,
-│                          PaymentChaser, MileageTracker
+│                          PaymentChaser, MileageTracker, PreStartMeeting
 │   └── App.js
 ```
 
@@ -29,9 +29,16 @@ Dark-themed construction administration SaaS web application for UK tradespeople
 
 ### Feb 2026 (this session, after fork)
 - ✅ **[FIX] CIS Invoice — National Insurance Number guaranteed render** (Feb 12, 2026)
-  - Strengthened system prompt: explicit STRICT instruction injected for `cis-invoice` when NI is set on profile.
-  - Added backend post-processing safety net: if generated CIS Invoice content is missing the NI line but profile has one, server auto-injects `NI No: {value}` directly under the UTR line before returning.
-  - Verified: 3/3 runs include `NI No: AB123456C` when set; correctly omitted when blank.
+  - Strict per-tool prompt instruction + backend post-processing safety net that auto-injects `NI No: {value}` under the UTR line if the LLM ever drops it.
+  - Verified: 3/3 runs include NI when set; correctly omitted when blank.
+
+- ✅ **[REBUILD] Pre-Start Meeting Checklist — dedicated page** (Feb 12, 2026)
+  - New page `/app/frontend/src/pages/PreStartMeeting.jsx`, wired into `App.js` + `GenericToolPage` redirect + `tools-config.js`.
+  - 7 sections: Project Details, Scope of Works, Health & Safety checklist (11 tri-state Yes/No/Not Applicable items), Site Logistics checklist (8 tri-state items), Programme (drawings tri-state, conditional "Which trades?" reveal), Attendees (dynamic add/remove with signature toggle), Actions (dynamic add/remove with due date).
+  - Bug fixed: Date is now a true date picker defaulting to today (ISO YYYY-MM-DD internally), and rendered in document body as DD/MM/YYYY.
+  - Auto-populates Trade and Meeting Held-by from profile.
+  - Live signature pad for meeting chair.
+  - Verified end-to-end: title, all sections, attendees, actions, conditional reveals, footer, sign-off all render correctly.
 
 ### Previous session (pre-fork, captured in handoff)
 - Stripe live keys + price IDs + Customer Portal endpoint
@@ -55,6 +62,7 @@ _None._
 - Refactor `tools-config.js` (1950+ lines) — split into category files
 - Refactor `server.py` (1340+ lines) — extract routes into `/app/backend/routes/`
 - User sign-off on Measurement Record tool (code complete, visual review pending)
+- User sign-off on Pre-Start Meeting Checklist (just rebuilt, awaiting review)
 
 ### P2 — Nice to have
 - Real Web Speech API for Verbal-to-Variation tool (currently mocked)
@@ -89,3 +97,4 @@ favourites, recentlyUsed, docCounters, usageDocs, usageTools, usageMonth}`
 - **Production**: deployed to `morrisapp.co.uk`. Preview ≠ Production until user explicitly redeploys.
 - **HMRC integrity**: NEVER override UK statutory figures with user typos (e.g. mileage stays 45p, NOT 55p).
 - **Tone**: STRICT "plain construction English" — no `facilitate`, `utilise`, `kinetic`, etc. Backend has a banned-word post-filter and per-prompt instruction.
+- **Date format**: dedicated tools must render dates in **DD/MM/YYYY** in document output. ISO YYYY-MM-DD is only used internally for `<input type="date">`.
