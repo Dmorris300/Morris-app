@@ -441,9 +441,92 @@ End with an ISSUED BY block auto-populated from profile (full name printed, comp
 APPENDED STATEMENT — print verbatim on its own line as the final paragraph before the signature blocks: 'Under JCT contracts an Extension of Time does not automatically grant financial compensation. A separate Loss and Expense claim must be submitted.'`
   ),
   t("lds-dispute", "LDs Dispute", "documents",
-    "A letter rejecting or disputing the application of Liquidated Damages against you.",
-    [f("project", "Project"), f("ldAmount", "LDs being applied (£)"), ta("yourPosition", "Why LDs should not apply")],
-    "Produce a UK letter disputing Liquidated Damages. argue grounds (no Non-Completion Certificate, prevention principle, granted EoT, etc.) and request withdrawal."
+    "A formal letter disputing Liquidated Damages applied against you. Captures every detail needed to challenge the deduction under UK construction contract law (JCT / NEC / common law). Use this when a client or main contractor has notified you of LDs and you believe they should not apply.",
+    [
+      f("project", "Project / Site name"),
+      f("siteAddress", "Site address"),
+      f("contractRef", "Contract reference number"),
+      sel("contractForm", "Contract form", ["JCT Design and Build", "JCT Standard Building Contract", "JCT Intermediate", "JCT Minor Works", "NEC4 ECC", "NEC4 ECSC", "Bespoke / Other"]),
+      f("clientName", "Client / Employer / Main contractor name (the party applying LDs)"),
+      f("clientAddress", "Their address"),
+      f("clientReference", "Their reference / notice number (if quoted)"),
+      fp("contractCompletionDate", "Original contract completion date", "today", "date"),
+      fp("actualCompletionDate", "Actual or current completion date", "today", "date"),
+      f("ldRatePerDay", "LD rate per day (£)", "number"),
+      sel("ldPeriodBasis", "LD period basis", ["Per calendar day", "Per working day", "Per week"]),
+      fp("ldPeriodStart", "Period LDs applied — start date", "today", "date"),
+      fp("ldPeriodEnd", "Period LDs applied — end date", "today", "date"),
+      f("ldDaysClaimed", "Total days / weeks claimed by the client", "number"),
+      f("ldTotalClaimed", "Total LD amount claimed (£)", "number"),
+      fpo("ldNotifiedDate", "Date LDs were notified to you", "today", "date"),
+      sel("nonCompletionCertIssued", "Has a Non-Completion Certificate / equivalent been issued?", ["Yes", "No", "Not sure"]),
+      sel("withholdingNoticeGiven", "Has a Pay Less / Withholding Notice been served?", ["Yes", "No", "Not sure"]),
+      sel("eotPosition", "Extension of Time position", ["EOT granted that covers the period", "EOT applied for, awaiting decision", "EOT refused but grounds exist", "No EOT applied for yet"]),
+      sel("primaryGround", "Primary ground for dispute", [
+        "No Non-Completion Certificate issued",
+        "Prevention principle — delay caused by the client",
+        "Relevant Event entitles us to an EOT",
+        "LDs are a penalty (not a genuine pre-estimate of loss)",
+        "Pay Less Notice not served in time",
+        "Practical Completion already achieved",
+        "LD rate or calculation is wrong",
+        "Other (set out in grounds below)"
+      ]),
+      ta("groundsForDispute", "Grounds for dispute — set out the facts and contract clauses you rely on (one point per line)"),
+      ta("eventsCausingDelay", "Events causing delay that are NOT your fault (one per line, with dates if known)"),
+      ta("supportingEvidence", "Supporting evidence summary (e.g. Site Diary entries, emails, RFIs, programme records, weather logs — one per line)"),
+      sel("requestedOutcome", "Requested outcome", [
+        "Full withdrawal of the LDs and repayment of any sum already withheld",
+        "Withdrawal of the LDs",
+        "Reduction of the LDs to the correct sum",
+        "Suspension of the LDs pending EOT decision",
+        "Referral to adjudication if not resolved"
+      ]),
+      f("amountToBeRepaid", "Amount to be withdrawn or repaid (£)", "number"),
+      fp("responseDeadline", "Date by which a written response is required", "today+14d", "date"),
+      tao("additionalNotes", "Anything else you want included (optional)"),
+    ],
+    `Produce a UK Liquidated Damages dispute letter. Plain direct construction English. No padding. No banned consultant words. Format:
+
+1. HEADER — DOCUMENT REFERENCE, DATE (auto-populated). REVIEW DATE not required.
+
+2. TO — Client / Employer / Main contractor name and address.
+
+3. FROM — Issued-by block from the user's profile (Name, Company, Address, Contact). Auto-populated.
+
+4. SUBJECT line — exactly: 'DISPUTE OF LIQUIDATED DAMAGES — {project} — Contract reference {contractRef}'.
+
+5. OPENING — One short paragraph stating the LDs are disputed in full / in part and a written response is required by {responseDeadline}. Reference the client's notice or reference number if supplied.
+
+6. CONTRACT POSITION — List on separate lines:
+   Contract form: {contractForm}
+   Contract reference: {contractRef}
+   Original completion date: {contractCompletionDate}
+   Actual / current completion date: {actualCompletionDate}
+   LD rate: £{ldRatePerDay} {ldPeriodBasis}
+   Period claimed: {ldPeriodStart} to {ldPeriodEnd}
+   Days / weeks claimed: {ldDaysClaimed}
+   Total LDs claimed: £{ldTotalClaimed}
+   Non-Completion Certificate issued: {nonCompletionCertIssued}
+   Pay Less Notice served: {withholdingNoticeGiven}
+
+7. GROUNDS FOR DISPUTE — start with the primary ground in a bold capitalised line, e.g. 'PRIMARY GROUND: {primaryGround}'. Then list the detailed grounds the user supplied as numbered points. Where relevant, cite the standard clauses by name without lecturing (e.g. JCT D&B 2.32 Non-Completion Notice, JCT D&B 2.29 Relevant Events, the prevention principle, the Housing Grants Construction and Regeneration Act 1996 as amended on Pay Less Notices, Cavendish v Makdessi 2015 on penalties — but only the names that actually apply, no paragraphs of explanation).
+
+8. EVENTS CAUSING DELAY — numbered list of the events the user supplied, with dates where given. State plainly that these are Relevant Events / acts of prevention and the contractor is not responsible.
+
+9. EOT POSITION — one short paragraph stating the current EOT position: {eotPosition}.
+
+10. SUPPORTING EVIDENCE — numbered list of every evidence item the user supplied. If none, write 'Available on request'.
+
+11. REQUESTED OUTCOME — one bold line: '{requestedOutcome}'. Then a single line: 'Amount to be withdrawn or repaid: £{amountToBeRepaid}'.
+
+12. NEXT STEPS — one short paragraph: a written response is required by {responseDeadline}. If not received the matter will be referred to adjudication under the Housing Grants Construction and Regeneration Act 1996 (as amended).
+
+13. ADDITIONAL NOTES — if the user supplied any, include them verbatim under a 'FURTHER NOTES' heading. Otherwise omit this section.
+
+14. SIGN-OFF — global dual sign-off block (contractor signed; client SIGN HERE box).
+
+Rules: never invent facts. If a field is blank, leave it out cleanly. No square-bracket placeholders. No 'kinetic', 'utilise', 'endeavour', 'facilitate', 'prior to', 'operatives are advised'. Short sentences. Firm but plain. A tradesperson must be able to read it out loud without stumbling.`
   ),
   t("progress-report", "Progress Report", "documents",
     "A weekly or monthly project progress report covering schedule, budget, H&S, risk and procurement. Keeps you in control of the narrative on site.",
