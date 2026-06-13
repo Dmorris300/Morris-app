@@ -1667,7 +1667,46 @@ Rules: this is a profit calculator, not a letter — no 'TO' / 'FROM' / sign-off
   ),
   // ---------- SOLE TRADER ----------
   t("hmrc-correspondence", "HMRC Correspondence", "soletrader", "A polite, correctly-phrased reply to a letter from HMRC.", [ta("hmrcLetter", "Their letter (paste the gist)"), ta("yourPosition", "Your position")], "Produce a professional UK reply to HMRC correspondence. courteous, factual, referencing your UTR and the matter at hand."),
-  t("reference-letter", "Reference Letter", "soletrader", "A professional reference for a colleague, apprentice or labourer.", [f("name", "Person's name"), ta("worked", "What they did / for how long")], "Produce a UK professional reference letter for a tradesperson. skills, attitude, reliability."),
+  t("reference-letter", "Reference Letter", "soletrader",
+    "A formal, credible professional reference for a tradesperson you have worked with. Covers their trade, dates worked, quality, reliability and conduct, and a clear recommendation.",
+    [
+      f("name", "Person's Name"),
+      f("tradeRole", "Their Trade / Role", "text", `e.g. "Duct Fitter", "Labourer", "Electrician's Mate"`),
+      fp("startDate", "Date Work Started", "today", "date"),
+      tgl("stillWorking", "Still working with me", { helperText: "If toggled on, leave the end date blank below" }),
+      fpo("endDate", "Date Work Ended", "today", "date"),
+      ta("workNature", "Nature of Work / Projects Worked On", "Describe what they did and on what type of jobs"),
+      sel("qualityOfWork", "Quality of Work", ["Excellent", "Very good", "Good", "Satisfactory"]),
+      sel("reliability", "Reliability and Punctuality", ["Excellent", "Very good", "Good", "Satisfactory"]),
+      sel("attitude", "Attitude and Conduct", ["Excellent", "Very good", "Good", "Satisfactory"]),
+      sel("recommend", "Would you recommend this person?", ["Yes", "Yes with reservations", "No"]),
+      tao("additionalComments", "Additional Comments", "Anything else you want to say about this person (optional)"),
+      f("addressedTo", "Addressed to", "text", "To Whom It May Concern"),
+      f("yourPosition", "Your Position / Capacity", "text", `e.g. "Sole Trader", "Director", "Site Supervisor"`),
+    ],
+    `Produce a formal UK professional reference letter for a tradesperson. Plain direct English. No padding. No banned consultant words. Reads as a genuinely credible reference written by a working professional.
+
+Structure:
+1. HEADER — Morris-style document reference, today's date in DD/MM/YYYY.
+2. FROM block — auto from author profile (name, company, address).
+3. ADDRESSED TO — '{addressedTo}'. If blank, use 'To Whom It May Concern'.
+4. SUBJECT line — exactly: 'Professional reference for {name}'.
+5. OPENING paragraph — confirm the author worked with {name}. State {name}'s trade as '{tradeRole}'. State the period: from {startDate} to {endDate}. If 'Still working with me' is on (stillWorking is true), say 'from {startDate} to the present day' and do not print an end date.
+6. NATURE OF WORK paragraph — describe the work and projects verbatim from {workNature}.
+7. PERFORMANCE paragraph — three sentences on Quality of Work ({qualityOfWork}), Reliability and Punctuality ({reliability}), and Attitude and Conduct ({attitude}). Vary the wording to read naturally — do not just list the labels.
+8. RECOMMENDATION paragraph — single confident sentence reflecting {recommend}. 'Yes' → unreserved positive recommendation. 'Yes with reservations' → recommend but mention this is a qualified recommendation. 'No' → state honestly that the author cannot give a positive recommendation, without being defamatory.
+9. ADDITIONAL COMMENTS — render {additionalComments} verbatim as its own paragraph. Skip cleanly if blank.
+10. CLOSING — offer to discuss further if required. Provide author's contact details inline (telephone and email from profile).
+11. SIGN-OFF — 'Yours faithfully' (if To Whom It May Concern) or 'Yours sincerely' (if a named person). Then the author's full name, position '{yourPosition}', company name (from profile).
+
+Rules:
+- Use DD/MM/YYYY for every date in the body. Never YYYY-MM-DD.
+- Never invent details about the person. Use only what is supplied.
+- Never use abbreviations such as 'N/A', 'TBC' or '&'. Write words in full.
+- Skip blank optional fields cleanly. Do not print '[Insert]' or '—' for whole paragraphs.
+- No banned words: 'kinetic', 'utilise', 'endeavour', 'facilitate', 'prior to', 'operatives are advised', 'in order to'.
+- Short sentences. Confident. Direct. Reads as a real letter from one working professional about another.`
+  ),
   t("rate-increase-letter", "Rate Increase Letter", "soletrader", "A short, professional letter notifying a client that your rate is going up.", [f("oldRate", "Old rate"), f("newRate", "New rate"), f("effective", "Effective from")], "Produce a UK rate increase letter. reference rising costs (materials, fuel, insurance) and effective date."),
   t("apprentice-manager", "Apprentice Manager", "soletrader", "Progress, training and competency tracker for your apprentice.", [f("apprenticeName", "Apprentice"), ta("progress", "Recent progress / skills")], "Produce an Apprentice Progress Report. units of competence covered, skills gained, areas to develop, next steps."),
   // ---------- CONTRACTORS ----------
