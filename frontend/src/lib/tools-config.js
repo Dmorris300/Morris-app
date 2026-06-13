@@ -1468,7 +1468,11 @@ Close with a PREPARED BY block from the user profile (full name, company, today'
 8. RETENTION — state the retention percentage if supplied; otherwise state 'No retention applicable.'
 9. ACCEPTANCE — 'Acceptance of this Scope of Works confirms the basis on which the supplier will proceed.'
 End with two signature blocks: PREPARED BY (user profile) and ACCEPTED BY (client full name printed, company, signature line, date).`),
-  t("pricework-variation-tracker", "Price Work Variation Tracker", "pricework", "Tracks every variation on a price-work job. extra rates, extra metres, extra units.", [ta("variations", "Variations (date, description, qty, rate, total)")], "Produce a Price Work Variation Tracker table."),
+  t("pricework-variation-tracker", "Price Work Variation Tracker", "pricework",
+    "Live running tracker for every variation and additional item on a price-work contract. Auto-calculates line totals and rolls up by status (Agreed / Pending / Disputed / Paid). Shows the Revised Contract Total (Original + Variations) and the amount still Outstanding.",
+    [],
+    "Produce a UK Price Work Variation Tracker (see the dedicated page for full inputs)."
+  ),
   t("standing-time-calculator", "Standing Time Calculator", "pricework",
     "Calculates and claims the standing time you are owed when the site can't let you work — no materials, no access, no instruction, weather hold, client delay. Captures every field a UK main contractor or QS needs to approve the claim under the contract.",
     [

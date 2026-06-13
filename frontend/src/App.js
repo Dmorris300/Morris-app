@@ -39,6 +39,7 @@ import SnaggingList from "./pages/SnaggingList";
 import ContractReview from "./pages/ContractReview";
 import HmrcCorrespondence from "./pages/HmrcCorrespondence";
 import BadDebtLetter from "./pages/BadDebtLetter";
+import PriceWorkVariationTracker from "./pages/PriceWorkVariationTracker";
 import VatThreshold from "./pages/VatThreshold";
 import Earnings from "./pages/Earnings";
 import TaxPot from "./pages/TaxPot";
@@ -146,6 +147,7 @@ function App() {
             <Route path="contract-review" element={<ProfileGate><ContractReview /></ProfileGate>} />
             <Route path="hmrc-correspondence" element={<ProfileGate><HmrcCorrespondence /></ProfileGate>} />
             <Route path="bad-debt-letter" element={<ProfileGate><BadDebtLetter /></ProfileGate>} />
+            <Route path="pricework-variation-tracker" element={<ProfileGate><PriceWorkVariationTracker /></ProfileGate>} />
             <Route path="company-checker" element={<ProfileGate><CompanyChecker /></ProfileGate>} />
             <Route path="offline-mode" element={<OfflineMode />} />
             <Route path="team" element={<TeamManagement />} />
