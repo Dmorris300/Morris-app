@@ -142,6 +142,13 @@ Dark-themed construction administration SaaS web application for UK tradespeople
   - Document output: title `PRICE WORK SCHEDULE — {project} — {ref}`, full itemised schedule preserved, totals block, terms, quoted-by sign-off, **detachable Acceptance slip** with the verbatim heading "ACCEPTANCE OF PRICE WORK QUOTE", verbatim statement and signature lines for Name / Position / Company / Date / Signature, plus footer "This quote is valid until {validUntil}. All prices exclude any variations instructed after the date of this document."
   - Verified end-to-end: UI math (200 × £18 = £3,600; 15 × £45 = £675; Subtotal £4,275; VAT 20% £855; Total £5,130) and AI generation returns the full structured quote document including the acceptance slip with five signature lines and the valid-until footer.
 
+- ✅ **[REBUILD] Rate Increase Letter — dedicated page** (Feb 13, 2026)
+  - New page `/app/frontend/src/pages/RateIncreaseLetter.jsx`, wired through `App.js`, `GenericToolPage`, `tools-config.js`.
+  - 5 sections: Letter Details (Addressed To, Your Trade / Rate Description, Date of Letter defaulting to today), Rates (Current rate £, New rate £, **auto-calculated Percentage Increase live** displayed verbatim "This represents a X% increase", Effective From date picker), Reason for Increase (6 multi-select checkbox tiles + free-text "Other"), Notice and Ongoing Work (Notice Period dropdown 4 options defaulting to "4 weeks", Yes/No toggle on Does this affect ongoing jobs — conditional gold reminder when No), Sign Off (signature pad + auto-today).
+  - **Conditional document note** when Ongoing = No: inserts verbatim "This rate applies to new works only. Current ongoing projects will be completed at the existing agreed rate." When Yes, the section is skipped cleanly.
+  - Document output: formal letter — sender block, To recipient line, Subject line, opening paragraph, rate-change block (5 lines including percentage increase), numbered reasons block, conditional ongoing-work paragraph, optional additional comments, closing paragraph inviting discussion, sign-off block. Reads as a justified business notification.
+  - Verified end-to-end: UI percentage math (£250 → £275 = 10% ✓), conditional banner toggles correctly, and AI generation returns a clean professional letter with reference `RIL-DM-260613-001`.
+
 ### Previous session (pre-fork, captured in handoff)
 - Stripe live keys + price IDs + Customer Portal endpoint
 - Resend integration with PDF attachments (`/api/refund-summary/email`)

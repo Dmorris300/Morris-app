@@ -1711,7 +1711,11 @@ Rules:
 - No banned words: 'kinetic', 'utilise', 'endeavour', 'facilitate', 'prior to', 'operatives are advised', 'in order to'.
 - Short sentences. Confident. Direct. Reads as a real letter from one working professional about another.`
   ),
-  t("rate-increase-letter", "Rate Increase Letter", "soletrader", "A short, professional letter notifying a client that your rate is going up.", [f("oldRate", "Old rate"), f("newRate", "New rate"), f("effective", "Effective from")], "Produce a UK rate increase letter. reference rising costs (materials, fuel, insurance) and effective date."),
+  t("rate-increase-letter", "Rate Increase Letter", "soletrader",
+    "Formal letter notifying a main contractor or client that your rate is going up. Auto-calculates the percentage increase, lets you tick the reasons (materials, fuel, insurance, NMW, inflation, market rate or custom), sets a notice period, and adds a clear note if ongoing projects stay on the old rate. Reads as a justified business notification, not a demand.",
+    [],
+    "Produce a UK Rate Increase Letter (see the dedicated page for full inputs)."
+  ),
   t("apprentice-manager", "Apprentice Manager", "soletrader", "Progress, training and competency tracker for your apprentice.", [f("apprenticeName", "Apprentice"), ta("progress", "Recent progress / skills")], "Produce an Apprentice Progress Report. units of competence covered, skills gained, areas to develop, next steps."),
   // ---------- CONTRACTORS ----------
   t("subbie-mgmt", "Subcontractor Management", "contractors",
