@@ -121,6 +121,20 @@ Dark-themed construction administration SaaS web application for UK tradespeople
   - Document output: full register with all 12 columns preserved verbatim including the "Initial Risk Rating: 15 (High Risk)" / "Residual Risk Rating: 2 (Low Risk)" text exactly. Summary + High residual warning + Acts cited + footer about communicating to workers + retaining in H&S file.
   - Verified end-to-end: all 13 acceptance checks pass.
 
+- ✅ **[REBUILD] Apprentice Manager — dedicated page** (Feb 13, 2026)
+  - New page `/app/frontend/src/pages/ApprenticeManager.jsx`, wired through `App.js`, `GenericToolPage`, `tools-config.js`.
+  - 5 sections: Apprentice Details (name, DOB, standard, training provider, start/end dates, year, weekly wage), Progress Review (review date, period, supervisor), On the Job Skills Log (dynamic add/remove rows: skill, date achieved, competent dropdown, notes), Off the Job Training Log (dynamic rows: date, activity, hours, delivered by), Sign Off.
+  - **Live OTJ compliance**: auto-calculates `% of working hours in off-the-job training` against the 30-hour standard week; gold warning when below the 20% legal minimum.
+  - Document output: title + apprentice details + review period + verbatim skills/training blocks + OTJ summary block + compliance paragraph + footer "This review should be retained with the apprenticeship file and shared with the training provider".
+
+- ✅ **[REBUILD] Procurement Schedule — dedicated page** (Feb 13, 2026)
+  - New page `/app/frontend/src/pages/ProcurementSchedule.jsx`, wired through `App.js`, `GenericToolPage`, `tools-config.js`.
+  - 4 sections: Project Details (auto-filled Created By + Date Created), Procurement Schedule table (dynamic rows with auto-generated Reference Number P-001…, Item, Supplier, Quantity, Unit dropdown, Date Required, Lead Time in working days, **auto-calculated Order By Date = Date Required minus Lead Time counted Mon–Fri only**, Date Placed, Expected & Actual Delivery, Status dropdown 6 options, Notes), Schedule Summary panel (live), Important Note banner (gold, verbatim spec text).
+  - **Order By Date highlights in gold** when today has passed it and the item is still "Not yet ordered".
+  - **Live summary**: total / not yet ordered (with count past Order By Date) / awaiting delivery / delivered complete / overdue or issues (red) / next order deadline (gold).
+  - Document output: title `PROCUREMENT SCHEDULE — {project} — {date}` + full schedule preserved + summary + important note verbatim + footer + sign-off.
+  - Verified end-to-end: UI calculations correct (20/03/2026 − 10 working days = 06/03/2026; 25/02/2026 − 3 working days = 20/02/2026), and AI generation returns the full structured document with reference number saved to Vault.
+
 ### Previous session (pre-fork, captured in handoff)
 - Stripe live keys + price IDs + Customer Portal endpoint
 - Resend integration with PDF attachments (`/api/refund-summary/email`)
