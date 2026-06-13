@@ -1070,9 +1070,9 @@ End with an ISSUED BY block auto-populated from the user profile (full name, com
 Rules: this is a legal deed, so language must be firm and plain, but never sloppy. No square-bracket placeholders in narrative text — placeholders are only allowed where shown above for the signature lines and the [SIGN HERE] boxes. If a field is blank, leave the line out entirely. No 'kinetic', 'utilise', 'endeavour', 'facilitate', 'prior to', 'operatives are advised'. Short sentences. Read it out loud and it should sound like a properly drafted UK construction novation, not a consultant memo.`
   ),
   t("bad-debt-letter", "Bad Debt Letter", "documents",
-    "Final demand letter before legal action. small claims, statutory demand, or instructing a debt recovery solicitor.",
-    [f("debtor", "Debtor"), f("amount", "Amount owed (£)"), f("originalDate", "Original invoice date")],
-    "Produce a UK final demand 'Letter Before Action' threatening Small Claims / statutory demand. Reference Late Payment of Commercial Debts (Interest) Act 1998. include 8% + base rate interest and £40–£100 fixed compensation per invoice."
+    "Final demand letter under the Late Payment of Commercial Debts (Interest) Act 1998 — the letter you send before referring the debt to a recovery agency, the courts, or adjudication. Auto-calculates statutory interest at 8% above the Bank of England base rate and statutory compensation per the Act's £40 / £70 / £100 banded amounts. Firm but professional tone.",
+    [],
+    "Produce a UK Bad Debt Final Demand letter (see the dedicated page for full inputs)."
   ),
   // ---------- FINANCE ----------
   t("payment-chaser", "Payment Chaser", "finance",
@@ -1173,7 +1173,11 @@ End with a SIGNED block (full name printed, company, signature line, today's dat
 6. REQUEST FOR WRITTEN INSTRUCTION — 'I now formally request your written confirmation of this instruction within [deadline supplied]. If written confirmation is not received within that period, I will treat the above as a properly issued instruction and proceed accordingly, reserving the right to apply for additional cost and time as a variation.'
 7. NEXT STEPS — 'Where this instruction results in a variation, a formal Variation Letter will follow. Please reply confirming acceptance, amendment or rejection by return.'
 End with an ISSUED BY block from the user profile (full name printed, company, today's date, signature line).`),
-  t("contract-review", "Contract Review", "site", "Plain-English review of a construction contract. flags the dodgy clauses, onerous terms and payment risks.", [ta("contractText", "Paste relevant contract text")], "Review the supplied UK construction contract text. Flag onerous clauses (pay-when-paid, set-off, indemnities, time-bar), payment terms, retention, LDs, and notice provisions. Plain English summary with risk rating."),
+  t("contract-review", "Contract Review", "site",
+    "Paste contract text and Morris produces a plain English review aimed at sole traders. Flags payment terms, retention, variations, termination, liability, dispute resolution, programme and delays — with colour-coded ratings (Favourable / Standard / Unfavourable / Missing / Unclear) and a Red Flags section. Not a substitute for a solicitor on large contracts.",
+    [],
+    "Produce a UK Contract Review (see the dedicated page for full inputs)."
+  ),
   t("dispute-timeline", "Dispute Timeline", "site", "Builds a chronological timeline of a dispute from your bullet points. essential for adjudication.", [ta("events", "Events (one per line: date. what happened)")], "Convert the supplied events into a clean chronological dispute timeline with dates, parties, and document references."),
   t("incident-report", "Incident Report", "site", "RIDDOR-aware incident report. near misses, injuries, dangerous occurrences.", [f("date", "Date / time"), f("location", "Location"), f("persons", "Persons involved"), ta("description", "What happened"), ta("actions", "Immediate actions taken")], "Produce a HSE / RIDDOR-aware Incident Report with sections: Incident Details, Persons Involved, Description, Immediate Actions, Root Cause, Lessons Learned, Reportable under RIDDOR? (yes/no/possibly)."),
   t("reminders", "Reminders", "site", "Custom reminders for inspections, certificates, calibrations, insurance renewals.", [ta("items", "Items to remind (one per line)")], "Produce a Reminders Register with Item / Frequency / Last Done / Next Due / Owner / Status."),
@@ -1654,7 +1658,11 @@ Rules: never invent facts. Always show the maths. If a field is blank, drop the 
 Rules: this is a profit calculator, not a letter — no 'TO' / 'FROM' / sign-off block. Use the user's name and company in the header block only. Never invent figures. Always show the maths. If a field is blank, drop the line entirely — do not write £0 unless the user typed 0. No square-bracket placeholders. No 'kinetic', 'utilise', 'endeavour', 'facilitate', 'prior to', 'operatives are advised'. Short sentences. Read it out loud and it should sound like a sensible foreman talking to himself in the van after the job, not a consultant.`
   ),
   // ---------- SOLE TRADER ----------
-  t("hmrc-correspondence", "HMRC Correspondence", "soletrader", "A polite, correctly-phrased reply to a letter from HMRC.", [ta("hmrcLetter", "Their letter (paste the gist)"), ta("yourPosition", "Your position")], "Produce a professional UK reply to HMRC correspondence. courteous, factual, referencing your UTR and the matter at hand."),
+  t("hmrc-correspondence", "HMRC Correspondence", "soletrader",
+    "Drafts a professional response to a letter from HMRC. Auto-populates your name, UTR and National Insurance number from your profile, captures the HMRC reference, letter date and deadline (with a warning if the deadline is within 14 days), and lets you tick the supporting documents you have to hand. Includes the verbatim disclaimer about seeking advice for complex matters.",
+    [],
+    "Produce a UK HMRC Correspondence reply (see the dedicated page for full inputs)."
+  ),
   t("reference-letter", "Reference Letter", "soletrader",
     "A formal, credible professional reference for a tradesperson you have worked with. Covers their trade, dates worked, quality, reliability and conduct, and a clear recommendation.",
     [

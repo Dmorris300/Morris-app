@@ -133,6 +133,9 @@ export default function GenericToolPage() {
   if (tool.id === "price-work-quote") return <RedirectTo path="/app/price-work-quote" />;
   if (tool.id === "rate-increase-letter") return <RedirectTo path="/app/rate-increase-letter" />;
   if (tool.id === "snagging-list") return <RedirectTo path="/app/snagging-list" />;
+  if (tool.id === "contract-review") return <RedirectTo path="/app/contract-review" />;
+  if (tool.id === "hmrc-correspondence") return <RedirectTo path="/app/hmrc-correspondence" />;
+  if (tool.id === "bad-debt-letter") return <RedirectTo path="/app/bad-debt-letter" />;
 
   const onGenerate = async () => {
     if (missingRequired.length > 0) {

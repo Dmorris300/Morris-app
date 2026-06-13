@@ -36,6 +36,9 @@ import ProcurementSchedule from "./pages/ProcurementSchedule";
 import PriceWorkQuote from "./pages/PriceWorkQuote";
 import RateIncreaseLetter from "./pages/RateIncreaseLetter";
 import SnaggingList from "./pages/SnaggingList";
+import ContractReview from "./pages/ContractReview";
+import HmrcCorrespondence from "./pages/HmrcCorrespondence";
+import BadDebtLetter from "./pages/BadDebtLetter";
 import VatThreshold from "./pages/VatThreshold";
 import Earnings from "./pages/Earnings";
 import TaxPot from "./pages/TaxPot";
@@ -140,6 +143,9 @@ function App() {
             <Route path="price-work-quote" element={<ProfileGate><PriceWorkQuote /></ProfileGate>} />
             <Route path="rate-increase-letter" element={<ProfileGate><RateIncreaseLetter /></ProfileGate>} />
             <Route path="snagging-list" element={<ProfileGate><SnaggingList /></ProfileGate>} />
+            <Route path="contract-review" element={<ProfileGate><ContractReview /></ProfileGate>} />
+            <Route path="hmrc-correspondence" element={<ProfileGate><HmrcCorrespondence /></ProfileGate>} />
+            <Route path="bad-debt-letter" element={<ProfileGate><BadDebtLetter /></ProfileGate>} />
             <Route path="company-checker" element={<ProfileGate><CompanyChecker /></ProfileGate>} />
             <Route path="offline-mode" element={<OfflineMode />} />
             <Route path="team" element={<TeamManagement />} />
