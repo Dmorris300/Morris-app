@@ -1377,7 +1377,11 @@ End with an INSPECTED BY block (inspector name, role, signature line, today's da
     [],
     "Produce a UK Pre-Start Meeting Checklist (see the dedicated page for full inputs)."
   ),
-  t("meeting-notes", "Meeting Notes", "site", "Convert your scribbled notes into a clean, distributable meeting minutes document.", [f("meeting", "Meeting subject"), f("date", "Date"), ta("attendees", "Attendees"), ta("rough", "Rough notes")], "Convert the rough notes into clean minutes: Attendees, Apologies, Items Discussed, Actions (with owner and date), Next Meeting."),
+  t("meeting-notes", "Meeting Notes", "site",
+    "Clean professional minute set for any site meeting. Captures attendees, points discussed, decisions made, actions arising, and next meeting details.",
+    [],
+    "Produce a UK Meeting Notes record (see the dedicated page for full inputs)."
+  ),
   t("delivery-record", "Delivery Record", "site", "A goods received record. supplier, items, condition, signed for.", [f("date", "Date"), f("supplier", "Supplier"), ta("items", "Items received"), f("condition", "Condition")], "Produce a Delivery Record table with Date / Supplier / Delivery Note No / Items / Quantity / Condition / Received By."),
   t("tool-register", "Tool and Equipment Register", "site",
     "Records all tools and equipment brought to site, confirms condition and ownership, and tracks inspection and PAT testing status. Acts as a site inventory and legal record of equipment safety compliance.",

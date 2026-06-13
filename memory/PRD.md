@@ -98,6 +98,13 @@ Dark-themed construction administration SaaS web application for UK tradespeople
   - Document output: full register verbatim, compliance summary, CIS warning, footer about keeping the register up to date.
   - Verified end-to-end: 9 of 9 substantive checks pass.
 
+- ✅ **[REBUILD] Meeting Notes — dedicated page** (Feb 13, 2026)
+  - New page `/app/frontend/src/pages/MeetingNotes.jsx`, wired through `App.js`, `GenericToolPage`, `tools-config.js`.
+  - Bug fixed: Date is now a true date picker (defaulting to today, rendered in DD/MM/YYYY throughout the document).
+  - Added: Project/Job Reference (before subject), Time of Meeting, Location dropdown with conditional Other free text, Chaired By auto-fill, dynamic Attendees table (Name | Company | Role), renamed "Rough Notes" → "Points Discussed", added Decisions Made textarea, dynamic Actions table (Action | Responsible | Due Date), Next Meeting Date + Format.
+  - Document output: clean minute set with all sections plus footer "These notes are a record of the meeting and should be circulated to all attendees within 24 hours. Any corrections should be notified within 5 working days."
+  - Verified end-to-end: all 13 acceptance checks pass.
+
 ### Previous session (pre-fork, captured in handoff)
 - Stripe live keys + price IDs + Customer Portal endpoint
 - Resend integration with PDF attachments (`/api/refund-summary/email`)
