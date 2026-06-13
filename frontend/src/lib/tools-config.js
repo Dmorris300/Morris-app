@@ -1089,9 +1089,9 @@ Rules: this is a legal deed, so language must be firm and plain, but never slopp
     "Produce a UK Payment Chaser letter. Use the user's profile for sender full name, company name, address, contact number and bank details (auto-populated). Show: recipient, original invoice number, original invoice date, original invoice amount, amount outstanding, days overdue (calculate from original invoice date to today's date), any previous chase attempts, deadline for payment. Include a clear reference to the Late Payment of Commercial Debts (Interest) Act 1998 and state that the sender reserves the right to charge statutory interest at 8% above the Bank of England base rate on overdue amounts, plus the £40-£100 fixed compensation per invoice under section 5A. End with an ISSUED BY block auto-populated from the user profile (full name printed, company name, today's date, signature line)."
   ),
   t("cis-calculator", "CIS Calculator", "finance",
-    "Quickly works out CIS deduction at 20% or 30% on a labour amount and what your net payment will be.",
-    [f("labour", "Labour amount (£)"), f("materials", "Materials amount (£)"), f("rate", "CIS rate (%)", "text", "20")],
-    "Show CIS calculation: Gross labour, materials (excluded), CIS rate, deduction amount, net payable. Explain briefly how the deduction is reported to HMRC and offset against tax."
+    "Works out CIS deduction from a mixed labour + materials invoice. CIS rate dropdown (20% / 30% / 0%), VAT toggle with 20/5/0% rate, and a live breakdown showing labour, materials, VAT, total invoice, CIS deduction (labour only), net payment to subcontractor, and the split between what the contractor pays the subbie vs HMRC.",
+    [],
+    "Produce a UK CIS Calculation record (see the dedicated page for full inputs)."
   ),
   t("self-assessment-prep", "Self Assessment Prep", "finance",
     "A prep pack summarising income, allowable expenses and CIS deductions for your accountant or your own SA100/103.",

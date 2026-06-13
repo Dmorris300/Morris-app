@@ -199,6 +199,13 @@ Dark-themed construction administration SaaS web application for UK tradespeople
   - Document output: title `PAYMENT TRACKER — {taxYear} — {date}`, tracker details, full pipe-delimited 16-column table preserved verbatim, 9-line financial summary, verbatim CIS Note paragraph, verbatim footer about retaining for 5 years and reconciling against CIS payment statements, sign-off.
   - Verified end-to-end UI math (3 rows): Row1 £5k @ 20% → CIS £1k / Net £4k / Outstanding £0 (paid); Row2 £3k @ 30% → CIS £900 / Net £2.1k / Outstanding £2.1k (overdue); Row3 £2k @ 0% → CIS £0 / Net £2k / Outstanding £2k (disputed). Totals: **Invoiced £10,000 ✓ / CIS £1,900 ✓ / Net £8,100 ✓ / Received £4,000 ✓ / Retention £150 ✓ / Outstanding £4,100 (gold) ✓ / Overdue 2 (red) ✓ / Disputed 1 (gold) ✓**.
 
+- ✅ **[REBUILD] CIS Calculator — dedicated page** (Feb 13, 2026)
+  - New page `/app/frontend/src/pages/CisCalculator.jsx`, wired through `App.js`, `GenericToolPage`, `tools-config.js`.
+  - 3 sections + sign off: Invoice Inputs (Labour £, Materials £, **3-option CIS Rate dropdown — 20% Registered / 30% Unregistered / 0% Gross payment status**, Yes/No VAT toggle, conditional VAT Rate dropdown 20/5/0% + the verbatim note "VAT is calculated on the full invoice value including materials. CIS is deducted from labour only."), Live Calculated Breakdown (11-row panel — Labour, Materials, Gross before VAT, VAT amount, Total invoice, divider, **CIS deduction (labour only)**, **Net payment to subcontractor (gold highlighted)**, divider, Amount contractor pays subbie, Amount contractor pays HMRC), Sign Off.
+  - **Live math** end-to-end: Gross = Labour + Materials; VAT = Gross × VAT% (only if VAT registered); Total Invoice = Gross + VAT; CIS Deduction = Labour × CIS%; Net to subbie = Total Invoice − CIS Deduction; HMRC payment = CIS Deduction.
+  - Document output: title `CIS CALCULATION — {date}`, calculation details with the CIS rate label spelled out (e.g. "20% — Registered subcontractor (standard rate)"), VAT status line, full breakdown preserved verbatim, verbatim CIS note paragraph, verbatim 5-year retention footer, sign-off.
+  - Verified end-to-end across 4 scenarios: (1) £1k labour + £500 mat, VAT off, 20% → CIS £200 / Net £1,300 ✓ (2) +VAT 20% → VAT £300 / Total £1,800 / Net £1,600 ✓ (3) 30% rate → CIS £300 / Net £1,500 ✓ (4) 0% gross payment status → CIS £0 / Net £1,800 ✓.
+
 ### Previous session (pre-fork, captured in handoff)
 - Stripe live keys + price IDs + Customer Portal endpoint
 - Resend integration with PDF attachments (`/api/refund-summary/email`)

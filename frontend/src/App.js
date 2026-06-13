@@ -42,6 +42,7 @@ import BadDebtLetter from "./pages/BadDebtLetter";
 import PriceWorkVariationTracker from "./pages/PriceWorkVariationTracker";
 import TenderLetter from "./pages/TenderLetter";
 import PaymentTracker from "./pages/PaymentTracker";
+import CisCalculator from "./pages/CisCalculator";
 import VatThreshold from "./pages/VatThreshold";
 import Earnings from "./pages/Earnings";
 import TaxPot from "./pages/TaxPot";
@@ -152,6 +153,7 @@ function App() {
             <Route path="pricework-variation-tracker" element={<ProfileGate><PriceWorkVariationTracker /></ProfileGate>} />
             <Route path="tender-letter" element={<ProfileGate><TenderLetter /></ProfileGate>} />
             <Route path="payment-tracker" element={<ProfileGate><PaymentTracker /></ProfileGate>} />
+            <Route path="cis-calculator" element={<ProfileGate><CisCalculator /></ProfileGate>} />
             <Route path="company-checker" element={<ProfileGate><CompanyChecker /></ProfileGate>} />
             <Route path="offline-mode" element={<OfflineMode />} />
             <Route path="team" element={<TeamManagement />} />
