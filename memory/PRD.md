@@ -40,6 +40,14 @@ Dark-themed construction administration SaaS web application for UK tradespeople
   - Live signature pad for meeting chair.
   - Verified end-to-end: title, all sections, attendees, actions, conditional reveals, footer, sign-off all render correctly.
 
+- ✅ **[REBUILD] Tool and Equipment Register — dedicated page** (Feb 13, 2026)
+  - New page `/app/frontend/src/pages/ToolRegister.jsx`, wired through `App.js`, `GenericToolPage`, `tools-config.js`.
+  - 4 sections: Register Details (project, site, date, operative/company/trade auto-fill), Equipment List (dynamic table with description, make/model, serial, ownership, condition, PAT status, conditional PAT expiry, inspection due, notes), Summary (live totals + gold-highlighted PAT warnings), Declaration (verbatim text + signature pad).
+  - PAT Expiry input only appears when PAT Tested = Yes.
+  - Summary auto-calculates: total items, count with PAT expiring within 30 days (or overdue), count of hired items. Gold warning banner appears when any PAT is flagged.
+  - DD/MM/YYYY format everywhere in document body; footer "Portable electrical equipment… 110v… retained for duration of project" verbatim.
+  - Verified end-to-end: all 9 acceptance checks pass.
+
 ### Previous session (pre-fork, captured in handoff)
 - Stripe live keys + price IDs + Customer Portal endpoint
 - Resend integration with PDF attachments (`/api/refund-summary/email`)

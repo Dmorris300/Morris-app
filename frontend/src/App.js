@@ -21,6 +21,7 @@ import PaymentChaser from "./pages/PaymentChaser";
 import SelfAssessmentPrep from "./pages/SelfAssessmentPrep";
 import MeasurementRecord from "./pages/MeasurementRecord";
 import PreStartMeeting from "./pages/PreStartMeeting";
+import ToolRegister from "./pages/ToolRegister";
 import VatThreshold from "./pages/VatThreshold";
 import Earnings from "./pages/Earnings";
 import TaxPot from "./pages/TaxPot";
@@ -110,6 +111,7 @@ function App() {
             <Route path="self-assessment-prep" element={<ProfileGate><SelfAssessmentPrep /></ProfileGate>} />
             <Route path="measurement-record" element={<ProfileGate><MeasurementRecord /></ProfileGate>} />
             <Route path="prestart-meeting" element={<ProfileGate><PreStartMeeting /></ProfileGate>} />
+            <Route path="tool-register" element={<ProfileGate><ToolRegister /></ProfileGate>} />
             <Route path="company-checker" element={<ProfileGate><CompanyChecker /></ProfileGate>} />
             <Route path="offline-mode" element={<OfflineMode />} />
             <Route path="team" element={<TeamManagement />} />

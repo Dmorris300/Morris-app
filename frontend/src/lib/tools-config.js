@@ -1379,7 +1379,11 @@ End with an INSPECTED BY block (inspector name, role, signature line, today's da
   ),
   t("meeting-notes", "Meeting Notes", "site", "Convert your scribbled notes into a clean, distributable meeting minutes document.", [f("meeting", "Meeting subject"), f("date", "Date"), ta("attendees", "Attendees"), ta("rough", "Rough notes")], "Convert the rough notes into clean minutes: Attendees, Apologies, Items Discussed, Actions (with owner and date), Next Meeting."),
   t("delivery-record", "Delivery Record", "site", "A goods received record. supplier, items, condition, signed for.", [f("date", "Date"), f("supplier", "Supplier"), ta("items", "Items received"), f("condition", "Condition")], "Produce a Delivery Record table with Date / Supplier / Delivery Note No / Items / Quantity / Condition / Received By."),
-  t("tool-register", "Tool and Equipment Register", "site", "Asset register of your tools and equipment. calibration, PAT, who has it. Helps insurance claims.", [ta("items", "Items (one per line)")], "Produce a Tool & Equipment Register: Asset ID / Description / Serial No / Owner / Last Cal/PAT / Next Due / Location."),
+  t("tool-register", "Tool and Equipment Register", "site",
+    "Records all tools and equipment brought to site, confirms condition and ownership, and tracks inspection and PAT testing status. Acts as a site inventory and legal record of equipment safety compliance.",
+    [],
+    "Produce a UK Tool and Equipment Register (see the dedicated page for full inputs)."
+  ),
   t("procurement-schedule", "Procurement Schedule", "site", "A procurement schedule listing key materials, lead times, order-by dates.", [ta("items", "Items + lead times")], "Produce a Procurement Schedule: Item / Required On Site / Lead Time / Order By / Supplier / Status."),
   t("risk-register", "Risk Register", "site", "A live risk register with probability × impact scoring (risk matrix).", [ta("risks", "Risks (one per line)")], "Produce a Risk Register: Ref / Risk Description / Probability (1–5) / Impact (1–5) / Score / Owner / Mitigation / Status."),
   t("variation-instruction-log", "Variation Instruction Log", "site", "A live log of every variation instruction received. date, source, status, value.", [ta("variations", "Variations (one per line)")], "Produce a Variation Instruction Log: VO No / Date / Source / Description / Estimated £ / Status / Approved By."),

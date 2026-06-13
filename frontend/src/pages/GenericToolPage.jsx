@@ -118,6 +118,7 @@ export default function GenericToolPage() {
   if (tool.id === "self-assessment-prep") return <RedirectTo path="/app/self-assessment-prep" />;
   if (tool.id === "measurement-record") return <RedirectTo path="/app/measurement-record" />;
   if (tool.id === "prestart-meeting") return <RedirectTo path="/app/prestart-meeting" />;
+  if (tool.id === "tool-register") return <RedirectTo path="/app/tool-register" />;
 
   const onGenerate = async () => {
     if (missingRequired.length > 0) {
