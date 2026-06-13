@@ -1393,7 +1393,11 @@ End with an INSPECTED BY block (inspector name, role, signature line, today's da
     "Produce a UK Tool and Equipment Register (see the dedicated page for full inputs)."
   ),
   t("procurement-schedule", "Procurement Schedule", "site", "A procurement schedule listing key materials, lead times, order-by dates.", [ta("items", "Items + lead times")], "Produce a Procurement Schedule: Item / Required On Site / Lead Time / Order By / Supplier / Status."),
-  t("risk-register", "Risk Register", "site", "A live risk register with probability × impact scoring (risk matrix).", [ta("risks", "Risks (one per line)")], "Produce a Risk Register: Ref / Risk Description / Probability (1–5) / Impact (1–5) / Score / Owner / Mitigation / Status."),
+  t("risk-register", "Risk Register", "site",
+    "Risk register required under the Management of Health and Safety at Work Regulations 1999. Standard risk matrix (likelihood × severity). Documents hazards, controls, and residual risk for every site activity.",
+    [],
+    "Produce a UK Risk Register (see the dedicated page for full inputs)."
+  ),
   t("variation-instruction-log", "Variation Instruction Log", "site",
     "A live register of every variation, extra and change instructed by the client or main contractor. Add rows throughout the project so no variation is forgotten or unpaid. Summary panel updates live.",
     [],

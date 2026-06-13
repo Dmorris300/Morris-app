@@ -114,6 +114,13 @@ Dark-themed construction administration SaaS web application for UK tradespeople
   - Document output: full table per row, summary panel, footer "This log has been maintained on a daily basis as a contemporaneous record of weather conditions affecting the works. It is available for inspection upon request." + sign-off.
   - Verified end-to-end: all 11 acceptance checks pass.
 
+- ✅ **[REBUILD] Risk Register — dedicated page** (Feb 13, 2026)
+  - New page `/app/frontend/src/pages/RiskRegister.jsx`, wired through `App.js`, `GenericToolPage`, `tools-config.js`.
+  - **Standard risk matrix scoring** (Likelihood × Severity = Risk Rating): 1–4 green Low / 5–12 gold Medium / 13–25 red High.
+  - 5 sections: Register Details (project/site/date/assessor/trade/review-date), collapsible Risk Matrix Guide with band swatches, dynamic Risk Register cards (R-001/R-002/… auto-generated refs, 1–5 pip buttons for Likelihood and Severity, **auto-calculated Initial and Residual Risk Rating badges colour-coded live**), Overall Risk Summary (6 live stats colour-coded, including Overall Project Risk Level + red banner when High residual risks remain), Sign Off with signature pad + verbatim legal reference (MHSW Regulations 1999 + HSAW Act 1974).
+  - Document output: full register with all 12 columns preserved verbatim including the "Initial Risk Rating: 15 (High Risk)" / "Residual Risk Rating: 2 (Low Risk)" text exactly. Summary + High residual warning + Acts cited + footer about communicating to workers + retaining in H&S file.
+  - Verified end-to-end: all 13 acceptance checks pass.
+
 ### Previous session (pre-fork, captured in handoff)
 - Stripe live keys + price IDs + Customer Portal endpoint
 - Resend integration with PDF attachments (`/api/refund-summary/email`)

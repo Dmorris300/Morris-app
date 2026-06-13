@@ -30,6 +30,7 @@ import RetentionChaser from "./pages/RetentionChaser";
 import SubcontractorManagement from "./pages/SubcontractorManagement";
 import MeetingNotes from "./pages/MeetingNotes";
 import WeatherLog from "./pages/WeatherLog";
+import RiskRegister from "./pages/RiskRegister";
 import VatThreshold from "./pages/VatThreshold";
 import Earnings from "./pages/Earnings";
 import TaxPot from "./pages/TaxPot";
@@ -128,6 +129,7 @@ function App() {
             <Route path="subbie-mgmt" element={<ProfileGate><SubcontractorManagement /></ProfileGate>} />
             <Route path="meeting-notes" element={<ProfileGate><MeetingNotes /></ProfileGate>} />
             <Route path="weather-log" element={<ProfileGate><WeatherLog /></ProfileGate>} />
+            <Route path="risk-register" element={<ProfileGate><RiskRegister /></ProfileGate>} />
             <Route path="company-checker" element={<ProfileGate><CompanyChecker /></ProfileGate>} />
             <Route path="offline-mode" element={<OfflineMode />} />
             <Route path="team" element={<TeamManagement />} />
