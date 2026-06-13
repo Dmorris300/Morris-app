@@ -314,6 +314,8 @@ DUAL_SIGNOFF_TOOLS = {
     "hmrc-correspondence", "reference-letter",
     # Photo-to-Document inherits dual (most converted docs are client-facing)
     "photo-to-document",
+    # Delay Notice + Standing Time both need counter-signature from the main contractor
+    "delay-notice", "standing-time-calculator",
 }
 
 

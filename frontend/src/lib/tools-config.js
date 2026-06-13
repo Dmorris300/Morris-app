@@ -31,6 +31,10 @@ const fo = (name, label, type = "text", placeholder = "") => ({ name, label, typ
 const tao = (name, label, placeholder = "") => ({ name, label, type: "textarea", placeholder, optional: true });
 // Select dropdown — options = ["A","B"] or [{label,value}]
 const sel = (name, label, options, opts = {}) => ({ name, label, type: "select", options, ...opts });
+// Multi-select checkbox group
+const cbg = (name, label, options, opts = {}) => ({ name, label, type: "checkboxes", options, ...opts });
+// Yes/No toggle
+const tgl = (name, label, opts = {}) => ({ name, label, type: "toggle", ...opts });
 // Field that auto-prefills from a value generator (handled in GenericToolPage)
 // prefill: 'today' | 'today+30d' | 'profile:field' — populated on tool mount
 const fp = (name, label, prefill, type = "text") => ({ name, label, type, prefill });
@@ -237,9 +241,77 @@ End with a PREPARED BY block auto-populated from the user profile (full name, co
 End with an ISSUED BY block auto-populated from the user profile (full name printed, company name, UTR number, today's date, signature line).`
   ),
   t("delay-notice", "Delay Notice", "documents",
-    "A formal written notice that the project has been delayed by matters outside your control. Protects your right to claim an Extension of Time and avoid Liquidated Damages.",
-    [f("project", "Project"), f("cause", "Cause of delay"), f("daysLost", "Days lost so far"), ta("impact", "Impact")],
-    "Produce a formal Delay Notice under JCT/NEC principles. State cause, days lost, mitigation taken, and reserve the right to claim EoT and loss & expense."
+    "A formal Delay Notice issued by a subcontractor or trade contractor to a main contractor or client. Protects your right to claim an Extension of Time and supports a future Loss and Expense claim. Captures every field a UK construction Contract Administrator expects.",
+    [
+      f("project", "Project name"),
+      f("contractor", "Main contractor / Client name (who this notice is being sent to)"),
+      fo("contractRef", "Contract reference / Order number (optional)"),
+      fp("noticeDate", "Date of notice", "today", "date"),
+      sel("delayCause", "Cause of delay", [
+        "Waiting on materials / delivery",
+        "Waiting on another trade",
+        "Design change / variation instruction",
+        "Bad weather",
+        "Access denied to site",
+        "Client / contractor instruction",
+        "Unforeseen site conditions",
+        "Other"
+      ]),
+      ta("delayDescription", "Delay description — describe what happened in your own words"),
+      fp("delayStartDate", "Date delay started", "today", "date"),
+      f("daysLostCount", "Number of days lost (so far) — enter a whole number e.g. 3, 7, 14", "number"),
+      tgl("delayOngoing", "Is this delay still ongoing?"),
+      ta("impactOnWorks", "Impact on works — explain how this has affected your programme, other trades, or costs"),
+      f("eotDaysRequested", "Extension of Time requested — how many extra days are you claiming?", "number"),
+      tao("mitigationSteps", "Mitigation steps taken — what have you done to try to reduce the delay? (optional)"),
+      cbg("supportingEvidence", "Supporting evidence available", [
+        "Site diary entries",
+        "Photos",
+        "WhatsApp / email correspondence",
+        "Delivery notes",
+        "Weather records",
+        "Variation instruction"
+      ]),
+      tao("additionalNotes", "Additional notes (optional)"),
+    ],
+    `Produce a UK Delay Notice (formal headed letter). Plain direct construction English. No padding. No banned consultant words. This is a legal-grade contractual notice — firm but plain.
+
+1. HEADER — DOCUMENT REFERENCE, DATE (use {noticeDate} for DATE).
+
+2. TO — {contractor}.
+
+3. FROM — Issued-by block from profile (Name, Company, Address, Contact, VAT number if held). Auto-populated.
+
+4. SUBJECT line — the document title MUST be exactly these words on their own line, in bold capitals: 'FORMAL NOTICE OF DELAY'. Do not shorten, paraphrase or replace this with 'DELAY NOTICE' or anything else. On the line directly underneath: 'Re: {project}' followed by ' — {contractRef}' only if {contractRef} is supplied.
+
+5. OPENING — One short paragraph: 'This letter is formal notification under the contract that the works on {project} have been delayed by a matter beyond our control. We are submitting this notice to protect our right to an Extension of Time and to reserve all rights under the contract.'
+
+6. NATURE AND CAUSE OF THE DELAY — capitalised section label, then:
+   - One line: 'Cause: {delayCause}.'
+   - Then print {delayDescription} verbatim as one or more short paragraphs.
+
+7. TIMELINE — capitalised section label, three short lines:
+   Date delay started: {delayStartDate}
+   Number of days lost so far: {daysLostCount}
+   Delay ongoing: {delayOngoing}
+
+8. IMPACT ON WORKS — capitalised section label, then print {impactOnWorks} verbatim as short paragraphs. If blank, write 'Impact under review and will be quantified in a follow-up Loss and Expense submission.'
+
+9. EXTENSION OF TIME REQUESTED — capitalised section label, then one bold line: 'We formally claim an Extension of Time of {eotDaysRequested} days.' Then one short line: 'This claim is made under the Extension of Time provisions of the contract. A detailed assessment will follow if the cause of delay continues.'
+
+10. MITIGATION STEPS TAKEN — capitalised section label. If {mitigationSteps} supplied, print verbatim as numbered points or short paragraphs. If blank, omit the entire section.
+
+11. SUPPORTING EVIDENCE AVAILABLE — capitalised section label. Print {supportingEvidence} as a numbered list (the value is already a comma-separated string — split on commas and number each item). If blank, write 'Supporting evidence available on request.'
+
+12. CLOSING — one short paragraph: 'Please acknowledge receipt of this notice in writing within seven days. We reserve all rights and remedies under the contract and at common law, including the right to claim Loss and Expense arising from this delay.'
+
+13. ADDITIONAL NOTES — only if {additionalNotes} supplied. Print verbatim under a 'FURTHER NOTES' label. Otherwise omit.
+
+14. SIGN-OFF — global dual sign-off block. Two signature blocks:
+   FIRST: 'Issued by' — auto-populate name, company, position, with the contractor's saved signature embedded above the printed name. Date: {noticeDate}.
+   SECOND: 'Acknowledged by (Main Contractor / Client)' — Name: ___________, Signature: [SIGN HERE], Date: ____________________, Position: ____________________.
+
+Rules: never invent facts. If a field is blank, leave the line out cleanly. No square-bracket placeholders except for the [SIGN HERE] box in the acknowledgement section. No 'kinetic', 'utilise', 'endeavour', 'facilitate', 'prior to', 'operatives are advised'. Short sentences. Firm but plain. A tradesperson must be able to read it out loud to the main contractor's project manager without stumbling.`
   ),
   t("handover-certificate", "Practical Completion Certificate", "documents",
     "Practical Completion / Handover Certificate. Starts the defects liability period and (usually) the retention release clock.",
@@ -1707,6 +1779,7 @@ export const DUAL_SIGNOFF_TOOLS = new Set([
   "scope-of-works", "price-work-quote", "rate-increase-letter",
   "hmrc-correspondence", "reference-letter",
   "photo-to-document",
+  "delay-notice", "standing-time-calculator",
 ]);
 
 export function isDualSignoff(toolId) {

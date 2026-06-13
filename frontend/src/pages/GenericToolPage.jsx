@@ -32,9 +32,13 @@ const autoDefaultFor = (field) => {
     if (m) return inDaysIso(parseInt(m[1], 10));
   }
   const name = (field.name || "").toLowerCase();
+  // Numeric/days-count fields must never be auto-prefilled as dates, even if the field name starts with 'day*'.
+  if (field.type === "number") return "";
+  const isDaysCount = /(daysLost|days_lost|daysclaimed|days_claimed|daysclaim|hoursstanding|hours_standing|menstanding|men_standing)/i.test(field.name);
+  if (isDaysCount) return "";
   const looksLikeDate = field.type === "date"
     || /(^|_)(date)(s)?$/i.test(field.name)
-    || /^(date|valid|review|start|end|expir|handover|tax(point)?|completion|inv(oice)?|week|day)/i.test(field.name);
+    || /^(date|valid|review|start|end|expir|handover|tax(point)?|completion|inv(oice)?|week)/i.test(field.name);
   if (!looksLikeDate) return "";
   if (name.includes("review")) return inOneYearIso();
   if (name.includes("valid")) return inDaysIso(30);
@@ -115,11 +119,16 @@ export default function GenericToolPage() {
     setMissing([]);
     setGenerating(true); setResult(""); setRefNumber("");
     try {
+      // Flatten any array values (from checkbox groups) into comma-separated strings
+      // so the AI prompt reads naturally.
+      const flatValues = Object.fromEntries(
+        Object.entries(values).map(([k, v]) => [k, Array.isArray(v) ? v.join(", ") : v])
+      );
       const r = await api.post("/generate", {
         toolId: tool.id,
         toolName: tool.name,
         promptTemplate: tool.promptTemplate,
-        userInputs: values,
+        userInputs: flatValues,
         trade: user?.trade,
         companyName: user?.companyName,
         fullName: user?.fullName,
@@ -207,6 +216,59 @@ export default function GenericToolPage() {
                         return <option key={value} value={value}>{label}</option>;
                       })}
                     </select>
+                  ) : field.type === "checkboxes" ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2" data-testid={`field-${field.name}`}>
+                      {(field.options || []).map((opt) => {
+                        const value = typeof opt === "string" ? opt : opt.value;
+                        const label = typeof opt === "string" ? opt : opt.label;
+                        const current = Array.isArray(values[field.name]) ? values[field.name] : [];
+                        const checked = current.includes(value);
+                        return (
+                          <label
+                            key={value}
+                            className="flex items-center gap-2 px-3 py-2 rounded cursor-pointer transition"
+                            style={{
+                              background: checked ? "rgba(232,160,32,0.08)" : "transparent",
+                              border: `1px solid ${checked ? "rgba(232,160,32,0.45)" : "rgba(160,157,148,0.2)"}`,
+                            }}
+                            data-testid={`field-${field.name}-${value.replace(/\s+/g, '-').toLowerCase()}`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => {
+                                const next = checked ? current.filter((v) => v !== value) : [...current, value];
+                                setValues({ ...values, [field.name]: next });
+                              }}
+                              className="accent-[#E8A020]"
+                            />
+                            <span className="text-sm" style={{ color: checked ? "#E8A020" : "#F0EDE8" }}>{label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  ) : field.type === "toggle" ? (
+                    <div className="grid grid-cols-2 gap-2" data-testid={`field-${field.name}`}>
+                      {["Yes", "No"].map((opt) => {
+                        const active = (values[field.name] || "") === opt;
+                        return (
+                          <button
+                            key={opt}
+                            type="button"
+                            onClick={() => setValues({ ...values, [field.name]: opt })}
+                            className="px-3 py-2 rounded text-xs uppercase tracking-widest transition"
+                            style={{
+                              background: active ? "rgba(232,160,32,0.12)" : "transparent",
+                              border: `1px solid ${active ? "#E8A020" : "rgba(160,157,148,0.25)"}`,
+                              color: active ? "#E8A020" : "#A19D94",
+                            }}
+                            data-testid={`field-${field.name}-${opt.toLowerCase()}`}
+                          >
+                            {opt}
+                          </button>
+                        );
+                      })}
+                    </div>
                   ) : (
                     <input
                       type={field.type || "text"}
