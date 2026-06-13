@@ -312,9 +312,9 @@ Rules: never invent. If a field is blank, drop the line cleanly. No 'kinetic', '
 
           {/* Signature pad(s) — dual on Stage 3 (Letter Before Action) */}
           <div className="space-y-3 pt-2 border-t border-[#1a1a1a]">
-            <LiveSignatureBlock label={stage === 3 ? "Your signature" : "Sign before generating"} value={liveSignature} onChange={setLiveSignature} fallbackSignature={user?.signature} testId="pc-sig-pad-self" />
+            <LiveSignatureBlock label={stage === 3 ? "Your signature" : "Sign before generating"} value={liveSignature} onChange={setLiveSignature} savedSignature={user?.signature} testIdPrefix="pc-sig-self" />
             {stage === 3 && (
-              <LiveSignatureBlock label="Recipient acknowledgement (optional)" value={clientSignature} onChange={setClientSignature} testId="pc-sig-pad-client" />
+              <LiveSignatureBlock label="Recipient acknowledgement (optional)" value={clientSignature} onChange={setClientSignature} testIdPrefix="pc-sig-client" />
             )}
           </div>
 

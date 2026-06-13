@@ -18,6 +18,7 @@ import PhotoToDocument from "./pages/PhotoToDocument";
 import CISRefundPredictor from "./pages/CISRefundPredictor";
 import MileageTracker from "./pages/MileageTracker";
 import PaymentChaser from "./pages/PaymentChaser";
+import SelfAssessmentPrep from "./pages/SelfAssessmentPrep";
 import VatThreshold from "./pages/VatThreshold";
 import Earnings from "./pages/Earnings";
 import TaxPot from "./pages/TaxPot";
@@ -104,6 +105,7 @@ function App() {
             <Route path="earnings" element={<ProfileGate><Earnings /></ProfileGate>} />
             <Route path="taxpot" element={<ProfileGate><TaxPot /></ProfileGate>} />
             <Route path="payment-chaser" element={<ProfileGate><PaymentChaser /></ProfileGate>} />
+            <Route path="self-assessment-prep" element={<ProfileGate><SelfAssessmentPrep /></ProfileGate>} />
             <Route path="company-checker" element={<ProfileGate><CompanyChecker /></ProfileGate>} />
             <Route path="offline-mode" element={<OfflineMode />} />
             <Route path="team" element={<TeamManagement />} />
