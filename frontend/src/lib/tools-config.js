@@ -1426,7 +1426,11 @@ Close with a PREPARED BY block from the user profile (full name, company, today'
     "Produce a UK Noise Risk Assessment (see the dedicated page for full inputs)."
   ),
   t("manual-handling", "Manual Handling Assessment", "site", "A TILE / LITE manual handling risk assessment.", [f("load", "Load / item"), f("weight", "Weight"), ta("task", "Task description")], "Produce a Manual Handling Operations Regulations 1992 assessment using the TILE method (Task, Individual, Load, Environment) for the supplied task."),
-  t("working-at-height-rescue", "Working at Height Rescue Plan", "site", "Mandatory Working at Height rescue plan. what happens if someone falls into a harness.", [f("activity", "Activity"), f("height", "Working height"), ta("rescueMethod", "Rescue method available")], "Produce a Working at Height Regulations 2005 Rescue Plan. fall arrest equipment, rescue method, suspension trauma considerations, emergency contacts."),
+  t("working-at-height-rescue", "Working at Height Rescue Plan", "site",
+    "Mandatory rescue plan under the Work at Height Regulations 2005. A rescue plan must be in place before work at height begins, especially where fall arrest equipment is used. Suspension trauma can be fatal within minutes.",
+    [],
+    "Produce a UK Working at Height Rescue Plan (see the dedicated page for full inputs)."
+  ),
   // ---------- PRICE WORK ----------
   t("scope-of-works", "Scope of Works", "pricework", "A precise written scope of works. what's included, what's not. Stops scope creep.", [
       f("project", "Project / site name"),

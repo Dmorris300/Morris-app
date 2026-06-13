@@ -23,6 +23,7 @@ import MeasurementRecord from "./pages/MeasurementRecord";
 import PreStartMeeting from "./pages/PreStartMeeting";
 import ToolRegister from "./pages/ToolRegister";
 import NoiseAssessment from "./pages/NoiseAssessment";
+import WorkingAtHeightRescue from "./pages/WorkingAtHeightRescue";
 import VatThreshold from "./pages/VatThreshold";
 import Earnings from "./pages/Earnings";
 import TaxPot from "./pages/TaxPot";
@@ -114,6 +115,7 @@ function App() {
             <Route path="prestart-meeting" element={<ProfileGate><PreStartMeeting /></ProfileGate>} />
             <Route path="tool-register" element={<ProfileGate><ToolRegister /></ProfileGate>} />
             <Route path="noise-assessment" element={<ProfileGate><NoiseAssessment /></ProfileGate>} />
+            <Route path="working-at-height-rescue" element={<ProfileGate><WorkingAtHeightRescue /></ProfileGate>} />
             <Route path="company-checker" element={<ProfileGate><CompanyChecker /></ProfileGate>} />
             <Route path="offline-mode" element={<OfflineMode />} />
             <Route path="team" element={<TeamManagement />} />
