@@ -135,6 +135,13 @@ Dark-themed construction administration SaaS web application for UK tradespeople
   - Document output: title `PROCUREMENT SCHEDULE — {project} — {date}` + full schedule preserved + summary + important note verbatim + footer + sign-off.
   - Verified end-to-end: UI calculations correct (20/03/2026 − 10 working days = 06/03/2026; 25/02/2026 − 3 working days = 20/02/2026), and AI generation returns the full structured document with reference number saved to Vault.
 
+- ✅ **[REBUILD] Price Work Quote — dedicated page** (Feb 13, 2026)
+  - New page `/app/frontend/src/pages/PriceWorkQuote.jsx`, wired through `App.js`, `GenericToolPage`, `tools-config.js`.
+  - 7 sections: Quote Details (auto-suggested ref PW-001, date today, valid until +30 days), Scope of Works (brief + drawing ref), Priced Schedule (dynamic table with auto Item Number, Description, Unit dropdown 9 options, Quantity, Rate, **auto-calculated Line Total live**, Notes), Totals (Yes/No VAT toggle + 20/5/0% rate dropdown, live Subtotal / VAT / Total Quote Value gold-highlighted), Terms (payment terms dropdown with conditional Other, Included / Excluded / Additional Notes textareas), Quoted By signature pad, Generated Quote output.
+  - **Live currency math**: VAT toggle ON → Total = Subtotal × (1 + VAT%); VAT OFF → Total = Subtotal. All values in `£X,XXX.XX` UK format.
+  - Document output: title `PRICE WORK SCHEDULE — {project} — {ref}`, full itemised schedule preserved, totals block, terms, quoted-by sign-off, **detachable Acceptance slip** with the verbatim heading "ACCEPTANCE OF PRICE WORK QUOTE", verbatim statement and signature lines for Name / Position / Company / Date / Signature, plus footer "This quote is valid until {validUntil}. All prices exclude any variations instructed after the date of this document."
+  - Verified end-to-end: UI math (200 × £18 = £3,600; 15 × £45 = £675; Subtotal £4,275; VAT 20% £855; Total £5,130) and AI generation returns the full structured quote document including the acceptance slip with five signature lines and the valid-until footer.
+
 ### Previous session (pre-fork, captured in handoff)
 - Stripe live keys + price IDs + Customer Portal endpoint
 - Resend integration with PDF attachments (`/api/refund-summary/email`)

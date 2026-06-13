@@ -1099,9 +1099,9 @@ Rules: this is a legal deed, so language must be firm and plain, but never slopp
     "Produce a Self Assessment prep summary for a UK sole trader: turnover, allowable expenses, taxable profit, CIS already deducted at source, estimated tax/NI position."
   ),
   t("price-work-quote", "Price Work Quote", "finance",
-    "A quote built on price work (per-metre / per-unit) rates. typical for ductwork, ceilings, decorating, plastering.",
-    [f("project", "Project"), ta("ratesAndQty", "Rates × quantities (e.g. 200m² ceiling @ £18/m²)"), f("totalPrice", "Total quote (£)")],
-    "Produce a professional Price Work quote with itemised rates and quantities, total value, and clear payment terms."
+    "Professional itemised priced schedule of works for price-work jobs. Dynamic table with auto-calculated line totals, VAT breakdown and total quote value. Document output includes a detachable acceptance slip for the main contractor or client to sign and return.",
+    [],
+    "Produce a UK Price Work Quote (see the dedicated page for full inputs)."
   ),
   t("earnings-dashboard", "Earnings Dashboard", "finance",
     "Year-to-date earnings, expenses, CIS suffered and estimated take-home.",
