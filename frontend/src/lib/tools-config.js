@@ -469,9 +469,114 @@ Rules: never invent figures. Always show the maths. If a field is blank, drop th
     "Produce a UK retention release chase letter at the requested escalation stage (1 polite reminder, 2 firm with HGCRA reference, 3 final notice before adjudication / small claims). Personalise to the trade."
   ),
   t("final-account", "Final Account Statement", "documents",
-    "A statement bringing together original contract sum, variations, dayworks and credits into a final agreed total.",
-    [f("project", "Project"), f("originalSum", "Original contract sum (£)"), ta("variations", "Variations summary"), f("finalSum", "Proposed final sum (£)")],
-    "Produce a UK Final Account Statement. Table: Original Sum, Variations (list), Dayworks, Omissions, Final Sum. Request agreement and release of remaining payment & retention."
+    "A formal Final Account Statement bringing every line of money together at the end of a job — original contract sum, variations, dayworks, omissions, loss and expense, retention release, previously paid. Captures every detail needed under JCT / NEC for sign-off and final payment.",
+    [
+      f("project", "Project / Site name"),
+      f("siteAddress", "Site address"),
+      f("contractRef", "Contract reference number"),
+      sel("contractForm", "Contract form", ["JCT Design and Build", "JCT Standard Building Contract", "JCT Intermediate", "JCT Minor Works", "NEC4 ECC", "NEC4 ECSC", "Bespoke / Other"]),
+      f("clientName", "To (Client / Employer / Main contractor)"),
+      f("clientAddress", "Their address"),
+      fo("clientReference", "Their reference / job number"),
+      fp("contractStartDate", "Contract start date", "today", "date"),
+      fp("practicalCompletionDate", "Practical completion date", "today", "date"),
+      fp("defectsLiabilityEnd", "End of Defects Liability / Rectification Period", "today+365d", "date"),
+      fp("statementDate", "Final Account Statement date", "today", "date"),
+      f("originalContractSum", "Original contract sum (£)", "number"),
+      f("variationsApproved", "Approved variations — total (£)", "number"),
+      fo("variationsPending", "Pending variations awaiting agreement (£)", "number"),
+      f("dayworksTotal", "Dayworks total (£)", "number"),
+      f("provisionalSumsAdjustment", "Provisional sums adjustment (+/− £)", "number"),
+      f("loss_and_expense", "Loss and expense agreed (£)", "number"),
+      f("omissions", "Omissions / credits to client (£)", "number"),
+      f("contraCharges", "Contra charges deducted by client (£)", "number"),
+      sel("retentionPercent", "Retention rate held during the job", ["0%", "3%", "5%", "10%"]),
+      f("retentionHeld", "Retention held to date (£)", "number"),
+      sel("retentionReleaseStage", "Retention release", ["Half release at Practical Completion (50%)", "Full release at end of Defects Liability (100%)", "Other — set out in notes"]),
+      f("retentionToRelease", "Retention to release with this statement (£)", "number"),
+      f("previouslyCertified", "Previously certified / paid cumulative (£)", "number"),
+      sel("vatStatus", "VAT status", ["Standard rate 20%", "Reduced rate 5%", "Zero rated", "Domestic reverse charge (CIS)", "Not VAT registered"]),
+      sel("cisApplicable", "CIS deduction applies?", ["Yes — 20%", "Yes — 30%", "Yes — Gross", "No"]),
+      tao("variationsList", "List of variations included (one per line: VO ref — description — £value)"),
+      tao("dayworksList", "List of daywork sheets included (one per line: DW ref — date — £value)"),
+      tao("lossAndExpenseList", "Loss and expense breakdown (one per line: event — £value)"),
+      tao("omissionsList", "Omissions breakdown (one per line: item — £value)"),
+      tao("contraChargesList", "Contra charges breakdown (one per line: item — £value — your position)"),
+      tao("outstandingItems", "Any items still outstanding for client to agree (optional)"),
+      tao("notes", "Any other notes (optional)"),
+      fp("responseDeadline", "Date by which agreement is requested", "today+21d", "date"),
+    ],
+    `Produce a UK Final Account Statement. Plain direct construction English. No padding. No banned consultant words.
+
+1. HEADER — DOCUMENT REFERENCE, DATE.
+
+2. DOCUMENT TITLE — exactly: 'FINAL ACCOUNT STATEMENT'. Underneath in smaller text: 'Statement date: {statementDate}'.
+
+3. TO — Client / Employer / Main contractor name and address.
+
+4. FROM — Issued-by block from profile (Name, Company, Address, Contact, UTR if CIS applies, VAT number if VAT-registered).
+
+5. PROJECT REFERENCE — list on separate lines:
+   Project: {project}
+   Site: {siteAddress}
+   Contract reference: {contractRef}
+   Contract form: {contractForm}
+   Contract start date: {contractStartDate}
+   Practical completion date: {practicalCompletionDate}
+   End of Defects Liability: {defectsLiabilityEnd}
+
+6. FINAL ACCOUNT SUMMARY — a clear money table, one line per row, £ values right-aligned. Use ONLY the fields the user supplied (skip any blank line cleanly — do NOT print £0 unless the user typed 0). Build the table in this exact order, then auto-calculate the totals:
+
+   Original contract sum                          £{originalContractSum}
+   Approved variations                          + £{variationsApproved}
+   Pending variations (subject to agreement)    + £{variationsPending}
+   Dayworks                                     + £{dayworksTotal}
+   Provisional sums adjustment                  ± £{provisionalSumsAdjustment}
+   Loss and expense                             + £{loss_and_expense}
+   Omissions / credits to client                - £{omissions}
+   Contra charges                               - £{contraCharges}
+   ___________________________________________________________
+   ADJUSTED FINAL CONTRACT SUM                    £[calc: sum of all the above]
+   Less previously certified / paid             - £{previouslyCertified}
+   ___________________________________________________________
+   BALANCE DUE BEFORE RETENTION RELEASE           £[calc]
+   Plus retention to release ({retentionReleaseStage}) + £{retentionToRelease}
+   ___________________________________________________________
+   FINAL BALANCE DUE                              £[calc]
+
+   If CIS applies, add a CIS deduction line on labour element and show the cash payable after CIS.
+   If VAT is standard or reduced rated, add a VAT line and show the gross amount payable.
+   If 'Domestic reverse charge (CIS)' is selected, add a single line: 'VAT: Domestic reverse charge — VAT to be accounted for by the customer.'
+   Show all calculation working transparently so the QS can audit it.
+
+7. VARIATIONS INCLUDED — numbered list from {variationsList}. If blank, write 'See approved Variation Orders on file.'
+
+8. DAYWORKS INCLUDED — numbered list from {dayworksList}. If blank, omit this section.
+
+9. LOSS AND EXPENSE — numbered list from {lossAndExpenseList}. If blank, omit this section.
+
+10. OMISSIONS / CREDITS — numbered list from {omissionsList}. If blank, omit this section.
+
+11. CONTRA CHARGES — numbered list from {contraChargesList}, then a single line: 'Contractor's position on contra charges: reserved / disputed / agreed as deducted — see separate correspondence.' Omit the whole section if blank.
+
+12. RETENTION POSITION — three lines:
+   Retention held to date: £{retentionHeld}
+   Stage: {retentionReleaseStage}
+   Released with this statement: £{retentionToRelease}
+
+13. OUTSTANDING ITEMS — bullet list from {outstandingItems}. If blank, write 'None — this is the full and final account, subject to client agreement.'
+
+14. AGREEMENT REQUESTED — one short paragraph stating the contractor requests written agreement of this Final Account by {responseDeadline}, after which the figures will be treated as the agreed Final Account under the contract.
+
+15. STATUTORY NOTICE BLOCK — one short paragraph: 'This statement is served under the payment provisions of the Housing Grants Construction and Regeneration Act 1996 (as amended). If a Pay Less Notice is not served within the prescribed period before the final date for payment, the sum stated becomes the notified sum and is payable in full.'
+
+16. INTEREST WARNING — one short line: 'Late Payment of Commercial Debts (Interest) Act 1998 applies to any sum unpaid after the final date for payment.'
+
+17. NOTES — only if {notes} supplied. Print verbatim under a 'NOTES' label.
+
+18. SIGN-OFF — global dual sign-off block (contractor signed; client SIGN HERE box).
+
+Rules: never invent figures. Always show the maths. If a field is blank, drop the line entirely — do not write £0 unless the user typed 0. No square-bracket placeholders. No 'kinetic', 'utilise', 'endeavour', 'facilitate', 'prior to', 'operatives are advised'. Short sentences. A QS must be able to audit every line without asking a question.`
   ),
   t("contra-charge-dispute", "Contra Charge Dispute", "documents",
     "A letter disputing an unfair or undocumented contra charge / back-charge deducted from your payment.",
