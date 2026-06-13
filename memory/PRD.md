@@ -149,6 +149,14 @@ Dark-themed construction administration SaaS web application for UK tradespeople
   - Document output: formal letter — sender block, To recipient line, Subject line, opening paragraph, rate-change block (5 lines including percentage increase), numbered reasons block, conditional ongoing-work paragraph, optional additional comments, closing paragraph inviting discussion, sign-off block. Reads as a justified business notification.
   - Verified end-to-end: UI percentage math (£250 → £275 = 10% ✓), conditional banner toggles correctly, and AI generation returns a clean professional letter with reference `RIL-DM-260613-001`.
 
+- ✅ **[REBUILD] Snagging List — dedicated page** (Feb 13, 2026)
+  - New page `/app/frontend/src/pages/SnaggingList.jsx`, wired through `App.js`, `GenericToolPage`, `tools-config.js`.
+  - Existing inspection-detail fields preserved verbatim (Project Name, Project Address, Unit / Plot Number, Inspection Date and Time, Inspected by, Inspector Role dropdown, Contractor Representative).
+  - **Replaces the old freetext box with a dynamic snag table**: auto-generated Snag Number `S-001…`, Location, Item / Element, Defect Description (textarea), 3-option Severity dropdown (verbatim spec strings), 3-option Status dropdown (Open / In Progress / Closed), Target Completion Date, **conditional Date Closed picker (only visible when Status = Closed)**, Notes / Photo Reference. Add/remove rows freely.
+  - **Live summary panel** (6 cards): Total snags raised, **High severity snags open (red when > 0)**, **Medium severity snags open (gold when > 0)**, Low severity snags open, Snags closed / completed, Percentage complete shown as "X% of snags resolved" (green when 100%).
+  - Document output: title, inspection details, full snag table preserved (with Date Closed line on closed items), verbatim severity key, full 6-line summary including the "X% of snags resolved" text, verbatim statement in capitals, verbatim Next Actions paragraph, inspector sign-off, contractor representative acknowledgement block.
+  - Verified end-to-end: UI summary math (1 High open / 1 Medium open / 0 Low open / 1 Closed → 33% resolved), conditional Date Closed field appears correctly, and AI generation returns the full structured snagging list with reference `SNG-001`.
+
 ### Previous session (pre-fork, captured in handoff)
 - Stripe live keys + price IDs + Customer Portal endpoint
 - Resend integration with PDF attachments (`/api/refund-summary/email`)

@@ -1349,25 +1349,9 @@ Rules: never invent facts. If a field is blank, leave the line out cleanly. No s
     }
   ),
   t("snagging-list", "Snagging List", "site",
-    "A formal snagging list with project, inspection and item-level detail. Used at handover to record every defect that must be put right.",
-    [
-      f("projectName", "Project name"),
-      ta("projectAddress", "Project address"),
-      f("unitPlotNumber", "Unit / plot number"),
-      fp("inspectionDate", "Inspection date and time", "today", "datetime-local"),
-      f("inspectedByName", "Inspected by (name)"),
-      sel("inspectedByRole", "Inspector role", ["Client", "Site Manager", "Quantity Surveyor", "Architect", "Building Surveyor", "Building Control", "Contractor", "Subcontractor", "Other"]),
-      f("contractorRepresentative", "Contractor representative (full name + company)"),
-      ta("snagItems", "Snag items. One snag per line, separated by | with these columns in order: location | item / element | defect description | severity (Low cosmetic / Medium functional / High urgent safety) | status (Open / In Progress / Closed) | target completion date"),
-    ],
-    `Produce a formal UK Snagging List. Use SNG-NNN format for the list reference (taken from the document reference). Format:
-1. HEADER — Snagging list reference {ref}, Inspection date and time, Project name, Project address, Unit / plot number, Inspected by + role, Contractor representative.
-2. SNAG ITEMS — produce a clean numbered table. Start numbering from S-001 and increment for each item supplied. Columns: Item No / Location / Item or Element / Defect Description / Severity / Status / Target Completion Date. Parse the user-supplied lines (separated by |) into the columns in order. If a row is missing a value, leave that cell blank.
-3. SEVERITY KEY — print under the table on its own line: 'SEVERITY KEY: Low — cosmetic. Medium — functional. High — urgent safety issue.'
-4. SUMMARY — auto-calculate and display three counters: 'Total snags: {count}. Open: {count}. In Progress: {count}. Closed: {count}.'
-5. STATEMENT — print verbatim on its own line, bold: 'THIS SNAGGING LIST IS AN OFFICIAL INSPECTION RECORD AND MUST BE ACTIONED WITHIN THE AGREED TIMESCALES.'
-6. NEXT ACTIONS — state that the contractor representative shall update the Status column upon completion of each item and re-issue the list to the inspector.
-End with an INSPECTED BY block (inspector name, role, signature line, today's date) and a CONTRACTOR REPRESENTATIVE acknowledgement block.`
+    "A formal snagging list with project, inspection and item-level detail. Used at handover to record every defect that must be put right. Live counter of high / medium / low severity items open plus the overall percentage of snags resolved.",
+    [],
+    "Produce a UK Snagging List (see the dedicated page for full inputs)."
   ),
   t("site-access-permit", "Site Access Permit", "site", "Permit-to-work for restricted areas or high-risk activity (hot works, confined space).", [f("permitType", "Permit type"), f("location", "Location"), ta("controls", "Controls in place"), f("validity", "Valid from / to")], "Produce a Permit to Work form for the supplied activity. controls, isolation, gas tests if applicable, sign-on / sign-off."),
   t("measurement-record", "Measurement Record", "site", "A site measurement sheet. sketch references, dimensions, notes. Essential for price-work valuations.", [f("area", "Area / location"), ta("measurements", "Measurements (one per line)")], "Produce a clean Measurement Record sheet with Location / Reference / Dimensions / Quantity / Unit / Notes."),

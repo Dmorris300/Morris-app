@@ -35,6 +35,7 @@ import ApprenticeManager from "./pages/ApprenticeManager";
 import ProcurementSchedule from "./pages/ProcurementSchedule";
 import PriceWorkQuote from "./pages/PriceWorkQuote";
 import RateIncreaseLetter from "./pages/RateIncreaseLetter";
+import SnaggingList from "./pages/SnaggingList";
 import VatThreshold from "./pages/VatThreshold";
 import Earnings from "./pages/Earnings";
 import TaxPot from "./pages/TaxPot";
@@ -138,6 +139,7 @@ function App() {
             <Route path="procurement-schedule" element={<ProfileGate><ProcurementSchedule /></ProfileGate>} />
             <Route path="price-work-quote" element={<ProfileGate><PriceWorkQuote /></ProfileGate>} />
             <Route path="rate-increase-letter" element={<ProfileGate><RateIncreaseLetter /></ProfileGate>} />
+            <Route path="snagging-list" element={<ProfileGate><SnaggingList /></ProfileGate>} />
             <Route path="company-checker" element={<ProfileGate><CompanyChecker /></ProfileGate>} />
             <Route path="offline-mode" element={<OfflineMode />} />
             <Route path="team" element={<TeamManagement />} />
