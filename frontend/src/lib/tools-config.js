@@ -1093,7 +1093,93 @@ Close with a PREPARED BY block from the user profile (full name, company, today'
 End with two signature blocks: PREPARED BY (user profile) and ACCEPTED BY (client full name printed, company, signature line, date).`),
   t("pricework-variation-tracker", "Price Work Variation Tracker", "pricework", "Tracks every variation on a price-work job. extra rates, extra metres, extra units.", [ta("variations", "Variations (date, description, qty, rate, total)")], "Produce a Price Work Variation Tracker table."),
   t("standing-time-calculator", "Standing Time Calculator", "pricework", "Calculates standing time you are owed when the site can't let you work.", [f("hoursStanding", "Hours standing"), f("dayRate", "Day rate (£)"), ta("reason", "Reason for standing time")], "Produce a Standing Time claim letter / calculation: hours lost × rate, reason, with a request for written approval."),
-  t("pricework-profit", "Price Work Profit Calculator", "pricework", "Quickly works out your profit / £ per hour on a price-work job.", [f("priceWorkValue", "Price work value (£)"), f("hoursOnJob", "Hours on the job"), f("materialsCost", "Materials cost (£)")], "Produce a Price Work Profit summary: Revenue, Materials, Net, Hours, £/hr, vs. day rate benchmark."),
+  t("pricework-profit", "Price Work Profit Calculator", "pricework",
+    "Works out the real profit / hourly rate on a price-work job. Subtracts every cost — materials, plant, labour, fuel, scaffold, waste, your own time — from the agreed price-work value and tells you whether the job was worth it.",
+    [
+      f("jobTitle", "Job title (e.g. First fix sockets — Plot 12)"),
+      f("project", "Project / Site name"),
+      fo("clientName", "Client / Main contractor (optional)"),
+      fp("startDate", "Start date", "today", "date"),
+      fp("endDate", "End date (or today if still on it)", "today", "date"),
+      sel("pricingBasis", "Price work basis", ["Per unit / piece (e.g. £ per socket, £ per metre)", "Lump sum for the whole job", "Per m² / m³", "Per metre", "Other"]),
+      fo("unitRate", "Unit rate (£) — leave blank if lump sum", "number"),
+      fo("unitsCompleted", "Units completed", "number"),
+      f("priceWorkValue", "Total price work value (£) — the agreed price for the job", "number"),
+      f("hoursOnJob", "Your hours on the job (total)", "number"),
+      fo("matesHoursOnJob", "Your mate's / labourer's hours on the job (£cost included below)", "number"),
+      f("materialsCost", "Materials cost — yours, not recharged (£)", "number"),
+      f("consumablesCost", "Consumables (drill bits, blades, screws, sealant) (£)", "number"),
+      f("plantHireCost", "Plant or tool hire (£)", "number"),
+      f("fuelCost", "Fuel / van costs attributable to this job (£)", "number"),
+      f("labourPaidOut", "Labour paid out to your mate / sub (£)", "number"),
+      f("scaffoldOrAccessCost", "Scaffold / access / lifts (£)", "number"),
+      f("wasteAndSkipCost", "Waste removal / skip (£)", "number"),
+      f("otherCosts", "Any other costs (£)", "number"),
+      sel("vatStatus", "VAT treatment", ["Price is net (VAT to be added)", "Price includes VAT 20%", "Price includes VAT 5%", "Zero rated", "Domestic reverse charge (CIS)", "Not VAT registered"]),
+      sel("cisApplicable", "CIS deduction on the labour element?", ["Yes — 20%", "Yes — 30%", "Yes — Gross", "No"]),
+      f("dayRateBenchmark", "Your normal day rate (£) — used as a benchmark", "number"),
+      f("targetHourlyRate", "Your target hourly rate (£)", "number"),
+      tao("notes", "Any notes you want on the summary (optional)"),
+    ],
+    `Produce a Price Work Profit summary. Plain direct construction English. No padding. No banned consultant words. This is an internal management report for the tradesperson — not a letter to a client.
+
+1. HEADER — DOCUMENT REFERENCE, DATE.
+
+2. TITLE — exactly: 'PRICE WORK PROFIT SUMMARY — {jobTitle}'.
+
+3. JOB REFERENCE — list on separate lines, skip any blank line cleanly:
+   Project: {project}
+   Client: {clientName}
+   Start date: {startDate}
+   End date: {endDate}
+   Pricing basis: {pricingBasis}
+   Unit rate: £{unitRate}
+   Units completed: {unitsCompleted}
+
+4. REVENUE — one line:
+   Total price work value: £{priceWorkValue}
+
+5. COSTS BREAKDOWN — money table, one line per row, £ values right-aligned. Use ONLY the fields the user supplied (skip blank lines cleanly — do NOT print £0 unless the user typed 0):
+
+   Materials (yours)                              £{materialsCost}
+   Consumables                                    £{consumablesCost}
+   Plant / tool hire                              £{plantHireCost}
+   Fuel / van                                     £{fuelCost}
+   Labour paid out (mate / sub)                   £{labourPaidOut}
+   Scaffold / access                              £{scaffoldOrAccessCost}
+   Waste / skip                                   £{wasteAndSkipCost}
+   Other                                          £{otherCosts}
+   ___________________________________________________________
+   TOTAL COSTS                                    £[calc: sum of supplied cost lines]
+
+6. NET PROFIT — show the maths clearly:
+   Revenue                  £{priceWorkValue}
+   Less total costs       - £[calc]
+   ___________________________________________________________
+   NET PROFIT               £[calc: revenue - costs]
+   Profit margin            [calc: net profit / revenue × 100]%
+
+7. HOURLY ANALYSIS — show this section only if {hoursOnJob} is supplied:
+   Your hours on the job: {hoursOnJob}
+   Mate / labourer hours: {matesHoursOnJob} (already costed above)
+   Net profit per hour: £[calc: net profit / your hours]
+   Your normal day rate: £{dayRateBenchmark} (≈ £[calc: dayRate / 8] per hour at 8 hr days)
+   Your target hourly rate: £{targetHourlyRate}
+
+8. VERDICT — one short paragraph in plain English: did this job hit, beat or miss the target hourly rate? Quantify it. No hedging. Examples:
+   - 'This job paid £42 per hour against your £35 target. £7 over. Take more of this work.'
+   - 'This job paid £24 per hour against your £35 target. £11 short. Either renegotiate the rate or walk away from this contractor.'
+   - 'This job broke even. Price work value covered costs and your time at day-rate equivalent. No real profit.'
+
+9. CIS / VAT NOTES — show this section only if either applies:
+   - If CIS applies: 'CIS will be deducted from the labour element on payment.'
+   - If VAT is standard or reduced: 'VAT to be added on top: £[calc].'
+   - If 'Domestic reverse charge (CIS)' is selected: 'VAT: Domestic reverse charge — VAT to be accounted for by the customer.'
+
+10. NOTES — only if {notes} supplied. Print verbatim under a 'NOTES' label.
+
+Rules: this is a profit calculator, not a letter — no 'TO' / 'FROM' / sign-off block. Use the user's name and company in the header block only. Never invent figures. Always show the maths. If a field is blank, drop the line entirely — do not write £0 unless the user typed 0. No square-bracket placeholders. No 'kinetic', 'utilise', 'endeavour', 'facilitate', 'prior to', 'operatives are advised'. Short sentences. Read it out loud and it should sound like a sensible foreman talking to himself in the van after the job, not a consultant.`
+  ),
   // ---------- SOLE TRADER ----------
   t("hmrc-correspondence", "HMRC Correspondence", "soletrader", "A polite, correctly-phrased reply to a letter from HMRC.", [ta("hmrcLetter", "Their letter (paste the gist)"), ta("yourPosition", "Your position")], "Produce a professional UK reply to HMRC correspondence. courteous, factual, referencing your UTR and the matter at hand."),
   t("reference-letter", "Reference Letter", "soletrader", "A professional reference for a colleague, apprentice or labourer.", [f("name", "Person's name"), ta("worked", "What they did / for how long")], "Produce a UK professional reference letter for a tradesperson. skills, attitude, reliability."),
