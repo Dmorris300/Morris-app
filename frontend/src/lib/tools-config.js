@@ -1351,7 +1351,77 @@ End with a signed statement block: 'Signed: ____________________ Print name: {di
 10. REVIEW DATE — 30 days from today.
 End with a PREPARED BY block from the user profile (full name, company, today's date) and a SUBCONTRACTOR ACKNOWLEDGEMENT block.`),
   t("commercial-report", "Commercial Report", "contractors", "A weekly / monthly commercial position report. earned value, cost, margin, risk.", [f("project", "Project"), f("period", "Period"), f("earnedValue", "Earned value (£)"), f("costToDate", "Cost to date (£)"), ta("risks", "Commercial risks")], "Produce a Commercial Report: Earned Value, Cost, Margin, Cash Position, Risks, Forecast Final Cost vs Final Value."),
-  t("defects-tracker", "Defects Tracker", "contractors", "Defects log during liability period.", [ta("defects", "Defects (one per line)")], "Produce a Defects Tracker: Ref / Date Reported / Location / Description / Owner / Status / Date Closed."),
+  t("defects-tracker", "Defects Tracker", "contractors",
+    "A formal Defects Tracker covering the contract Defects Liability / Rectification Period. Logs every defect raised against you, who's responsible, when it's due to be fixed, and the status. Produces a clean register that you can issue weekly to the contract administrator. Use this to control the narrative and to prove which defects are yours, which aren't, and which have been closed out.",
+    [
+      f("project", "Project / Site name"),
+      f("siteAddress", "Site address"),
+      f("contractRef", "Contract reference number"),
+      sel("contractForm", "Contract form", ["JCT Design and Build", "JCT Standard Building Contract", "JCT Intermediate", "JCT Minor Works", "NEC4 ECC", "NEC4 ECSC", "Bespoke / Other"]),
+      f("clientName", "Client / Employer / Main contractor"),
+      fo("contractAdminName", "Contract Administrator / Employer's Agent name"),
+      fp("practicalCompletionDate", "Practical Completion date", "today", "date"),
+      fp("defectsPeriodStart", "Defects Liability / Rectification Period — start date", "today", "date"),
+      fp("defectsPeriodEnd", "Defects Liability / Rectification Period — end date (typically PC + 12 months)", "today+365d", "date"),
+      fp("reportDate", "Report date (the date you're issuing this register)", "today", "date"),
+      fp("reportPeriodStart", "Report period — start", "today", "date"),
+      fp("reportPeriodEnd", "Report period — end", "today", "date"),
+      ta("defects", "Defects register — ONE DEFECT PER LINE, in this exact order separated by | (pipe):\nRef | Date Reported | Location | Description | Defect Category | Owner | Priority | Target Fix Date | Status | Date Closed\n\nExample:\nD-001 | 12/03/2026 | Plot 4 kitchen | Socket SK-3 loose in back box | Workmanship | Our defect | High | 19/03/2026 | Open | \nD-002 | 14/03/2026 | Plot 6 bathroom | Tile grout cracking at shower tray | Workmanship | Our defect | Medium | 28/03/2026 | In progress | \nD-003 | 16/03/2026 | Plot 4 hallway | Skirting scratch | Damage by others | Not our defect — referred back to PC | Low | n/a | Disputed | "),
+      f("totalDefects", "Total defects raised in this period (number)", "number"),
+      f("openDefects", "Currently open defects (number)", "number"),
+      f("closedDefects", "Closed defects in this period (number)", "number"),
+      f("disputedDefects", "Disputed / not-our-defect (number)", "number"),
+      tao("openItemsCommentary", "Commentary on open items — programme to close, blockers, parts on order, access issues (one per line, optional)"),
+      tao("disputedItemsCommentary", "Commentary on disputed items — why they are not our defect (one per line, optional)"),
+      tao("accessRequired", "Access required from client to close defects (one per line, optional)"),
+      tao("notes", "Any other notes (optional)"),
+      fp("nextReportDate", "Date of next report", "today+7d", "date"),
+    ],
+    `Produce a UK Defects Tracker register. Plain direct construction English. No padding. No banned consultant words.
+
+1. HEADER — DOCUMENT REFERENCE, DATE. REVIEW DATE = {nextReportDate}.
+
+2. TITLE — exactly: 'DEFECTS TRACKER'. Underneath in smaller text: 'Report date: {reportDate}   Report period: {reportPeriodStart} to {reportPeriodEnd}'.
+
+3. TO — Client / Employer / Main contractor and Contract Administrator (if supplied).
+
+4. FROM — Issued-by block from profile.
+
+5. PROJECT REFERENCE — list on separate lines:
+   Project: {project}
+   Site: {siteAddress}
+   Contract reference: {contractRef}
+   Contract form: {contractForm}
+   Practical Completion: {practicalCompletionDate}
+   Defects Liability / Rectification Period: {defectsPeriodStart} to {defectsPeriodEnd}
+
+6. SUMMARY — four short lines:
+   Total defects raised this period: {totalDefects}
+   Open: {openDefects}
+   Closed: {closedDefects}
+   Disputed / not our defect: {disputedDefects}
+
+7. DEFECTS REGISTER — render the defects from {defects} as a clean table. Parse the pipe-separated lines exactly. Column headers in this exact order:
+   REF | DATE REPORTED | LOCATION | DESCRIPTION | CATEGORY | OWNER | PRIORITY | TARGET FIX | STATUS | DATE CLOSED
+   One row per supplied line. Show the table in monospace alignment if possible.
+   - If a STATUS field reads 'Disputed' or 'Not our defect', highlight that row by adding ' (DISPUTED)' in bold capitals at the end of the OWNER column.
+   - If a STATUS field reads 'Open' and the TARGET FIX date has passed by {reportDate}, add ' (OVERDUE)' in bold capitals at the end of the STATUS column.
+   - If a DATE CLOSED is blank, leave it blank — do not write 'n/a' unless the source line said n/a.
+
+8. OPEN ITEMS COMMENTARY — numbered list from {openItemsCommentary}. Plain language: what's blocking, what's on order, what date it closes by. If blank, write 'See target fix dates in the register.'
+
+9. DISPUTED ITEMS COMMENTARY — numbered list from {disputedItemsCommentary}. State plainly why each is not our defect (caused by another trade, damage by client, snag already signed off at PC, etc.). If blank, omit this section.
+
+10. ACCESS REQUIRED FROM CLIENT — bullet list from {accessRequired}. If blank, omit this section.
+
+11. NEXT REVIEW — one line: 'Next report due: {nextReportDate}.'
+
+12. NOTES — only if {notes} supplied. Print verbatim under a 'NOTES' label.
+
+13. SIGN-OFF — single contractor sign-off block (auto from profile). No client SIGN HERE box on a register — this is an internal record we're issuing.
+
+Rules: this is a register, not a letter — keep it tight. Never invent defects. Use only the lines the user supplied. If a row is missing fields, leave the cells blank rather than guess. No square-bracket placeholders. No 'kinetic', 'utilise', 'endeavour', 'facilitate', 'prior to', 'operatives are advised'. Short sentences. Read it out loud and it should sound like a site agent reporting up the chain, not a consultant.`
+  ),
   t("new-starter-pack", "New Starter Pack", "contractors", "A new-starter induction pack. site rules, emergency procedures, sign-in.", [f("site", "Site")], "Produce a UK New Starter / Site Induction Pack. site rules, PPE, welfare, emergency procedures, sign-in form."),
   t("hire-agreement", "Hire Agreement", "contractors", "A simple plant / equipment hire agreement.", [
       f("hirerName", "Hirer's full name / company name"),
