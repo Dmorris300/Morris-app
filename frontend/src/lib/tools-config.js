@@ -1092,7 +1092,107 @@ Close with a PREPARED BY block from the user profile (full name, company, today'
 9. ACCEPTANCE — 'Acceptance of this Scope of Works confirms the basis on which the supplier will proceed.'
 End with two signature blocks: PREPARED BY (user profile) and ACCEPTED BY (client full name printed, company, signature line, date).`),
   t("pricework-variation-tracker", "Price Work Variation Tracker", "pricework", "Tracks every variation on a price-work job. extra rates, extra metres, extra units.", [ta("variations", "Variations (date, description, qty, rate, total)")], "Produce a Price Work Variation Tracker table."),
-  t("standing-time-calculator", "Standing Time Calculator", "pricework", "Calculates standing time you are owed when the site can't let you work.", [f("hoursStanding", "Hours standing"), f("dayRate", "Day rate (£)"), ta("reason", "Reason for standing time")], "Produce a Standing Time claim letter / calculation: hours lost × rate, reason, with a request for written approval."),
+  t("standing-time-calculator", "Standing Time Calculator", "pricework",
+    "Calculates and claims the standing time you are owed when the site can't let you work — no materials, no access, no instruction, weather hold, client delay. Captures every field a UK main contractor or QS needs to approve the claim under the contract.",
+    [
+      f("project", "Project / Site name"),
+      f("siteAddress", "Site address"),
+      f("contractRef", "Contract reference number"),
+      sel("contractForm", "Contract form", ["JCT Design and Build", "JCT Standard Building Contract", "JCT Intermediate", "JCT Minor Works", "NEC4 ECC", "NEC4 ECSC", "Bespoke / Other"]),
+      f("clientName", "To (Client / Main contractor)"),
+      f("clientAddress", "Their address"),
+      fo("clientReference", "Their reference / job number"),
+      fp("standingDate", "Date(s) of standing time — start", "today", "date"),
+      fp("standingDateEnd", "Date(s) of standing time — end", "today", "date"),
+      fp("notifiedDate", "Date the standing time was first notified to the client / site manager", "today", "date"),
+      f("notifiedTo", "Who was notified (name and role on site)"),
+      sel("notificationMethod", "How was it notified?", ["Verbally on site", "Phone call", "Email", "Text / WhatsApp", "Site Diary entry"]),
+      f("hoursStanding", "Total hours standing", "number"),
+      f("menStanding", "Number of operatives standing", "number"),
+      f("hourlyRate", "Hourly rate per operative (£)", "number"),
+      f("dayRate", "Day rate per operative (£) — used as a check", "number"),
+      f("plantStanding", "Plant / tools / scaffold standing idle — cost per day (£)", "number"),
+      sel("reasonCategory", "Reason for standing time", [
+        "Materials not on site",
+        "No access / area not ready",
+        "Awaiting instruction or RFI response",
+        "Awaiting other trade ahead of us",
+        "Design information not issued",
+        "Weather hold instructed by client",
+        "Site shut by client",
+        "Welfare / H&S issue stopped work",
+        "Power / services off",
+        "Other (set out below)"
+      ]),
+      ta("reasonDetail", "Detail of the reason — what happened, when, who you spoke to (one point per line)"),
+      ta("supportingEvidence", "Supporting evidence (Site Diary references, photo numbers, email subjects, RFI numbers — one per line)"),
+      sel("contractClause", "Contract basis for the claim", [
+        "Loss and Expense (JCT D&B clause 4.20 / equivalent)",
+        "Compensation Event (NEC4 clause 60.1)",
+        "Daywork rate agreed in contract",
+        "Variation instruction issued",
+        "Reasonable cost — no specific clause, common law"
+      ]),
+      sel("vatStatus", "VAT status", ["Standard rate 20%", "Reduced rate 5%", "Zero rated", "Domestic reverse charge (CIS)", "Not VAT registered"]),
+      sel("cisApplicable", "CIS deduction applies to the labour element?", ["Yes — 20%", "Yes — 30%", "Yes — Gross", "No"]),
+      fp("responseDeadline", "Date by which written approval is requested", "today+7d", "date"),
+      tao("notes", "Any other notes (optional)"),
+    ],
+    `Produce a UK Standing Time claim letter and calculation. Plain direct construction English. No padding. No banned consultant words.
+
+1. HEADER — DOCUMENT REFERENCE, DATE.
+
+2. TO — Client / Main contractor name and address.
+
+3. FROM — Issued-by block from profile (Name, Company, Address, Contact, UTR if CIS applies, VAT number if VAT-registered).
+
+4. SUBJECT line — exactly: 'STANDING TIME CLAIM — {project} — {standingDate}'.
+
+5. OPENING — One short paragraph stating we were prevented from working between {standingDate} and {standingDateEnd}. State the standing time was notified on {notifiedDate} to {notifiedTo} via {notificationMethod}. State written approval is requested by {responseDeadline}.
+
+6. EVENT REFERENCE — list on separate lines, skip any blank line cleanly:
+   Project: {project}
+   Site: {siteAddress}
+   Contract reference: {contractRef}
+   Contract form: {contractForm}
+   Reason category: {reasonCategory}
+   Contract basis for the claim: {contractClause}
+   Date(s) of standing time: {standingDate} to {standingDateEnd}
+   Notified on: {notifiedDate}
+   Notified to: {notifiedTo} ({notificationMethod})
+
+7. WHAT HAPPENED — numbered list from {reasonDetail}. One short line per point. No padding.
+
+8. CALCULATION — money table, one line per row, show the maths transparently:
+   Operatives standing: {menStanding}
+   Hours standing per operative: {hoursStanding}
+   Hourly rate per operative: £{hourlyRate}
+   Labour standing cost: £[calc: menStanding × hoursStanding × hourlyRate]
+   Day rate cross-check: {menStanding} × £{dayRate} per day = £[calc: menStanding × dayRate × (hoursStanding / 8)] (use the higher of the two figures and explain in one line which has been used and why)
+   Plant / tools / scaffold standing idle: £{plantStanding}
+   ___________________________________________________________
+   STANDING TIME CLAIMED                          £[calc: chosen labour figure + plant standing]
+
+   If VAT is standard or reduced rated, add a VAT line and show the gross.
+   If 'Domestic reverse charge (CIS)' is selected, add: 'VAT: Domestic reverse charge — VAT to be accounted for by the customer.'
+   If CIS applies, add a CIS deduction line on the labour element and show the net cash payable.
+
+9. SUPPORTING EVIDENCE — numbered list from {supportingEvidence}. If blank, write 'Site Diary entries available on request.'
+
+10. CONTRACTUAL BASIS — one short paragraph naming the clause from {contractClause}. No paragraph of explanation. For example:
+   - 'This claim is made under Loss and Expense provisions of the contract (JCT D&B clause 4.20 or equivalent).'
+   - 'This is a Compensation Event under NEC4 clause 60.1. An early warning was given on {notifiedDate}.'
+
+11. STATUTORY NOTICE — one short paragraph: 'This claim is served under the payment provisions of the Housing Grants Construction and Regeneration Act 1996 (as amended). The Late Payment of Commercial Debts (Interest) Act 1998 applies to any sum unpaid after the final date for payment.'
+
+12. REQUESTED ACTION — one bold line: 'Please confirm approval of this standing time claim in writing by {responseDeadline}.'
+
+13. NOTES — only if {notes} supplied. Print verbatim under a 'NOTES' label.
+
+14. SIGN-OFF — global dual sign-off block (contractor signed; client SIGN HERE box).
+
+Rules: never invent facts. Always show the maths. If a field is blank, drop the line entirely — do not write £0 unless the user typed 0. No square-bracket placeholders. No 'kinetic', 'utilise', 'endeavour', 'facilitate', 'prior to', 'operatives are advised'. Short sentences. Read it out loud and it should sound like a foreman protecting his money, not a consultant.`
+  ),
   t("pricework-profit", "Price Work Profit Calculator", "pricework",
     "Works out the real profit / hourly rate on a price-work job. Subtracts every cost — materials, plant, labour, fuel, scaffold, waste, your own time — from the agreed price-work value and tells you whether the job was worth it.",
     [
