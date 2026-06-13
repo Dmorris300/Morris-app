@@ -6,7 +6,7 @@ import LiveSignatureBlock from "../components/LiveSignatureBlock";
 import api from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertTriangle } from "lucide-react";
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 const inOneYearIso = () => {
@@ -164,6 +164,17 @@ export default function GenericToolPage() {
     <div className="p-6 md:p-10 max-w-6xl mx-auto" data-testid={`tool-page-${tool.id}`}>
       <ToolHeader tool={tool} infoOpen={infoOpen} setInfoOpen={setInfoOpen} />
 
+      {tool.warningBanner && (
+        <div
+          className="mb-6 p-4 rounded flex items-start gap-3"
+          style={{ border: "2px solid #E8A020", background: "rgba(232,160,32,0.08)" }}
+          data-testid="tool-warning-banner"
+        >
+          <AlertTriangle size={20} className="text-[#E8A020] mt-0.5 flex-shrink-0" />
+          <p className="text-sm text-[#F0EDE8] leading-relaxed">{tool.warningBanner}</p>
+        </div>
+      )}
+
       {attachedPhoto && (
         <div
           className="mb-4 p-3 rounded flex items-center gap-3 flex-wrap"
@@ -284,6 +295,9 @@ export default function GenericToolPage() {
                       onChange={(e) => setValues({ ...values, [field.name]: e.target.value })}
                       data-testid={`field-${field.name}`}
                     />
+                  )}
+                  {field.helperText && (
+                    <div className="text-[10px] text-[#706D66] mt-1 leading-relaxed">{field.helperText}</div>
                   )}
                 </div>
               );

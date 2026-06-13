@@ -23,12 +23,12 @@ export const SECTIONS = [
   { id: "account", label: "Account" },
 ];
 
-// Common field types
-const f = (name, label, type = "text", placeholder = "") => ({ name, label, type, placeholder });
-const ta = (name, label, placeholder = "") => ({ name, label, type: "textarea", placeholder });
+// Common field types — all accept an optional opts object (helperText, etc.)
+const f = (name, label, type = "text", placeholder = "", opts = {}) => ({ name, label, type, placeholder, ...opts });
+const ta = (name, label, placeholder = "", opts = {}) => ({ name, label, type: "textarea", placeholder, ...opts });
 // Optional field — Generate button does not gate on this
-const fo = (name, label, type = "text", placeholder = "") => ({ name, label, type, placeholder, optional: true });
-const tao = (name, label, placeholder = "") => ({ name, label, type: "textarea", placeholder, optional: true });
+const fo = (name, label, type = "text", placeholder = "", opts = {}) => ({ name, label, type, placeholder, optional: true, ...opts });
+const tao = (name, label, placeholder = "", opts = {}) => ({ name, label, type: "textarea", placeholder, optional: true, ...opts });
 // Select dropdown — options = ["A","B"] or [{label,value}]
 const sel = (name, label, options, opts = {}) => ({ name, label, type: "select", options, ...opts });
 // Multi-select checkbox group
@@ -1240,7 +1240,114 @@ End with an ISSUED BY block from the user profile (full name printed, company, t
 Close with a PREPARED BY block from the user profile (full name, company, today's date).
 
 Rules: never invent attendee names — use only what the user supplied. If a field is blank, drop the line cleanly. No 'kinetic', 'utilise', 'endeavour', 'facilitate', 'prior to', 'operatives are advised'. Short sentences. Read it out loud and it should sound like a foreman briefing his gang on site, not a consultant.`),
-  t("asbestos-record", "Asbestos Record", "site", "A record entry for asbestos awareness. refurbishment & demolition survey reference, suspected ACMs, actions.", [f("location", "Location"), ta("suspect", "Suspect material / location"), ta("action", "Action taken")], "Produce an Asbestos Awareness Record entry, referencing CAR 2012 and the requirement for a Refurbishment & Demolition Survey before intrusive works."),
+  t("asbestos-record", "Asbestos Record", "site",
+    "Legally serious record under the Control of Asbestos Regulations 2012 (CAR 2012). Use when suspected asbestos-containing material is discovered on site. Captures every detail the principal contractor, site manager, HSE and any licensed asbestos surveyor will need.",
+    [
+      f("siteAddress", "Site name and address"),
+      fp("dateDiscovered", "Date discovered", "today", "date"),
+      f("timeDiscovered", "Time discovered", "time"),
+      ta("exactLocation", "Exact location of material — describe precisely where on site the material was found"),
+      sel("materialType", "Material type (suspected)", [
+        "Ceiling tiles",
+        "Floor tiles / vinyl",
+        "Pipe lagging / insulation",
+        "Roof sheets / corrugated panels",
+        "Textured coating (e.g. Artex)",
+        "Insulation board",
+        "Sprayed coating",
+        "Unknown / unsure",
+      ]),
+      sel("conditionOfMaterial", "Condition of material", [
+        "Good / undamaged",
+        "Slightly damaged",
+        "Damaged / deteriorating",
+        "Badly damaged / friable (crumbling)",
+      ]),
+      f("approximateQuantity", "Approximate quantity / area affected", "text", "e.g. 2m² of ceiling tiles; 6 lengths of pipe lagging"),
+      tgl("materialDisturbed", "Was the material disturbed before discovery?"),
+      tgl("workStopped", "Has work been stopped?", {
+        helperText: "If No: work should be stopped in the affected area until material is assessed.",
+      }),
+      cbg("personsInformed", "Who was informed?", [
+        "Principal Contractor",
+        "Site Manager",
+        "Client",
+        "Health & Safety Officer",
+        "Other",
+      ]),
+      fo("personsInformedOther", "If 'Other' — who else was informed?", "text", "Name and role"),
+      sel("licensedContractorRequired", "Licensed contractor required?", ["Yes", "No", "Unknown"], {
+        helperText: "Insulation, lagging, and sprayed coatings typically require an HSE-licensed contractor.",
+      }),
+      sel("hseNotificationRequired", "HSE notification required?", ["Yes", "No", "Unsure"], {
+        helperText: "Licensed asbestos work must be notified to the HSE before work begins.",
+      }),
+      cbg("ppeInUse", "PPE in use at time of discovery", [
+        "None",
+        "Dust mask",
+        "P3 respirator",
+        "Full PPE",
+        "Gloves",
+        "Disposable overalls",
+      ]),
+      ta("personsExposed", "Persons potentially exposed — list names of anyone who may have been in the area"),
+      ta("actionTaken", "Action taken — what was done immediately after discovery"),
+      ta("furtherActionRequired", "Further action required — what needs to happen next and by whom?"),
+    ],
+    `Produce an ASBESTOS DISCOVERY RECORD under the Control of Asbestos Regulations 2012 (CAR 2012). Plain direct construction English. Treat this as a legally serious record — firm and exact. No padding. No banned consultant words.
+
+1. HEADER — DOCUMENT REFERENCE, DATE (use {dateDiscovered} for DATE).
+
+2. TITLE — exactly: 'ASBESTOS DISCOVERY RECORD — CAR 2012'.
+
+3. PROMINENT STOP WORK NOTICE — print this as a clearly separated boxed block at the very top of the document:
+   STOP WORK NOTICE
+   If you discover suspected asbestos, STOP WORK immediately. Do not disturb the material. This record must be completed and passed to the principal contractor or site manager without delay. Licensed removal must be carried out by an HSE-licensed contractor.
+
+4. SITE AND DISCOVERY DETAILS — list on separate lines, skip any blank line cleanly:
+   Site: {siteAddress}
+   Date discovered: {dateDiscovered}
+   Time discovered: {timeDiscovered}
+   Discovered by: (auto from profile — full name + trade/role)
+
+5. MATERIAL DETAILS — list on separate lines:
+   Suspected material type: {materialType}
+   Condition: {conditionOfMaterial}
+   Approximate quantity / area affected: {approximateQuantity}
+   Exact location on site: {exactLocation}
+   Material disturbed before discovery: {materialDisturbed}
+
+6. SITE CONTROL — list on separate lines:
+   Work stopped in affected area: {workStopped}
+   Persons informed: {personsInformed}{personsInformedOther → ' — also: ' + value}
+   Licensed contractor required: {licensedContractorRequired}
+   HSE notification required: {hseNotificationRequired}
+
+7. PPE IN USE AT TIME OF DISCOVERY — print {ppeInUse} as a numbered list (it's a comma-separated string — split and number each item). If 'None' is the only value, write 'None — operatives had no asbestos-grade PPE in use at the time of discovery.'
+
+8. PERSONS POTENTIALLY EXPOSED — print {personsExposed} verbatim under this heading. If blank, write 'No persons identified as potentially exposed at the time of this record.'
+
+9. ACTION TAKEN — print {actionTaken} verbatim as a numbered list (one short line per action).
+
+10. FURTHER ACTION REQUIRED — print {furtherActionRequired} verbatim as a numbered list. If blank, write 'A qualified asbestos surveyor to assess the material before any further work in the affected area.'
+
+11. LEGAL REFERENCE — one short paragraph naming the Control of Asbestos Regulations 2012 (CAR 2012). State the duty to manage asbestos in non-domestic premises (Regulation 4) and the prohibition on disturbing asbestos-containing materials without proper assessment and, where required, an HSE-licensed contractor. Do not paraphrase the full Regulations — list by name and move on.
+
+12. DISCLAIMER — print this as a final boxed block, verbatim:
+   This record does not constitute an asbestos survey. A qualified surveyor must assess the material before any further work takes place in the affected area.
+
+13. SIGN-OFF — single record-keeper sign-off block:
+   Completed by: (auto from profile — full name)
+   Role / Trade: (auto from profile — trade)
+   Signature: (auto-insert user's saved signature from profile if held; otherwise leave a clear signature line)
+   Date: {dateDiscovered}
+   Time: {timeDiscovered}
+
+Rules: never invent facts. If a field is blank, leave the line out cleanly. No square-bracket placeholders. No 'kinetic', 'utilise', 'endeavour', 'facilitate', 'prior to', 'operatives are advised'. Short sentences. This document may be read by an HSE inspector. Treat every line as a contemporaneous legal record.`,
+    {
+      warningBanner: "If you discover suspected asbestos, STOP WORK immediately. Do not disturb the material. This record must be completed and passed to the principal contractor or site manager without delay. Licensed removal must be carried out by an HSE-licensed contractor.",
+    }
+  ),
   t("snagging-list", "Snagging List", "site",
     "A formal snagging list with project, inspection and item-level detail. Used at handover to record every defect that must be put right.",
     [
