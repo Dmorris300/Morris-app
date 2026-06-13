@@ -1420,7 +1420,11 @@ End with an INSPECTED BY block (inspector name, role, signature line, today's da
 13. REVIEW — review date is 12 months from today's date OR sooner if the substance, process or controls change.
 14. BRIEFING — list a sign-off table with columns Print Name / Signature / Date for every operative who handles the substance.
 Close with a PREPARED BY block from the user profile (full name, company, today's date) and a REVIEWED BY block.`),
-  t("noise-assessment", "Noise Assessment", "site", "Noise at Work assessment. exposure, hearing protection required.", [f("activity", "Activity"), f("estimatedDb", "Estimated dB(A)")], "Produce a Control of Noise at Work Regulations 2005 assessment. exposure action values 80/85 dB(A), hearing protection required, signage."),
+  t("noise-assessment", "Noise Assessment", "site",
+    "Noise risk assessment under the Control of Noise at Work Regulations 2005. Captures sources, exposure levels, duration, and controls. Auto-classifies the risk using HSE legal action values (80 / 85 / 87 dB(A)).",
+    [],
+    "Produce a UK Noise Risk Assessment (see the dedicated page for full inputs)."
+  ),
   t("manual-handling", "Manual Handling Assessment", "site", "A TILE / LITE manual handling risk assessment.", [f("load", "Load / item"), f("weight", "Weight"), ta("task", "Task description")], "Produce a Manual Handling Operations Regulations 1992 assessment using the TILE method (Task, Individual, Load, Environment) for the supplied task."),
   t("working-at-height-rescue", "Working at Height Rescue Plan", "site", "Mandatory Working at Height rescue plan. what happens if someone falls into a harness.", [f("activity", "Activity"), f("height", "Working height"), ta("rescueMethod", "Rescue method available")], "Produce a Working at Height Regulations 2005 Rescue Plan. fall arrest equipment, rescue method, suspension trauma considerations, emergency contacts."),
   // ---------- PRICE WORK ----------

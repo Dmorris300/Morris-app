@@ -48,6 +48,14 @@ Dark-themed construction administration SaaS web application for UK tradespeople
   - DD/MM/YYYY format everywhere in document body; footer "Portable electrical equipment… 110v… retained for duration of project" verbatim.
   - Verified end-to-end: all 9 acceptance checks pass.
 
+- ✅ **[REBUILD] Noise Assessment — dedicated page** (Feb 13, 2026)
+  - New page `/app/frontend/src/pages/NoiseAssessment.jsx`, wired through `App.js`, `GenericToolPage`, `tools-config.js`.
+  - 6 sections: Assessment Details, Noise Sources (dynamic table with per-row auto-calculated risk band), Workers Affected (with conditional health-surveillance gold warning when "regularly above 85 dB(A)" = Yes), Control Measures (8-item tri-state checklist), Overall Assessment Outcome (auto rolls up to highest risk band), Sign Off (signature pad + auto-today + legal reference).
+  - **Risk classification per Control of Noise at Work Regulations 2005**: <80 dB(A) green Low Risk, 80–84 gold Lower Action Value, 85–86 orange Upper Action Value, ≥87 red Exposure Limit Exceeded.
+  - Overall Site Risk auto-rolls up to the highest band across all sources, shown prominently with matching colour.
+  - Legal reference (80/85/87 dB(A) values) and disclaimer rendered verbatim in document body.
+  - Verified end-to-end: all 11 acceptance checks pass.
+
 ### Previous session (pre-fork, captured in handoff)
 - Stripe live keys + price IDs + Customer Portal endpoint
 - Resend integration with PDF attachments (`/api/refund-summary/email`)
