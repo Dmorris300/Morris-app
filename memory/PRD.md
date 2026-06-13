@@ -90,6 +90,14 @@ Dark-themed construction administration SaaS web application for UK tradespeople
   - Stage 1: polite reminder. Stage 2: firm + statutory interest (8% + BoE base). Stage 3: "NOTICE OF INTENTION TO PURSUE LEGAL ACTION" with Late Payment Act 1998, Scheme for Construction Contracts 1998, HGCRA 1996 references, 7-day deadline, dual sign-off.
   - Verified end-to-end: all 11 acceptance checks pass.
 
+- ✅ **[REBUILD] Subcontractor Management — dedicated page** (Feb 13, 2026)
+  - New page `/app/frontend/src/pages/SubcontractorManagement.jsx`, wired through `App.js`, `GenericToolPage`, `tools-config.js`.
+  - **Live compliance register** for subbies engaged. Card-based dynamic list with 14 fields per subbie: Name/Company, Trade/Scope, Phone, Email, UTR, CIS Verified toggle (green when Yes), CIS Deduction Rate dropdown, Public Liability Insurance (Yes/No/Expired), Insurance Expiry date, RAMS (Yes/No/Pending), Induction (Yes/No), Payment Terms (with Other free text), Current Status, Notes.
+  - **Live compliance summary** with 6 metrics — Not Verified / Insurance Bad / No RAMS / No Induction all **gold-highlighted with "Action Required" badge** when count > 0. Insurance-bad also catches "Yes" but expired-by-date.
+  - **Static gold CIS warning banner**: HMRC verification requirement with live gov.uk deep link + helpline 0300 200 3210.
+  - Document output: full register verbatim, compliance summary, CIS warning, footer about keeping the register up to date.
+  - Verified end-to-end: 9 of 9 substantive checks pass.
+
 ### Previous session (pre-fork, captured in handoff)
 - Stripe live keys + price IDs + Customer Portal endpoint
 - Resend integration with PDF attachments (`/api/refund-summary/email`)

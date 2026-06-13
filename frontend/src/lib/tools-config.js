@@ -1659,7 +1659,11 @@ Rules: this is a profit calculator, not a letter — no 'TO' / 'FROM' / sign-off
   t("rate-increase-letter", "Rate Increase Letter", "soletrader", "A short, professional letter notifying a client that your rate is going up.", [f("oldRate", "Old rate"), f("newRate", "New rate"), f("effective", "Effective from")], "Produce a UK rate increase letter. reference rising costs (materials, fuel, insurance) and effective date."),
   t("apprentice-manager", "Apprentice Manager", "soletrader", "Progress, training and competency tracker for your apprentice.", [f("apprenticeName", "Apprentice"), ta("progress", "Recent progress / skills")], "Produce an Apprentice Progress Report. units of competence covered, skills gained, areas to develop, next steps."),
   // ---------- CONTRACTORS ----------
-  t("subbie-mgmt", "Subcontractor Management", "contractors", "A subcontractor management dossier. contact, scope, payment status, compliance.", [f("subbie", "Subcontractor"), ta("notes", "Status / notes")], "Produce a Subcontractor Management summary: Contact, Trade, Scope, Order Value, Paid To Date, Compliance (insurance, CSCS, RAMS), Status."),
+  t("subbie-mgmt", "Subcontractor Management", "contractors",
+    "Live compliance register for subcontractors you engage. Tracks CIS status, insurance, RAMS, induction, payment terms, and current status. Not a one-off document — add subbies as you take them on.",
+    [],
+    "Produce a UK Subcontractor Register (see the dedicated page for full inputs)."
+  ),
   t("variation-tracker", "Variation Tracker", "contractors", "A multi-job variation tracker.", [ta("variations", "Variations across jobs")], "Produce a multi-project Variation Tracker table."),
   t("rams-library", "RAMS Library", "contractors", "Index of your RAMS documents by trade / activity.", [ta("entries", "RAMS in library")], "Produce a RAMS Library index: Reference / Activity / Trade / Version / Date / Review Due."),
   t("contract-mgmt", "Contract Management", "contractors", "Contract register. parties, value, dates, key clauses.", [ta("contracts", "Contracts (one per line)")], "Produce a Contract Register: Ref / Parties / Value / Start / End / Retention / Key Clauses / Status."),
