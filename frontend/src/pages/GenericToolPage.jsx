@@ -122,6 +122,7 @@ export default function GenericToolPage() {
   if (tool.id === "noise-assessment") return <RedirectTo path="/app/noise-assessment" />;
   if (tool.id === "working-at-height-rescue") return <RedirectTo path="/app/working-at-height-rescue" />;
   if (tool.id === "manual-handling") return <RedirectTo path="/app/manual-handling" />;
+  if (tool.id === "variation-instruction-log") return <RedirectTo path="/app/variation-instruction-log" />;
 
   const onGenerate = async () => {
     if (missingRequired.length > 0) {

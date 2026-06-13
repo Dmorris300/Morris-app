@@ -1386,7 +1386,11 @@ End with an INSPECTED BY block (inspector name, role, signature line, today's da
   ),
   t("procurement-schedule", "Procurement Schedule", "site", "A procurement schedule listing key materials, lead times, order-by dates.", [ta("items", "Items + lead times")], "Produce a Procurement Schedule: Item / Required On Site / Lead Time / Order By / Supplier / Status."),
   t("risk-register", "Risk Register", "site", "A live risk register with probability × impact scoring (risk matrix).", [ta("risks", "Risks (one per line)")], "Produce a Risk Register: Ref / Risk Description / Probability (1–5) / Impact (1–5) / Score / Owner / Mitigation / Status."),
-  t("variation-instruction-log", "Variation Instruction Log", "site", "A live log of every variation instruction received. date, source, status, value.", [ta("variations", "Variations (one per line)")], "Produce a Variation Instruction Log: VO No / Date / Source / Description / Estimated £ / Status / Approved By."),
+  t("variation-instruction-log", "Variation Instruction Log", "site",
+    "A live register of every variation, extra and change instructed by the client or main contractor. Add rows throughout the project so no variation is forgotten or unpaid. Summary panel updates live.",
+    [],
+    "Produce a UK Variation Instruction Log (see the dedicated page for full inputs)."
+  ),
   t("coshh", "COSHH Assessment", "site", "Control of Substances Hazardous to Health assessment for a specific substance you use.", [
       f("substance", "Substance / product name (as on the container)"),
       fo("manufacturer", "Manufacturer / supplier"),

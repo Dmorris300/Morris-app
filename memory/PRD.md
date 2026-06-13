@@ -74,6 +74,15 @@ Dark-themed construction administration SaaS web application for UK tradespeople
   - Footer: "This assessment must be reviewed whenever the task or working conditions change, or following any manual handling injury."
   - Verified end-to-end: all 11 acceptance checks pass.
 
+- ✅ **[REBUILD] Variation Instruction Log — dedicated page** (Feb 13, 2026)
+  - New page `/app/frontend/src/pages/VariationInstructionLog.jsx`, wired through `App.js`, `GenericToolPage`, `tools-config.js`.
+  - Live register for a project: dynamic table with 11 columns per row. **Auto-generated sequential references** (VI-001, VI-002…).
+  - **Date Submitted column conditionally renders** only when "Variation Order Submitted?" = Yes.
+  - **Live summary panel** with 8 metrics: total count, total estimated, total agreed, total paid, pending, submitted-not-agreed, disputed, **outstanding amount (gold-highlighted)**. Outstanding = agreed-or-estimated for any row not Paid/Withdrawn.
+  - Gold "Important Note" banner directs users to the Verbal-to-Variation tool, with a live in-app deep link.
+  - Document output preserves all rows verbatim, summary verbatim, important note + footer ("Retain with the project file") verbatim.
+  - Verified end-to-end: all 11 acceptance checks pass.
+
 ### Previous session (pre-fork, captured in handoff)
 - Stripe live keys + price IDs + Customer Portal endpoint
 - Resend integration with PDF attachments (`/api/refund-summary/email`)
