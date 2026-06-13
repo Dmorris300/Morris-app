@@ -1425,7 +1425,11 @@ Close with a PREPARED BY block from the user profile (full name, company, today'
     [],
     "Produce a UK Noise Risk Assessment (see the dedicated page for full inputs)."
   ),
-  t("manual-handling", "Manual Handling Assessment", "site", "A TILE / LITE manual handling risk assessment.", [f("load", "Load / item"), f("weight", "Weight"), ta("task", "Task description")], "Produce a Manual Handling Operations Regulations 1992 assessment using the TILE method (Task, Individual, Load, Environment) for the supplied task."),
+  t("manual-handling", "Manual Handling Assessment", "site",
+    "TILE-framework manual handling assessment under the Manual Handling Operations Regulations 1992. Captures Task, Individual, Load, Environment and the controls in place. Legal requirement — breach is a criminal offence even where no injury occurs.",
+    [],
+    "Produce a UK Manual Handling Risk Assessment using the HSE TILE framework (see the dedicated page for full inputs)."
+  ),
   t("working-at-height-rescue", "Working at Height Rescue Plan", "site",
     "Mandatory rescue plan under the Work at Height Regulations 2005. A rescue plan must be in place before work at height begins, especially where fall arrest equipment is used. Suspension trauma can be fatal within minutes.",
     [],
