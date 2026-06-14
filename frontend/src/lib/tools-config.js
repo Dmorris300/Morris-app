@@ -1374,7 +1374,11 @@ Rules: never invent facts. If a field is blank, leave the line out cleanly. No s
     [],
     "Produce a UK Meeting Notes record (see the dedicated page for full inputs)."
   ),
-  t("delivery-record", "Delivery Record", "site", "A goods received record. supplier, items, condition, signed for.", [f("date", "Date"), f("supplier", "Supplier"), ta("items", "Items received"), f("condition", "Condition")], "Produce a Delivery Record table with Date / Supplier / Delivery Note No / Items / Quantity / Condition / Received By."),
+  t("delivery-record", "Delivery Record", "site",
+    "Goods-received record used at site for verifying deliveries against orders, flagging short or damaged deliveries, and providing a dual-signed record for raising disputes with suppliers. Auto-flags overall status (Complete or Incomplete / Disputed) from the item table.",
+    [],
+    "Produce a UK Delivery Record (see the dedicated page for full inputs)."
+  ),
   t("tool-register", "Tool and Equipment Register", "site",
     "Records all tools and equipment brought to site, confirms condition and ownership, and tracks inspection and PAT testing status. Acts as a site inventory and legal record of equipment safety compliance.",
     [],
