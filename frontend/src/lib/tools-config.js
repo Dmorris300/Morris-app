@@ -1746,7 +1746,11 @@ Rules:
     [],
     "Produce a UK Contract Register (see the dedicated page for full inputs)."
   ),
-  t("multiuser-site-diary", "Multi-user Site Diary", "contractors", "A consolidated daily diary across multiple gangs / sub-trades.", [f("date", "Date"), ta("gangs", "Gangs and their works")], "Produce a consolidated multi-gang Site Diary for the supplied date."),
+  t("multiuser-site-diary", "Multi-User Site Diary", "contractors",
+    "Daily site diary for subcontractor bosses running multiple gangs or teams on the same site. Each gang's activities, labour, hours, materials and issues are recorded separately to produce a structured daily record across the whole operation.",
+    [],
+    "Produce a UK Multi-User Site Diary (see the dedicated page for full inputs)."
+  ),
   t("payment-tracker", "Payment Tracker", "contractors",
     "Live financial register of every invoice across all active jobs. Auto-calculates CIS deductions and net amount due per row, and rolls up the totals you need for Self Assessment — total invoiced, total CIS deducted, total received, retention held, outstanding balance, plus an overdue counter.",
     [],

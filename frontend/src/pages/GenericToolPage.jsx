@@ -149,6 +149,7 @@ export default function GenericToolPage() {
   if (tool.id === "site-access-permit") return <RedirectTo path="/app/site-access-permit" />;
   if (tool.id === "rams-library") return <RedirectTo path="/app/rams-library" />;
   if (tool.id === "contract-mgmt") return <RedirectTo path="/app/contract-mgmt" />;
+  if (tool.id === "multiuser-site-diary") return <RedirectTo path="/app/multiuser-site-diary" />;
 
   const onGenerate = async () => {
     if (missingRequired.length > 0) {
