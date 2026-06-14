@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Outlet, Link, useNavigate, useLocation } from "react-router-dom";
 import { MorrisLogo, MorrisWordmark } from "./MorrisLogo";
 import { TOOLS, WOW_TOOLS, SECTIONS, ACCOUNT_TOOLS, getToolsBySection, emojiFor } from "../lib/tools-config";
@@ -11,6 +11,8 @@ import Breadcrumbs from "./Breadcrumbs";
 import CommandPalette from "./CommandPalette";
 import OnboardingTour from "./OnboardingTour";
 import NotificationBell from "./NotificationBell";
+import { runAlertChecks } from "../lib/alerts";
+import "../lib/alerts-seed"; // dev only: exposes window.__morrisSeedAlerts
 
 export default function AppShell() {
   const { user, logout } = useAuth();
@@ -23,6 +25,9 @@ export default function AppShell() {
   const [openSections, setOpenSections] = useState({ documents: true, finance: true, site: false, pricework: false, soletrader: false, contractors: false, account: true });
 
   const recentlyUsed = (user?.recentlyUsed || []).slice(0, 5);
+
+  // Phase 3: run proactive alert checks on every app load.
+  useEffect(() => { runAlertChecks(); }, []);
 
   const allTools = useMemo(() => [...TOOLS, ...WOW_TOOLS, ...ACCOUNT_TOOLS], []);
   const filtered = query.trim() ? allTools.filter(t => t.name.toLowerCase().includes(query.toLowerCase())) : null;
