@@ -1902,7 +1902,11 @@ End with a PREPARED BY block from the user profile (full name, company, today's 
 
 Rules: this is a register, not a letter — keep it tight. Never invent defects. Use only the lines the user supplied. If a row is missing fields, leave the cells blank rather than guess. No square-bracket placeholders. No 'kinetic', 'utilise', 'endeavour', 'facilitate', 'prior to', 'operatives are advised'. Short sentences. Read it out loud and it should sound like a site agent reporting up the chain, not a consultant.`
   ),
-  t("new-starter-pack", "New Starter Pack", "contractors", "A new-starter induction pack. site rules, emergency procedures, sign-in.", [f("site", "Site")], "Produce a UK New Starter / Site Induction Pack. site rules, PPE, welfare, emergency procedures, sign-in form."),
+  t("new-starter-pack", "New Starter Pack", "contractors",
+    "Complete new starter document pack for a worker joining a site or company. Captures worker details, right to work check, CIS status, documents checked, PPE issued and a full site induction checklist. Signed by both employer and starter before site activities begin.",
+    [],
+    "Produce a UK New Starter Pack (see the dedicated page for full inputs)."
+  ),
   t("hire-agreement", "Hire Agreement", "contractors", "A simple plant / equipment hire agreement.", [
       f("hirerName", "Hirer's full name / company name"),
       ta("hirerAddress", "Hirer's address"),

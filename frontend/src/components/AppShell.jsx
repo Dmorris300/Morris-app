@@ -10,6 +10,7 @@ import SessionTimeout from "./SessionTimeout";
 import Breadcrumbs from "./Breadcrumbs";
 import CommandPalette from "./CommandPalette";
 import OnboardingTour from "./OnboardingTour";
+import NotificationBell from "./NotificationBell";
 
 export default function AppShell() {
   const { user, logout } = useAuth();
@@ -37,7 +38,10 @@ export default function AppShell() {
           <MorrisLogo size={32} />
           {!collapsed && <MorrisWordmark size="text-xl" />}
         </Link>
-        <button className="md:hidden text-[#A19D94]" onClick={() => setMobileOpen(false)} data-testid="sidebar-close-mobile"><X size={20} /></button>
+        <div className="flex items-center gap-1">
+          <NotificationBell testIdPrefix="notifications-desktop" />
+          <button className="md:hidden text-[#A19D94]" onClick={() => setMobileOpen(false)} data-testid="sidebar-close-mobile"><X size={20} /></button>
+        </div>
       </div>
 
       <div className="p-3 border-b border-[#F0EDE8]/5">
@@ -126,7 +130,7 @@ export default function AppShell() {
       <div className="md:hidden fixed top-0 inset-x-0 z-30 bg-[#060606] border-b border-[#F0EDE8]/5 px-4 py-3 flex items-center justify-between">
         <button onClick={() => setMobileOpen(true)} className="text-[#F0EDE8]" data-testid="mobile-menu-open"><Menu size={22} /></button>
         <div className="flex items-center gap-2"><MorrisLogo size={28} /><MorrisWordmark size="text-xl" /></div>
-        <div className="w-6" />
+        <NotificationBell testIdPrefix="notifications-mobile" />
       </div>
 
       {/* Sidebar. desktop */}
