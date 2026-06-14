@@ -1826,7 +1826,11 @@ End with a signed statement block: 'Signed: ____________________ Print name: {di
 9. OUTSTANDING ACTIONS — bullet list of any FAIL or PENDING items and who owns each one.
 10. REVIEW DATE — 30 days from today.
 End with a PREPARED BY block from the user profile (full name, company, today's date) and a SUBCONTRACTOR ACKNOWLEDGEMENT block.`),
-  t("commercial-report", "Commercial Report", "contractors", "A weekly / monthly commercial position report. earned value, cost, margin, risk.", [f("project", "Project"), f("period", "Period"), f("earnedValue", "Earned value (£)"), f("costToDate", "Cost to date (£)"), ta("risks", "Commercial risks")], "Produce a Commercial Report: Earned Value, Cost, Margin, Cash Position, Risks, Forecast Final Cost vs Final Value."),
+  t("commercial-report", "Commercial Report", "contractors",
+    "Weekly or monthly commercial position report. Earned value, costs, cash position, retention, forecast final account, programme position, outstanding variations, and commercial risks and opportunities — all in one structured document with live profit or loss calculations.",
+    [],
+    "Produce a UK Commercial Report (see the dedicated page for full inputs)."
+  ),
   t("defects-tracker", "Defects Tracker", "contractors",
     "A formal Defects Tracker covering the contract Defects Liability / Rectification Period. Logs every defect raised against you, who's responsible, when it's due to be fixed, and the status. Produces a clean register that you can issue weekly to the contract administrator. Use this to control the narrative and to prove which defects are yours, which aren't, and which have been closed out.",
     [
