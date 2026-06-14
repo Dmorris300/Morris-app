@@ -3,6 +3,7 @@ import { useAuth } from "../lib/auth";
 import { downloadPdf } from "../lib/pdf";
 import { Plus, Trash2, Download, Info, AlertCircle, Car } from "lucide-react";
 import { toast } from "sonner";
+import { fireToolNotification } from "../lib/notification-triggers";
 
 // HMRC approved mileage rates (do NOT change — these are the legal rates for 2025/26).
 const VEHICLE_TYPES = {
@@ -173,6 +174,7 @@ export default function MileageTracker() {
     ]);
     setForm({ ...form, purpose: "", fromAddress: "", toAddress: "", odoStart: "", odoEnd: "", miles: "", roundTrip: false });
     toast.success(`Logged. £${journeyClaim.toFixed(2)} added to your claim.`);
+    fireToolNotification({ toolId: "mileage", toolName: "Mileage Log" });
   };
 
   const del = (id) => persist(items.filter(x => x.id !== id));
