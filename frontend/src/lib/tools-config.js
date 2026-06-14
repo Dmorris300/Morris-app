@@ -1741,7 +1741,11 @@ Rules:
     [],
     "Produce a UK RAMS Library Register (see the dedicated page for full inputs)."
   ),
-  t("contract-mgmt", "Contract Management", "contractors", "Contract register. parties, value, dates, key clauses.", [ta("contracts", "Contracts (one per line)")], "Produce a Contract Register: Ref / Parties / Value / Start / End / Retention / Key Clauses / Status."),
+  t("contract-mgmt", "Contract Management", "contractors",
+    "Master register of every contract you are currently working under. Tracks key details, important dates, financial values, retention held, and current status across all active jobs in one place.",
+    [],
+    "Produce a UK Contract Register (see the dedicated page for full inputs)."
+  ),
   t("multiuser-site-diary", "Multi-user Site Diary", "contractors", "A consolidated daily diary across multiple gangs / sub-trades.", [f("date", "Date"), ta("gangs", "Gangs and their works")], "Produce a consolidated multi-gang Site Diary for the supplied date."),
   t("payment-tracker", "Payment Tracker", "contractors",
     "Live financial register of every invoice across all active jobs. Auto-calculates CIS deductions and net amount due per row, and rolls up the totals you need for Self Assessment — total invoiced, total CIS deducted, total received, retention held, outstanding balance, plus an overdue counter.",

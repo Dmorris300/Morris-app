@@ -51,6 +51,7 @@ import IncidentReport from "./pages/IncidentReport";
 import IncidentLog from "./pages/IncidentLog";
 import SiteAccessPermit from "./pages/SiteAccessPermit";
 import RamsLibrary from "./pages/RamsLibrary";
+import ContractManagement from "./pages/ContractManagement";
 import VatThreshold from "./pages/VatThreshold";
 import Earnings from "./pages/Earnings";
 import TaxPot from "./pages/TaxPot";
@@ -170,6 +171,7 @@ function App() {
             <Route path="incident-log" element={<ProfileGate><IncidentLog /></ProfileGate>} />
             <Route path="site-access-permit" element={<ProfileGate><SiteAccessPermit /></ProfileGate>} />
             <Route path="rams-library" element={<ProfileGate><RamsLibrary /></ProfileGate>} />
+            <Route path="contract-mgmt" element={<ProfileGate><ContractManagement /></ProfileGate>} />
             <Route path="company-checker" element={<ProfileGate><CompanyChecker /></ProfileGate>} />
             <Route path="offline-mode" element={<OfflineMode />} />
             <Route path="team" element={<TeamManagement />} />
