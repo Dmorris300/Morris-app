@@ -334,61 +334,93 @@ Rules:
         </div>
       </Section>
 
-      {/* SECTION 3 — PRICED SCHEDULE TABLE */}
+      {/* SECTION 3 — PRICED SCHEDULE (CARD LIST) */}
       <Section title="Priced Schedule" testId="pwq-section-3">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm" style={{ minWidth: 1100 }}>
-            <thead className="text-[10px] uppercase tracking-widest text-[#706D66]">
-              <tr>
-                <th className="text-left py-2 pr-2 whitespace-nowrap">Item Number</th>
-                <th className="text-left pr-2">Description of Work</th>
-                <th className="text-left pr-2">Unit</th>
-                <th className="text-right pr-2">Quantity</th>
-                <th className="text-right pr-2">Rate (£)</th>
-                <th className="text-right pr-2 whitespace-nowrap">Line Total (£)</th>
-                <th className="text-left pr-2">Notes</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {decorated.map((r, idx) => (
-                <tr key={r.id} className="border-t border-[#F0EDE8]/5 align-top" data-testid={`pwq-row-${idx}`}>
-                  <td className="py-1 pr-2 text-[#E8A020] text-xs font-mono whitespace-nowrap" data-testid={`pwq-row-${idx}-num`}>{r.lineNumber}</td>
-                  <td className="pr-2">
-                    <input className="input-base !py-1 !text-sm" placeholder={`e.g. "100 millimetre circular ductwork straight"`} value={r.description} onChange={(e) => updateRow(r.id, "description", e.target.value)} data-testid={`pwq-row-${idx}-description`} />
-                  </td>
-                  <td className="pr-2">
-                    <select className="input-base !py-1 !text-sm" value={r.unit} onChange={(e) => updateRow(r.id, "unit", e.target.value)} data-testid={`pwq-row-${idx}-unit`}>
-                      {UNIT_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
-                    </select>
-                  </td>
-                  <td className="pr-2">
-                    <input type="number" min="0" step="0.01" className="input-base !py-1 !text-sm text-right" value={r.quantity} onChange={(e) => updateRow(r.id, "quantity", e.target.value)} data-testid={`pwq-row-${idx}-quantity`} />
-                  </td>
-                  <td className="pr-2">
-                    <input type="number" min="0" step="0.01" className="input-base !py-1 !text-sm text-right" value={r.rate} onChange={(e) => updateRow(r.id, "rate", e.target.value)} data-testid={`pwq-row-${idx}-rate`} />
-                  </td>
-                  <td className="pr-2 whitespace-nowrap text-right">
-                    <div
-                      className="px-2 py-1 rounded text-xs font-mono inline-block"
-                      style={{ background: "rgba(15,15,15,0.4)", border: "1px solid rgba(160,157,148,0.18)", color: "#F0EDE8" }}
-                      data-testid={`pwq-row-${idx}-linetotal`}
-                    >
-                      {money(r.lineTotal)}
-                    </div>
-                  </td>
-                  <td className="pr-2">
-                    <input className="input-base !py-1 !text-sm" placeholder={`e.g. "subject to access"`} value={r.notes} onChange={(e) => updateRow(r.id, "notes", e.target.value)} data-testid={`pwq-row-${idx}-notes`} />
-                  </td>
-                  <td className="text-right">
-                    <button onClick={() => removeRow(r.id)} className="text-[#706D66] hover:text-red-400" data-testid={`pwq-row-${idx}-remove`}><Trash2 size={14}/></button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="grid gap-4">
+          {decorated.map((r, idx) => (
+            <div
+              key={r.id}
+              className="rounded p-4 md:p-5"
+              style={{
+                background: "rgba(15,15,15,0.5)",
+                border: "1px solid rgba(160,157,148,0.18)",
+              }}
+              data-testid={`pwq-row-${idx}`}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div
+                  className="text-xs uppercase tracking-widest text-[#E8A020] font-mono"
+                  data-testid={`pwq-row-${idx}-num`}
+                >
+                  Item {r.lineNumber}
+                </div>
+                <button
+                  onClick={() => removeRow(r.id)}
+                  className="text-[#706D66] hover:text-red-400 flex items-center gap-1 text-xs"
+                  data-testid={`pwq-row-${idx}-remove`}
+                >
+                  <Trash2 size={14}/> Remove
+                </button>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="sm:col-span-2 lg:col-span-3">
+                  <Inp
+                    label="Description of Work"
+                    value={r.description}
+                    onChange={(v) => updateRow(r.id, "description", v)}
+                    placeholder={`e.g. "100 millimetre circular ductwork straight"`}
+                    testId={`pwq-row-${idx}-description`}
+                  />
+                </div>
+                <Drop
+                  label="Unit"
+                  value={r.unit}
+                  onChange={(v) => updateRow(r.id, "unit", v)}
+                  options={UNIT_OPTIONS}
+                  testId={`pwq-row-${idx}-unit`}
+                />
+                <Inp
+                  label="Quantity"
+                  type="number"
+                  value={r.quantity}
+                  onChange={(v) => updateRow(r.id, "quantity", v)}
+                  testId={`pwq-row-${idx}-quantity`}
+                />
+                <Inp
+                  label="Rate (£)"
+                  type="number"
+                  value={r.rate}
+                  onChange={(v) => updateRow(r.id, "rate", v)}
+                  testId={`pwq-row-${idx}-rate`}
+                />
+                <div className="sm:col-span-2 lg:col-span-3">
+                  <Inp
+                    label="Notes"
+                    value={r.notes}
+                    onChange={(v) => updateRow(r.id, "notes", v)}
+                    placeholder={`e.g. "subject to access"`}
+                    testId={`pwq-row-${idx}-notes`}
+                  />
+                </div>
+              </div>
+
+              <div
+                className="mt-4 pt-4 flex items-center justify-between"
+                style={{ borderTop: "1px solid rgba(160,157,148,0.18)" }}
+              >
+                <div className="text-[10px] uppercase tracking-widest text-[#706D66]">Line Total</div>
+                <div
+                  className="font-display text-2xl text-[#E8A020]"
+                  data-testid={`pwq-row-${idx}-linetotal`}
+                >
+                  {money(r.lineTotal)}
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
-        <button onClick={addRow} className="btn-secondary flex items-center gap-2 text-xs mt-3" data-testid="pwq-add-row">
+        <button onClick={addRow} className="btn-secondary flex items-center gap-2 text-xs mt-4" data-testid="pwq-add-row">
           <Plus size={12}/> Add Item
         </button>
       </Section>

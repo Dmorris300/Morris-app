@@ -1738,7 +1738,11 @@ Rules:
     [],
     "Produce a UK Daily Labour Allocation (see the dedicated page for full inputs)."
   ),
-  t("purchase-order", "Purchase Order", "contractors", "A formal Purchase Order to a supplier or subcontractor.", [f("supplier", "Supplier"), ta("items", "Items"), f("total", "Total (£)")], "Produce a formal UK Purchase Order with PO number, supplier, line items, total, delivery address, payment terms."),
+  t("purchase-order", "Purchase Order", "contractors",
+    "Formal purchase order sent to a supplier — order details, supplier details, delivery details, dynamic item table with auto-calculated line totals, VAT-aware totals, payment terms and special instructions. Creates the PO number that ties the supplier invoice back to the Delivery Record.",
+    [],
+    "Produce a UK Purchase Order (see the dedicated page for full inputs)."
+  ),
   t("subbie-payment-cert", "Subbi Payment Certificate", "contractors", "A payment certificate to a subcontractor under HGCRA 1996.", [f("subbie", "Subcontractor"), f("appNo", "Application number"), f("certifiedValue", "Certified value (£)"), f("paylessReason", "Pay less reason (if any)")], "Produce a UK Payment Certificate / Pay Less Notice to a subcontractor under HGCRA 1996. including final date for payment."),
   t("hs-policy", "H&S Policy", "contractors", "A short, signed Health & Safety policy statement.", [
       f("companyTradingName", "Trading name (if different to profile company name)", "text"),

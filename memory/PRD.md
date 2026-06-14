@@ -219,6 +219,12 @@ Dark-themed construction administration SaaS web application for UK tradespeople
   - Document output: title `DAILY LABOUR ALLOCATION — {date}`, allocation details including Week Commencing line, full pipe-delimited worker table preserved verbatim, 3-line summary, verbatim footer "This allocation has been issued by {name} on {date}. Workers should report any issues or changes directly to the number above.", sign-off.
   - Verified end-to-end: date input `type="date"` ✓; Week Commencing auto-calc — Wed 17/06/2026 → Mon **15/06/2026** ✓; hours auto-calc — 07:30→16:30 = **9.00h**, 06:00→14:00 = **8.00h** ✓; summary — 3 workers / 26.00 hours / 2 unique sites (Riverside counted once despite 2 workers on it) ✓.
 
+- ✅ **[REBUILD] Purchase Order — dedicated page** (Feb 13, 2026)
+  - New page `/app/frontend/src/pages/PurchaseOrder.jsx`, wired through `App.js`, `GenericToolPage`, `tools-config.js`.
+  - 7 sections + sign off: Order Details (auto-suggested PO Number `PO-001`, Date of Order proper date picker defaulting to today, Required Delivery Date, Project / Job Reference), Supplier Details (Name + optional Address / Contact / Phone or Email), Delivery Details (Address defaulting to site address if held + optional Delivery Instructions), Order Items table (auto Item Number, Description, optional Catalogue / Product Reference, Quantity, 9-option Unit dropdown, Unit Price, **auto-calculated Line Total live**, Notes), Totals (Yes/No VAT toggle + 20/5/0% rate dropdown, live Subtotal / VAT / **Total Order Value gold-highlighted**), Terms (Payment Terms dropdown with conditional Other + Special Instructions textarea), auto-populated Ordered by + today's Sign Off date + signature pad.
+  - Document output: title `PURCHASE ORDER — {poNumber} — {date}`, supplier details + delivery details + full pipe-delimited items table preserved verbatim, VAT-aware totals block, terms, sign-off, verbatim footer "This purchase order is subject to the terms stated above. Please quote the purchase order number on all correspondence, delivery notes, and invoices. Delivery to the address stated by the required date."
+  - Verified end-to-end UI math: 50 × £18 = **£900** ✓, 10 × £45 = **£450** ✓, Subtotal **£1,350** ✓, VAT 20% = **£270** ✓, Total with VAT **£1,620** ✓, Total without VAT **£1,350** ✓, Ordered by auto-populated from profile.
+
 ### Previous session (pre-fork, captured in handoff)
 - Stripe live keys + price IDs + Customer Portal endpoint
 - Resend integration with PDF attachments (`/api/refund-summary/email`)
