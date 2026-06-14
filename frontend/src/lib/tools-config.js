@@ -1740,7 +1740,11 @@ Rules:
     [],
     "Produce a UK Payment Tracker (see the dedicated page for full inputs)."
   ),
-  t("incident-log", "Incident Log", "contractors", "Master incident & near-miss log across jobs.", [ta("incidents", "Incidents")], "Produce an Incident & Near Miss Log: Date / Site / Type / Description / Action / RIDDOR? / Closed."),
+  t("incident-log", "Incident Log", "contractors",
+    "Running register of every incident, near miss and dangerous occurrence across a project. Used by subcontractor bosses to track all incidents over time and demonstrate proactive health and safety management. Records must be retained for a minimum of 3 years.",
+    [],
+    "Produce a UK Incident Log (see the dedicated page for full inputs)."
+  ),
   t("labour-allocation", "Labour Allocation", "contractors",
     "Daily labour schedule for subcontractor bosses. Each worker — trade, job / project, site address, who they report to, start and finish time (auto-calculated hours), task for the day and any kit they need to take. Live summary of workers allocated, total hours and number of sites covered.",
     [],
