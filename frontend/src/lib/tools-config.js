@@ -1183,7 +1183,11 @@ End with an ISSUED BY block from the user profile (full name printed, company, t
     [],
     "Produce a UK Dispute Timeline (see the dedicated page for full inputs)."
   ),
-  t("incident-report", "Incident Report", "site", "RIDDOR-aware incident report. near misses, injuries, dangerous occurrences.", [f("date", "Date / time"), f("location", "Location"), f("persons", "Persons involved"), ta("description", "What happened"), ta("actions", "Immediate actions taken")], "Produce a HSE / RIDDOR-aware Incident Report with sections: Incident Details, Persons Involved, Description, Immediate Actions, Root Cause, Lessons Learned, Reportable under RIDDOR? (yes/no/possibly)."),
+  t("incident-report", "Incident Report", "site",
+    "RIDDOR 2013-aware Site Incident Report. Captures every detail required for HSE investigation, employers' liability claims and the site accident book. Includes a built-in RIDDOR checker. Records must be retained for a minimum of 3 years.",
+    [],
+    "Produce a UK Site Incident Report (see the dedicated page for full inputs)."
+  ),
   t("reminders", "Reminders", "site", "Custom reminders for inspections, certificates, calibrations, insurance renewals.", [ta("items", "Items to remind (one per line)")], "Produce a Reminders Register with Item / Frequency / Last Done / Next Due / Owner / Status."),
   t("toolbox-talk", "Toolbox Talk", "site", "A short, trade-specific toolbox talk briefing. 5–10 minutes, signed by the crew. Captures every field a UK principal contractor's site manager expects to see on a toolbox talk audit record.", [
       f("topic", "Topic / subject of the talk"),
