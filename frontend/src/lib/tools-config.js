@@ -1178,7 +1178,11 @@ End with an ISSUED BY block from the user profile (full name printed, company, t
     [],
     "Produce a UK Contract Review (see the dedicated page for full inputs)."
   ),
-  t("dispute-timeline", "Dispute Timeline", "site", "Builds a chronological timeline of a dispute from your bullet points. essential for adjudication.", [ta("events", "Events (one per line: date. what happened)")], "Convert the supplied events into a clean chronological dispute timeline with dates, parties, and document references."),
+  t("dispute-timeline", "Dispute Timeline", "site",
+    "Builds a contemporaneous chronological record of a dispute — date by date, event by event. Captures what happened, who was involved and what evidence is available. Designed to stand up in adjudication, mediation or county court proceedings.",
+    [],
+    "Produce a UK Dispute Timeline (see the dedicated page for full inputs)."
+  ),
   t("incident-report", "Incident Report", "site", "RIDDOR-aware incident report. near misses, injuries, dangerous occurrences.", [f("date", "Date / time"), f("location", "Location"), f("persons", "Persons involved"), ta("description", "What happened"), ta("actions", "Immediate actions taken")], "Produce a HSE / RIDDOR-aware Incident Report with sections: Incident Details, Persons Involved, Description, Immediate Actions, Root Cause, Lessons Learned, Reportable under RIDDOR? (yes/no/possibly)."),
   t("reminders", "Reminders", "site", "Custom reminders for inspections, certificates, calibrations, insurance renewals.", [ta("items", "Items to remind (one per line)")], "Produce a Reminders Register with Item / Frequency / Last Done / Next Due / Owner / Status."),
   t("toolbox-talk", "Toolbox Talk", "site", "A short, trade-specific toolbox talk briefing. 5–10 minutes, signed by the crew. Captures every field a UK principal contractor's site manager expects to see on a toolbox talk audit record.", [
