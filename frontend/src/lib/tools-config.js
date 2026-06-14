@@ -1736,7 +1736,11 @@ Rules:
     "Produce a UK Subcontractor Register (see the dedicated page for full inputs)."
   ),
   t("variation-tracker", "Variation Tracker", "contractors", "A multi-job variation tracker.", [ta("variations", "Variations across jobs")], "Produce a multi-project Variation Tracker table."),
-  t("rams-library", "RAMS Library", "contractors", "Index of your RAMS documents by trade / activity.", [ta("entries", "RAMS in library")], "Produce a RAMS Library index: Reference / Activity / Trade / Version / Date / Review Due."),
+  t("rams-library", "RAMS Library", "contractors",
+    "Living register where you store, track and manage every Risk Assessment and Method Statement. Records which jobs each RAMS has been issued to, surfaces review due dates and flags anything out of date.",
+    [],
+    "Produce a UK RAMS Library Register (see the dedicated page for full inputs)."
+  ),
   t("contract-mgmt", "Contract Management", "contractors", "Contract register. parties, value, dates, key clauses.", [ta("contracts", "Contracts (one per line)")], "Produce a Contract Register: Ref / Parties / Value / Start / End / Retention / Key Clauses / Status."),
   t("multiuser-site-diary", "Multi-user Site Diary", "contractors", "A consolidated daily diary across multiple gangs / sub-trades.", [f("date", "Date"), ta("gangs", "Gangs and their works")], "Produce a consolidated multi-gang Site Diary for the supplied date."),
   t("payment-tracker", "Payment Tracker", "contractors",

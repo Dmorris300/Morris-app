@@ -147,6 +147,7 @@ export default function GenericToolPage() {
   if (tool.id === "incident-report") return <RedirectTo path="/app/incident-report" />;
   if (tool.id === "incident-log") return <RedirectTo path="/app/incident-log" />;
   if (tool.id === "site-access-permit") return <RedirectTo path="/app/site-access-permit" />;
+  if (tool.id === "rams-library") return <RedirectTo path="/app/rams-library" />;
 
   const onGenerate = async () => {
     if (missingRequired.length > 0) {
