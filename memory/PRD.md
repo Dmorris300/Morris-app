@@ -212,6 +212,13 @@ Dark-themed construction administration SaaS web application for UK tradespeople
   - Document output: title `DELIVERY RECORD — {supplier} — {date}`, full delivery details, full pipe-delimited items table preserved verbatim, **overall status printed in capitals on its own line**, acceptance + Action Taken + Follow-Up if applicable, verbatim footer "This delivery record should be retained with the relevant purchase order and invoice. Any discrepancies should be notified to the supplier in writing within 24 hours.", dual sign-off block.
   - Verified end-to-end: date input is `type="date"` ✓, status flips correctly when condition changes or qty short, conditional Action Taken + Discrepancy banner appear when acceptance != Yes, dual signature pads render.
 
+- ✅ **[REBUILD] Labour Allocation — dedicated page** (Feb 13, 2026)
+  - New page `/app/frontend/src/pages/LabourAllocation.jsx`, wired through `App.js`, `GenericToolPage`, `tools-config.js`.
+  - 3 sections + sign off: Allocation Details (**Date of Allocation proper date picker defaulting to today** — bug fix for the previous text-format issue, **Week Commencing read-only auto-calculated to the Monday of the current week**, Allocated by auto-populated from profile), dynamic Labour Allocation table (Worker Name, Trade / Role, Job / Project, optional Site Address, Reporting To, Start Time defaulting to 07:30, Finish Time defaulting to 16:30, **auto-calculated Hours**, Task / Scope for the Day, Notes), Allocation Summary, Sign Off.
+  - **Live summary** (3 metrics): Total workers allocated today, Total hours allocated across all workers, **Number of different sites covered (de-duplicated by Job / Project name)**.
+  - Document output: title `DAILY LABOUR ALLOCATION — {date}`, allocation details including Week Commencing line, full pipe-delimited worker table preserved verbatim, 3-line summary, verbatim footer "This allocation has been issued by {name} on {date}. Workers should report any issues or changes directly to the number above.", sign-off.
+  - Verified end-to-end: date input `type="date"` ✓; Week Commencing auto-calc — Wed 17/06/2026 → Mon **15/06/2026** ✓; hours auto-calc — 07:30→16:30 = **9.00h**, 06:00→14:00 = **8.00h** ✓; summary — 3 workers / 26.00 hours / 2 unique sites (Riverside counted once despite 2 workers on it) ✓.
+
 ### Previous session (pre-fork, captured in handoff)
 - Stripe live keys + price IDs + Customer Portal endpoint
 - Resend integration with PDF attachments (`/api/refund-summary/email`)

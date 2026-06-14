@@ -1733,7 +1733,11 @@ Rules:
     "Produce a UK Payment Tracker (see the dedicated page for full inputs)."
   ),
   t("incident-log", "Incident Log", "contractors", "Master incident & near-miss log across jobs.", [ta("incidents", "Incidents")], "Produce an Incident & Near Miss Log: Date / Site / Type / Description / Action / RIDDOR? / Closed."),
-  t("labour-allocation", "Labour Allocation", "contractors", "Daily labour allocation across multiple sites.", [f("date", "Date"), ta("allocation", "Labour allocation")], "Produce a Labour Allocation sheet: Operative / Trade / Site / Hours / Task."),
+  t("labour-allocation", "Labour Allocation", "contractors",
+    "Daily labour schedule for subcontractor bosses. Each worker — trade, job / project, site address, who they report to, start and finish time (auto-calculated hours), task for the day and any kit they need to take. Live summary of workers allocated, total hours and number of sites covered.",
+    [],
+    "Produce a UK Daily Labour Allocation (see the dedicated page for full inputs)."
+  ),
   t("purchase-order", "Purchase Order", "contractors", "A formal Purchase Order to a supplier or subcontractor.", [f("supplier", "Supplier"), ta("items", "Items"), f("total", "Total (£)")], "Produce a formal UK Purchase Order with PO number, supplier, line items, total, delivery address, payment terms."),
   t("subbie-payment-cert", "Subbi Payment Certificate", "contractors", "A payment certificate to a subcontractor under HGCRA 1996.", [f("subbie", "Subcontractor"), f("appNo", "Application number"), f("certifiedValue", "Certified value (£)"), f("paylessReason", "Pay less reason (if any)")], "Produce a UK Payment Certificate / Pay Less Notice to a subcontractor under HGCRA 1996. including final date for payment."),
   t("hs-policy", "H&S Policy", "contractors", "A short, signed Health & Safety policy statement.", [

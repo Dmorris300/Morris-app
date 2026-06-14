@@ -141,6 +141,7 @@ export default function GenericToolPage() {
   if (tool.id === "payment-tracker") return <RedirectTo path="/app/payment-tracker" />;
   if (tool.id === "cis-calculator") return <RedirectTo path="/app/cis-calculator" />;
   if (tool.id === "delivery-record") return <RedirectTo path="/app/delivery-record" />;
+  if (tool.id === "labour-allocation") return <RedirectTo path="/app/labour-allocation" />;
 
   const onGenerate = async () => {
     if (missingRequired.length > 0) {
