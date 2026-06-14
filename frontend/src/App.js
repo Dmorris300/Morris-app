@@ -49,6 +49,7 @@ import PurchaseOrder from "./pages/PurchaseOrder";
 import DisputeTimeline from "./pages/DisputeTimeline";
 import IncidentReport from "./pages/IncidentReport";
 import IncidentLog from "./pages/IncidentLog";
+import SiteAccessPermit from "./pages/SiteAccessPermit";
 import VatThreshold from "./pages/VatThreshold";
 import Earnings from "./pages/Earnings";
 import TaxPot from "./pages/TaxPot";
@@ -166,6 +167,7 @@ function App() {
             <Route path="dispute-timeline" element={<ProfileGate><DisputeTimeline /></ProfileGate>} />
             <Route path="incident-report" element={<ProfileGate><IncidentReport /></ProfileGate>} />
             <Route path="incident-log" element={<ProfileGate><IncidentLog /></ProfileGate>} />
+            <Route path="site-access-permit" element={<ProfileGate><SiteAccessPermit /></ProfileGate>} />
             <Route path="company-checker" element={<ProfileGate><CompanyChecker /></ProfileGate>} />
             <Route path="offline-mode" element={<OfflineMode />} />
             <Route path="team" element={<TeamManagement />} />

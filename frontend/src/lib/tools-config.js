@@ -1365,7 +1365,11 @@ Rules: never invent facts. If a field is blank, leave the line out cleanly. No s
     [],
     "Produce a UK Snagging List (see the dedicated page for full inputs)."
   ),
-  t("site-access-permit", "Site Access Permit", "site", "Permit-to-work for restricted areas or high-risk activity (hot works, confined space).", [f("permitType", "Permit type"), f("location", "Location"), ta("controls", "Controls in place"), f("validity", "Valid from / to")], "Produce a Permit to Work form for the supplied activity. controls, isolation, gas tests if applicable, sign-on / sign-off."),
+  t("site-access-permit", "Site Access Permit", "site",
+    "Permit to work formally authorising a named person or team to access a controlled or restricted area of site. Identifies hazards, states the controls, specifies the time window, and is signed by both the issuing authority and the permit holder. Includes a permit closure section to return the permit on completion.",
+    [],
+    "Produce a UK Site Access Permit (see the dedicated page for full inputs)."
+  ),
   t("measurement-record", "Measurement Record", "site", "A site measurement sheet. sketch references, dimensions, notes. Essential for price-work valuations.", [f("area", "Area / location"), ta("measurements", "Measurements (one per line)")], "Produce a clean Measurement Record sheet with Location / Reference / Dimensions / Quantity / Unit / Notes."),
   t("weather-log", "Weather Log", "site",
     "Live daily weather log. Add a row every working day to build contemporaneous evidence supporting delay claims and Extension of Time claims.",
