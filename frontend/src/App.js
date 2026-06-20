@@ -55,6 +55,7 @@ import ContractManagement from "./pages/ContractManagement";
 import MultiUserSiteDiary from "./pages/MultiUserSiteDiary";
 import CommercialReport from "./pages/CommercialReport";
 import NewStarterPack from "./pages/NewStarterPack";
+import Rams from "./pages/Rams";
 import VatThreshold from "./pages/VatThreshold";
 import Earnings from "./pages/Earnings";
 import TaxPot from "./pages/TaxPot";
@@ -178,6 +179,7 @@ function App() {
             <Route path="multiuser-site-diary" element={<ProfileGate><MultiUserSiteDiary /></ProfileGate>} />
             <Route path="commercial-report" element={<ProfileGate><CommercialReport /></ProfileGate>} />
             <Route path="new-starter-pack" element={<ProfileGate><NewStarterPack /></ProfileGate>} />
+            <Route path="rams" element={<ProfileGate><Rams /></ProfileGate>} />
             <Route path="company-checker" element={<ProfileGate><CompanyChecker /></ProfileGate>} />
             <Route path="offline-mode" element={<OfflineMode />} />
             <Route path="team" element={<TeamManagement />} />

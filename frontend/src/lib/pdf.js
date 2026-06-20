@@ -157,7 +157,7 @@ export function generatePdf({ title, content, user, photo, photoCaption, clientS
   return doc;
 }
 
-function drawHeader(doc, pageWidth, margin, user, company, today, title) {
+export function drawHeader(doc, pageWidth, margin, user, company, today, title) {
   // White header. Logo top-left. Company / date top-right. Single thin gold rule under.
   const logoSize = 40;
   const logoY = 30;
@@ -195,7 +195,7 @@ function drawHeader(doc, pageWidth, margin, user, company, today, title) {
   }
 }
 
-function addFooter(doc, pageWidth, pageHeight, user, ref, today, userName) {
+export function addFooter(doc, pageWidth, pageHeight, user, ref, today, userName) {
   // Thin grey rule
   doc.setDrawColor(220, 220, 220);
   doc.setLineWidth(0.4);
