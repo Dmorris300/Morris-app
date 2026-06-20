@@ -979,6 +979,46 @@ async def del_cis(pid: str, authorization: Optional[str] = Header(None)):
     return {"ok": True}
 
 
+@api_router.put("/cis/payments/{pid}")
+async def update_cis(pid: str, p: CISPayment, authorization: Optional[str] = Header(None)):
+    """Edit an existing CIS payment. Server recomputes deduction/gross/net
+    from the new structured fields exactly like the POST endpoint, so the
+    user can never override authoritative figures.
+    """
+    token = authorization.replace("Bearer ", "") if authorization else None
+    user = await get_user(token)
+
+    gross_labour = float(p.grossLabour if p.grossLabour is not None else (p.gross or 0))
+    materials = float(p.materials or 0)
+    cis_rate = float(p.cisRate if p.cisRate is not None else 0.20)
+    if cis_rate not in (0.20, 0.30, 0.0):
+        cis_rate = 0.20
+    deduction = round(gross_labour * cis_rate, 2)
+    gross_total = round(gross_labour + materials, 2)
+    net = round(gross_total - deduction, 2)
+
+    updates = {
+        "date": p.date,
+        "contractor": p.contractor,
+        "grossLabour": round(gross_labour, 2),
+        "materials": round(materials, 2),
+        "cisRate": cis_rate,
+        "deduction": deduction,
+        "gross": gross_total,
+        "net": net,
+        "notes": p.notes or "",
+        "updatedAt": datetime.now(timezone.utc).isoformat(),
+    }
+    result = await db.cis_payments.update_one(
+        {"id": pid, "userId": user["id"]},
+        {"$set": updates},
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Payment not found")
+    doc = await db.cis_payments.find_one({"id": pid, "userId": user["id"]}, {"_id": 0})
+    return doc
+
+
 # ---------- CIS Refund Summary → email to accountant ----------
 class RefundSummaryEmail(BaseModel):
     accountantEmail: EmailStr

@@ -49,11 +49,40 @@ export function aggregateCis(payments) {
 
 // Six-step refund calculation per the spec. All values in £.
 // Returns the full breakdown so dashboards can show every step.
-export function refundCalc({ grossLabourYtd, materialsYtd, cisDeductedYtd }) {
-  // Step 1
-  const taxableProfit = Math.max(0, (grossLabourYtd || 0) - (materialsYtd || 0));
+//
+// Optional inputs (default 0, fully backward-compatible):
+//   - otherIncome        — income outside CIS (PAYE/pension/etc). Eats into the
+//                          available personal allowance first.
+//   - expensesTotal      — allowable self-employed expenses. Reduces taxable
+//                          profit before income tax + NI are calculated.
+//
+// When extended inputs are supplied:
+//   Taxable Profit = max(0, Gross Labour + Materials − Total Expenses)
+//   Available Personal Allowance = max(0, £12,570 − Other Income)
+//   Taxable Income = max(0, Taxable Profit − Available Personal Allowance)
+//   Class 4 NI base = max(0, Taxable Profit − £12,570) (unchanged)
+export function refundCalc({
+  grossLabourYtd,
+  materialsYtd,
+  cisDeductedYtd,
+  otherIncome = 0,
+  expensesTotal = 0,
+  // When false (legacy mode), keeps the original calc:
+  //   taxableProfit = max(0, grossLabour − materials)
+  //   availablePA = £12,570
+  extended = false,
+}) {
+  let taxableProfit;
+  let availablePA;
+  if (extended) {
+    taxableProfit = Math.max(0, (grossLabourYtd || 0) + (materialsYtd || 0) - (expensesTotal || 0));
+    availablePA = Math.max(0, PERSONAL_ALLOWANCE - (otherIncome || 0));
+  } else {
+    taxableProfit = Math.max(0, (grossLabourYtd || 0) - (materialsYtd || 0));
+    availablePA = PERSONAL_ALLOWANCE;
+  }
   // Step 2
-  const taxableIncome = Math.max(0, taxableProfit - PERSONAL_ALLOWANCE);
+  const taxableIncome = Math.max(0, taxableProfit - availablePA);
   // Step 3
   const incomeTax = round(taxableIncome * INCOME_TAX_RATE);
   // Step 4
@@ -67,6 +96,7 @@ export function refundCalc({ grossLabourYtd, materialsYtd, cisDeductedYtd }) {
   return {
     taxableProfit: round(taxableProfit),
     taxableIncome: round(taxableIncome),
+    availablePA: round(availablePA),
     incomeTax,
     class4Ni,
     totalLiability,
@@ -79,6 +109,26 @@ export function refundCalc({ grossLabourYtd, materialsYtd, cisDeductedYtd }) {
 // 8% of net cash received → Tax Pot recommendation.
 export function taxPotFor(netCashReceived) {
   return round(Math.max(0, (netCashReceived || 0) * TAX_POT_RATE));
+}
+
+// Reads the Mileage Tracker localStorage entries and returns the total mileage
+// claim (£) for the current tax year. Returns 0 if no mileage has been logged.
+// Mirrors the per-journey calc used inside MileageTracker (each saved journey
+// already carries a precomputed `claim` field).
+export function mileageClaimYtd() {
+  try {
+    const raw = localStorage.getItem("morris_mileage");
+    if (!raw) return 0;
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return 0;
+    const start = taxYearStartIso();
+    let total = 0;
+    for (const j of arr) {
+      if (!j || !j.date || j.date < start) continue;
+      total += Number(j.claim) || 0;
+    }
+    return round(total);
+  } catch { return 0; }
 }
 
 // Round to 2dp, returns Number.
