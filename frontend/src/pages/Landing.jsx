@@ -200,8 +200,8 @@ export default function Landing() {
           <div className="text-[#E8A020] text-xs uppercase tracking-widest mb-4">Founder</div>
           <h2 className="font-display text-5xl md:text-6xl mb-6">Built by Darren.<br/>A duct fitter.</h2>
           <p className="text-lg text-[#A19D94] leading-relaxed mb-4">
-            I'm Darren, a UK duct fitter. I got tired of watching good tradesmen get shafted by bad paperwork.
-            Verbal instructions were never confirmed, variations were never priced, CIS refunds were never claimed.
+            I'm Darren, a UK duct fitter. I got tired of watching good tradesmen lose out because of bad paperwork.
+            Invoices never confirmed. Variations never priced. CIS refunds were never claimed.
           </p>
           <p className="text-lg text-[#A19D94] leading-relaxed mb-4">
             I built Morris to fix the problems I saw every day on site.
