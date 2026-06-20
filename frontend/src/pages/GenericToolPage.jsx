@@ -65,6 +65,7 @@ export default function GenericToolPage() {
   const [liveSignature, setLiveSignature] = useState("");
   const [clientSignature, setClientSignature] = useState("");
   const [attachedPhoto, setAttachedPhoto] = useState(null);
+  const [attachedPhotos, setAttachedPhotos] = useState([]);
   const dual = isDualSignoff(toolId);
 
   // Initialise values with auto-defaults whenever the tool changes
@@ -90,12 +91,14 @@ export default function GenericToolPage() {
       const raw = localStorage.getItem("morris_photo_intent_v1");
       if (raw) {
         const intent = JSON.parse(raw);
-        if (intent?.toolId === toolId && intent?.photo) {
-          setAttachedPhoto(intent.photo);
+        if (intent?.toolId === toolId) {
+          if (intent.photo) setAttachedPhoto(intent.photo);
+          if (Array.isArray(intent.photos)) setAttachedPhotos(intent.photos);
         }
         localStorage.removeItem("morris_photo_intent_v1");
       } else {
         setAttachedPhoto(null);
+        setAttachedPhotos([]);
       }
     } catch {
       setAttachedPhoto(null);
@@ -404,7 +407,7 @@ export default function GenericToolPage() {
           {result && (
             <>
               <div className="tool-result text-sm" data-testid="generated-content">{result}</div>
-              <ResultActions title={tool.name} content={result} toolId={tool.id} refNumber={refNumber} liveSignature={liveSignature} clientSignature={clientSignature} photo={attachedPhoto} photoCaption={attachedPhoto ? `Site photograph attached via Photo to Document.` : undefined} />
+              <ResultActions title={tool.name} content={result} toolId={tool.id} refNumber={refNumber} liveSignature={liveSignature} clientSignature={clientSignature} photo={attachedPhoto} photoCaption={attachedPhoto ? `Site photograph attached via Photo to Document.` : undefined} photos={attachedPhotos} />
             </>
           )}
         </div>

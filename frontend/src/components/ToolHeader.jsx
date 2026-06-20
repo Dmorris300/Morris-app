@@ -84,7 +84,7 @@ export default function ToolHeader({ tool, infoOpen, setInfoOpen }) {
   );
 }
 
-export function ResultActions({ title, content, toolId, photo, photoCaption, liveSignature, clientSignature }) {
+export function ResultActions({ title, content, toolId, photo, photoCaption, photos, liveSignature, clientSignature }) {
   const { user } = useAuth();
   const [busy, setBusy] = useState(null);
   // Prefer the live signature drawn on the tool form. Fallback to the user's
