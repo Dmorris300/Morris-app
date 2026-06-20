@@ -1949,6 +1949,8 @@ export const WOW_TOOLS = [
     info: "Record yourself describing a verbal instruction you received on site. Morris converts it instantly into a formal variation letter. ready to send." },
   { id: "photo-to-document", name: "Photo to Document", section: "documents", route: "/app/wow/photo-to-document",
     info: "Snap a photo of a scribbled note, drawing or scrap of paper. Morris turns it into a clean professional document." },
+  { id: "site-photo-library", name: "Site Photo Library", section: "documents", route: "/app/site-photo-library",
+    info: "Every photo you take through Photo to Document is automatically saved here, stamped with date, time and location. Search, filter and reuse your site evidence." },
   { id: "tax-pot", name: "Tax Pot", section: "finance", route: "/app/taxpot",
     info: "Set aside 8% of every CIS net payment to cover your end-of-year National Insurance. Morris keeps your running tax pot total alongside your Self Assessment deadline countdown." },
   { id: "company-checker", name: "Company Checker", section: "soletrader", route: "/app/company-checker",
@@ -1988,7 +1990,7 @@ export const TOOL_EMOJI = {
   "commercial-report": "📊", "defects-tracker": "🔧", "new-starter-pack": "🆕", "hire-agreement": "🏗️",
   "tender-letter": "📨",
   // Wow
-  "verbal-to-variation": "🎙️", "photo-to-document": "📸",
+  "verbal-to-variation": "🎙️", "photo-to-document": "📸", "site-photo-library": "🖼️",
   "tax-pot": "🐖", "company-checker": "🏢",
   // Account
 "favourites": "⭐", "history": "🗃️", "billing": "💳", "team": "👥", "profile": "👤", "privacy": "🛡️", "terms": "⚖️", "complaints": "📣", "refund": "💷", "offline-mode": "📴",

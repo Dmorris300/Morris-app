@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getToolById, isDualSignoff } from "../lib/tools-config";
 import ToolHeader, { ResultActions } from "../components/ToolHeader";
@@ -66,6 +66,10 @@ export default function GenericToolPage() {
   const [clientSignature, setClientSignature] = useState("");
   const [attachedPhoto, setAttachedPhoto] = useState(null);
   const [attachedPhotos, setAttachedPhotos] = useState([]);
+  // Guard: photo intent in localStorage is single-use. React.StrictMode runs
+  // useEffect twice in dev which would otherwise consume and then clear the
+  // intent on the second pass. The ref persists across StrictMode re-invocations.
+  const intentProcessedFor = useRef(null);
   const dual = isDualSignoff(toolId);
 
   // Initialise values with auto-defaults whenever the tool changes
@@ -86,22 +90,24 @@ export default function GenericToolPage() {
 
     // Pick up any pending photo intent from Photo to Document. If the user
     // landed here via that tool, the photo is in localStorage tagged to this
-    // toolId. We pull it once and clear it so it doesn't leak into other tools.
-    try {
-      const raw = localStorage.getItem("morris_photo_intent_v1");
-      if (raw) {
-        const intent = JSON.parse(raw);
-        if (intent?.toolId === toolId) {
-          if (intent.photo) setAttachedPhoto(intent.photo);
-          if (Array.isArray(intent.photos)) setAttachedPhotos(intent.photos);
-        }
-        localStorage.removeItem("morris_photo_intent_v1");
-      } else {
-        setAttachedPhoto(null);
-        setAttachedPhotos([]);
-      }
-    } catch {
+    // toolId. We pull it once per toolId and clear it so it doesn't leak into
+    // other tools. The ref guard prevents StrictMode's double-invocation from
+    // wiping the state on the second pass.
+    if (intentProcessedFor.current !== toolId) {
+      intentProcessedFor.current = toolId;
       setAttachedPhoto(null);
+      setAttachedPhotos([]);
+      try {
+        const raw = localStorage.getItem("morris_photo_intent_v1");
+        if (raw) {
+          const intent = JSON.parse(raw);
+          if (intent?.toolId === toolId) {
+            if (intent.photo) setAttachedPhoto(intent.photo);
+            if (Array.isArray(intent.photos)) setAttachedPhotos(intent.photos);
+          }
+          localStorage.removeItem("morris_photo_intent_v1");
+        }
+      } catch { /* ignore */ }
     }
   }, [toolId, tool]);
 
@@ -216,20 +222,32 @@ export default function GenericToolPage() {
         </div>
       )}
 
-      {attachedPhoto && (
+      {(attachedPhoto || attachedPhotos.length > 0) && (
         <div
           className="mb-4 p-3 rounded flex items-center gap-3 flex-wrap"
           style={{ border: "1px solid rgba(232,160,32,0.35)", background: "rgba(232,160,32,0.06)" }}
           data-testid="attached-photo-banner"
         >
-          <img src={attachedPhoto} alt="Attached" className="w-20 h-20 rounded object-cover border border-[#E8A020]/40" data-testid="attached-photo-thumb" />
+          {attachedPhotos.length > 0 ? (
+            <div className="flex gap-2" data-testid="attached-photos-thumbs">
+              {attachedPhotos.slice(0, 5).map((p, i) => (
+                <img key={p.id || i} src={p.dataUrl} alt={`Attached ${i + 1}`} className="w-16 h-16 rounded object-cover border border-[#E8A020]/40" />
+              ))}
+            </div>
+          ) : (
+            <img src={attachedPhoto} alt="Attached" className="w-20 h-20 rounded object-cover border border-[#E8A020]/40" data-testid="attached-photo-thumb" />
+          )}
           <div className="flex-1 min-w-[160px]">
-            <div className="text-xs uppercase tracking-widest text-[#E8A020]">Photo attached via Photo to Document</div>
-            <div className="text-[11px] text-[#A19D94] mt-0.5">This image will be embedded in the final PDF as evidence.</div>
+            <div className="text-xs uppercase tracking-widest text-[#E8A020]">
+              {attachedPhotos.length > 0
+                ? `${attachedPhotos.length} photo${attachedPhotos.length === 1 ? "" : "s"} attached via Photo to Document`
+                : "Photo attached via Photo to Document"}
+            </div>
+            <div className="text-[11px] text-[#A19D94] mt-0.5">All images will be embedded in the final PDF under a "Photographic Evidence" annex.</div>
           </div>
           <button
             type="button"
-            onClick={() => setAttachedPhoto(null)}
+            onClick={() => { setAttachedPhoto(null); setAttachedPhotos([]); }}
             className="text-[10px] uppercase tracking-widest text-[#706D66] hover:text-[#E5635A]"
             data-testid="attached-photo-remove"
           >

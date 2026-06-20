@@ -21,7 +21,106 @@ function extractRef(content) {
   return m ? m[1].trim() : null;
 }
 
-export function generatePdf({ title, content, user, photo, photoCaption, clientSignature, refNumber }) {
+// Append the "Photographic Evidence" section to the PDF. Each photo gets its
+// own block on a fresh page (or stacked 2-per-page when the page has room).
+// `photos` is an array of: { dataUrl, note, ukDate, time, location }.
+function appendPhotographicEvidence(doc, pageWidth, pageHeight, margin, photos, user, company, today, ref, userName) {
+  const usable = pageWidth - margin * 2;
+
+  // Always start the section on a fresh page so it reads as a distinct annex.
+  addFooter(doc, pageWidth, pageHeight, user, ref, today, userName);
+  doc.addPage();
+  doc.setFillColor(255, 255, 255);
+  doc.rect(0, 0, pageWidth, pageHeight, "F");
+  drawHeader(doc, pageWidth, margin, user, company, today, "Photographic Evidence");
+
+  let y = 150;
+  const bottom = pageHeight - 70;
+
+  // Intro line under the title.
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(9.5);
+  doc.setTextColor(110, 110, 110);
+  const intro = `${photos.length} photo${photos.length === 1 ? "" : "s"} attached. Each image was stamped on capture with date, time and location where available.`;
+  doc.splitTextToSize(intro, usable).forEach((l) => { doc.text(l, margin, y); y += 12; });
+  y += 8;
+
+  // Each photo block: caption line + image + note. Tight, readable layout.
+  const imgWidth = usable;
+  // Constrain image height so 2 fit per page comfortably with captions.
+  const maxImgHeight = 280;
+
+  photos.forEach((p, idx) => {
+    // Caption header (Photo N of M — date · time · location)
+    const headerH = 16;
+    const captionH = 14; // single caption line
+    const noteText = (p.note || "").trim();
+    let noteLines = [];
+    if (noteText) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      noteLines = doc.splitTextToSize(`Note: ${noteText}`, usable);
+    }
+    const noteH = noteLines.length * 12;
+
+    // Image height: pick smaller of maxImgHeight or aspect-ratio fallback.
+    const imgH = maxImgHeight;
+    const blockH = headerH + captionH + 6 + imgH + (noteH > 0 ? noteH + 8 : 0) + 18;
+
+    if (y + blockH > bottom) {
+      addFooter(doc, pageWidth, pageHeight, user, ref, today, userName);
+      doc.addPage();
+      doc.setFillColor(255, 255, 255);
+      doc.rect(0, 0, pageWidth, pageHeight, "F");
+      drawHeader(doc, pageWidth, margin, user, company, today, "Photographic Evidence (continued)");
+      y = 150;
+    }
+
+    // Photo header
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(15, 15, 15);
+    doc.text(`Photo ${idx + 1} of ${photos.length}`, margin, y);
+    y += headerH;
+
+    // Caption (date / time / location)
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9.5);
+    doc.setTextColor(95, 95, 95);
+    const stamp = [p.ukDate, p.time, p.location || "Location not available"].filter(Boolean).join("  ·  ");
+    doc.text(stamp, margin, y);
+    y += captionH;
+
+    // Image
+    try {
+      const format = (p.dataUrl && p.dataUrl.startsWith("data:image/png")) ? "PNG" : "JPEG";
+      doc.addImage(p.dataUrl, format, margin, y, imgWidth, imgH, undefined, "FAST");
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(0.4);
+      doc.rect(margin, y, imgWidth, imgH);
+    } catch (e) {
+      if (process.env.NODE_ENV !== "production") console.error("PDF evidence photo embed failed", e);
+      doc.setDrawColor(200, 200, 200);
+      doc.rect(margin, y, imgWidth, imgH);
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(9);
+      doc.setTextColor(140, 140, 140);
+      doc.text("Image could not be embedded", margin + imgWidth / 2, y + imgH / 2, { align: "center" });
+    }
+    y += imgH + 6;
+
+    // Note (if any)
+    if (noteLines.length > 0) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.setTextColor(40, 40, 40);
+      noteLines.forEach((l) => { doc.text(l, margin, y); y += 12; });
+    }
+    y += 18; // gap between blocks
+  });
+}
+
+export function generatePdf({ title, content, user, photo, photoCaption, photos, clientSignature, refNumber }) {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -119,38 +218,13 @@ export function generatePdf({ title, content, user, photo, photoCaption, clientS
     y += lineHeight;
   });
 
-  // Photo
-  if (photo) {
-    const imgWidth = usable * 0.7;
-    const imgHeight = imgWidth * 0.75;
-    if (y + imgHeight + 40 > bottom) {
-      addFooter(doc, pageWidth, pageHeight, user, ref, today, userName);
-      doc.addPage();
-      doc.setFillColor(255, 255, 255);
-      doc.rect(0, 0, pageWidth, pageHeight, "F");
-      drawHeader(doc, pageWidth, margin, user, company, today, null);
-      y = 110;
-    } else {
-      y += 20;
-    }
-    if (photoCaption) {
-      doc.setFont("helvetica", "italic");
-      doc.setFontSize(9);
-      doc.setTextColor(110, 110, 110);
-      const captionLines = doc.splitTextToSize(photoCaption, usable);
-      captionLines.forEach((cl) => { doc.text(cl, margin, y); y += 11; });
-      y += 6;
-    }
-    try {
-      const format = (photo.startsWith("data:image/png") ? "PNG" : "JPEG");
-      doc.addImage(photo, format, margin, y, imgWidth, imgHeight, undefined, "FAST");
-      doc.setDrawColor(200, 200, 200);
-      doc.setLineWidth(0.4);
-      doc.rect(margin, y, imgWidth, imgHeight);
-      y += imgHeight + 10;
-    } catch (e) {
-      if (process.env.NODE_ENV !== "production") console.error("PDF photo embed failed", e);
-    }
+  // --- Photographic Evidence annex (multi-photo) ---
+  const photoList = Array.isArray(photos) && photos.length > 0
+    ? photos
+    : (photo ? [{ dataUrl: photo, note: photoCaption || "", ukDate: "", time: "", location: "" }] : []);
+
+  if (photoList.length > 0) {
+    appendPhotographicEvidence(doc, pageWidth, pageHeight, margin, photoList, user, company, today, ref, userName);
   }
 
   addFooter(doc, pageWidth, pageHeight, user, ref, today, userName);
@@ -214,13 +288,13 @@ export function addFooter(doc, pageWidth, pageHeight, user, ref, today, userName
   doc.text("Generated by Morris  ·  morrisapp.co.uk  ·  Morris Construction Tech Ltd  ·  ICO C1923529", 48, pageHeight - 26);
 }
 
-export function downloadPdf({ title, content, user, photo, photoCaption, clientSignature, refNumber }) {
-  const d = generatePdf({ title, content, user, photo, photoCaption, clientSignature, refNumber });
+export function downloadPdf({ title, content, user, photo, photoCaption, photos, clientSignature, refNumber }) {
+  const d = generatePdf({ title, content, user, photo, photoCaption, photos, clientSignature, refNumber });
   const safe = (title || "morris-document").toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 60);
   d.save(`${safe}.pdf`);
 }
 
-export function pdfBlobUrl({ title, content, user, photo, photoCaption, clientSignature, refNumber }) {
-  const d = generatePdf({ title, content, user, photo, photoCaption, clientSignature, refNumber });
+export function pdfBlobUrl({ title, content, user, photo, photoCaption, photos, clientSignature, refNumber }) {
+  const d = generatePdf({ title, content, user, photo, photoCaption, photos, clientSignature, refNumber });
   return d.output("bloburl");
 }

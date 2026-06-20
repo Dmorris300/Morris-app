@@ -28,6 +28,14 @@ Dark-themed construction administration SaaS web application for UK tradespeople
 ## What's been implemented
 
 ### Feb 2026 (this session, after fork)
+- ✅ **[FEATURE] Photo to Document — Multi-Photo PDF + Site Photo Library** (Feb 20, 2026)
+  - Updated `pdf.js` to accept a `photos` array (alongside legacy single `photo`). When photos are attached, a new "Photographic Evidence" annex is appended on its own page with: per-photo header ("Photo N of M"), date/time/location stamp line, the embedded image, and an optional Note block. Each photo block is rendered with proper page-break logic so long notes don't overflow.
+  - Updated `ResultActions` in `ToolHeader.jsx` to pass the `photos` array through to `downloadPdf` (Download PDF + WhatsApp PDF actions).
+  - Updated `GenericToolPage.jsx` banner to display all attached photos as 64×64 thumbnails plus a count ("3 photos attached via Photo to Document").
+  - **Bug fix**: React.StrictMode was running the photo-intent useEffect twice — the first pass consumed the localStorage entry and the second pass reset state to null, losing all attached photos. Fixed with a `intentProcessedFor` useRef guard that's stable across StrictMode's double-invocation.
+  - New page `/app/frontend/src/pages/SitePhotoLibrary.jsx`, wired through `App.js` route `/app/site-photo-library` and into `tools-config.js` (WOW_TOOLS + emoji 🖼️). Pulls from `morris_photo_library_v1` localStorage. Features: responsive grid (2/3/4 cols), free-text search across notes/locations/dates, document-type dropdown filter, count label, per-photo Save (downloads JPEG), Remove, full-screen viewer modal with same actions, Clear all (with confirm).
+  - Verified end-to-end: library renders 2 injected photos correctly with doctype labels, search filter "cracked" narrows to 1 result, multi-photo banner reads "3 PHOTOS ATTACHED VIA PHOTO TO DOCUMENT" on the target tool, navigating to a different tool shows zero banner (intent properly consumed and cleared).
+
 - ✅ **[FIX] CIS Invoice — National Insurance Number guaranteed render** (Feb 12, 2026)
   - Strict per-tool prompt instruction + backend post-processing safety net that auto-injects `NI No: {value}` under the UTR line if the LLM ever drops it.
   - Verified: 3/3 runs include NI when set; correctly omitted when blank.
