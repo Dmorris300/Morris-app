@@ -6,7 +6,6 @@ import { ArrowRight, Mic, Camera, Calculator, ShieldCheck, FileText, HardHat, Po
 import { TOOLS, SECTIONS, emojiFor } from "../lib/tools-config";
 
 const HERO_BG = "https://static.prod-images.emergentagent.com/jobs/64edf71d-3747-4105-a860-131b2bbabbfc/images/6520f329423ee4325e55202f82398164ec577f7cf4314c84a9b8b8e449e90525.png";
-const SITE_PHOTO = "https://images.unsplash.com/photo-1518280651110-3e80e7c84a84?auto=format&fit=crop&w=1600&q=70";
 const FOUNDER_PHOTO = "https://images.unsplash.com/photo-1646324554833-f0b6a479fa5d?auto=format&fit=crop&w=1400&q=70";
 
 export default function Landing() {
@@ -50,8 +49,8 @@ export default function Landing() {
       <section className="relative overflow-hidden border-b border-[#F0EDE8]/5">
         <div className="absolute inset-0 opacity-50" style={{ backgroundImage: `url(${HERO_BG})`, backgroundSize: "cover", backgroundPosition: "center" }} />
         <div className="absolute inset-0 bg-gradient-to-br from-[#060606] via-[#060606]/80 to-transparent" />
-        <div className="relative max-w-7xl mx-auto px-6 py-24 md:py-36 grid md:grid-cols-12 gap-12 items-center">
-          <div className="md:col-span-7">
+        <div className="relative max-w-7xl mx-auto px-6 py-24 md:py-36">
+          <div className="max-w-3xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 mb-6 border border-[#E8A020]/30 rounded-full text-[#E8A020] text-xs uppercase tracking-widest">
               <span className="w-1.5 h-1.5 bg-[#E8A020] rounded-full" /> Built on the Tools
             </div>
@@ -73,11 +72,6 @@ export default function Landing() {
               <span className="flex items-center gap-2"><CheckCircle2 size={16} className="text-[#E8A020]" /> 88+ trade-specific tools</span>
               <span className="flex items-center gap-2"><CheckCircle2 size={16} className="text-[#E8A020]" /> UK CIS, HMRC & HSE aware</span>
               <span className="flex items-center gap-2"><CheckCircle2 size={16} className="text-[#E8A020]" /> Generates PDFs on your phone</span>
-            </div>
-          </div>
-          <div className="md:col-span-5 hidden md:block">
-            <div className="card-dark p-1 morris-grain">
-              <div className="aspect-[4/5] bg-cover bg-center rounded-md" style={{ backgroundImage: `url(${SITE_PHOTO})` }} />
             </div>
           </div>
         </div>
