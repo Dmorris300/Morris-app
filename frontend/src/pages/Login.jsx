@@ -67,7 +67,7 @@ export function AuthShell({ children }) {
         <div className="absolute inset-0 bg-gradient-to-br from-[#060606]/30 to-[#060606]/80" />
         <div className="absolute bottom-12 left-12 right-12">
           <div className="font-display text-5xl text-[#E8A020] leading-none">Built on<br/>the Tools.</div>
-          <p className="text-[#A19D94] mt-4 max-w-md">Morris is the construction admin app made for tradesmen and sole traders. No fluff. No corporate jargon. Just paperwork that pays.</p>
+          <p className="text-[#A19D94] mt-4 max-w-md">Morris is the admin app built for tradespeople and sole traders. Manage quotes, invoices and job paperwork in one place, so you can spend less time behind a desk and more time on the tools.</p>
         </div>
       </div>
     </div>
