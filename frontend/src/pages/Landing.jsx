@@ -100,7 +100,7 @@ export default function Landing() {
               <div className="text-[#E8A020] text-xs uppercase tracking-widest mb-3">Everything you need</div>
               <h2 className="font-display text-5xl md:text-6xl">88+ tools.<br/>One toolbox.</h2>
             </div>
-            <p className="max-w-md text-[#A19D94]">From RAMS and CIS invoices to Extension of Time claims and Retention chasers. organised the way a tradesman actually works.</p>
+            <p className="max-w-md text-[#A19D94]">RAMS. CIS invoices. Extension of Time claims. Retention chasers. Everything in one place, nothing left to chase.</p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {SECTIONS.filter(s => s.id !== "account").map((s) => {
