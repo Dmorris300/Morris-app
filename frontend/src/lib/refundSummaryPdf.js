@@ -1,5 +1,6 @@
 import { jsPDF } from "jspdf";
 import { aggregateCis, refundCalc, currentTaxYearLabel, fGBP, thisTaxYear } from "./finance";
+import { MORRIS_LOGO_PDF_DATA_URL } from "./morris-logo-pdf";
 
 // Build a clean, one-page A4 CIS Refund Summary for the accountant.
 // Returns the jsPDF instance so the caller can .save() or pull a blob/base64.
@@ -211,12 +212,18 @@ export function buildRefundSummaryPdf({ user, cisPayments }) {
 }
 
 function drawMorrisMark(doc, x, y, size = 28) {
-  doc.setFillColor(232, 160, 32);
-  doc.roundedRect(x, y, size, size, 4, 4, "F");
-  doc.setTextColor(10, 10, 10);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(size * 0.7);
-  doc.text("M", x + size / 2, y + size * 0.74, { align: "center" });
+  try {
+    doc.addImage(MORRIS_LOGO_PDF_DATA_URL, "PNG", x, y, size, size, undefined, "FAST");
+  } catch (e) {
+    // Defensive fallback to the previous gold-square M.
+    doc.setFillColor(232, 160, 32);
+    doc.roundedRect(x, y, size, size, 4, 4, "F");
+    doc.setTextColor(10, 10, 10);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(size * 0.7);
+    doc.text("M", x + size / 2, y + size * 0.74, { align: "center" });
+    if (process.env.NODE_ENV !== "production") console.error("Morris logo embed failed", e);
+  }
 }
 
 function addAttribution(doc, pageWidth, pageHeight, userName, today) {

@@ -1,4 +1,5 @@
 import { jsPDF } from "jspdf";
+import { MORRIS_LOGO_PDF_DATA_URL } from "./morris-logo-pdf";
 
 // Renders a one-stop "Trade Profile" PDF the user can send to a main contractor.
 // Includes all profile fields + CSCS card front/back + saved signature + a footer.
@@ -15,10 +16,14 @@ export function generateProfilePdf(user) {
   doc.rect(0, 0, pageWidth, 70, "F");
   doc.setFillColor(232, 160, 32);
   doc.rect(0, 70, pageWidth, 3, "F");
+  // Embedded Morris logo on the left of the dark bar.
+  try {
+    doc.addImage(MORRIS_LOGO_PDF_DATA_URL, "PNG", margin, 12, 46, 46, undefined, "FAST");
+  } catch (e) { /* fallback handled below by the MORRIS text */ }
   doc.setTextColor(232, 160, 32);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(22);
-  doc.text("MORRIS", margin, 42);
+  doc.text("MORRIS", margin + 56, 42);
   doc.setTextColor(240, 237, 232);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);

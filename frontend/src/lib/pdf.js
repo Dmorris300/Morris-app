@@ -1,17 +1,23 @@
 import { jsPDF } from "jspdf";
+import { MORRIS_LOGO_PDF_DATA_URL } from "./morris-logo-pdf";
 
-// ----- Morris brand mark (gold-on-black M) — drawn vectorially as a fallback
-// when the user has not uploaded a company logo. Keeps the PDF clean and self
-// contained (no external image fetches).
+// ----- Morris brand mark — the new official Morris logo (black/gold hard hat
+// + M + wrench), embedded as a base64 PNG. Used as the default header logo on
+// every generated PDF unless the user has uploaded their own company logo.
 function drawMorrisMark(doc, x, y, size = 28) {
-  // Rounded gold square
-  doc.setFillColor(232, 160, 32);
-  doc.roundedRect(x, y, size, size, 4, 4, "F");
-  // Bold black M
-  doc.setTextColor(10, 10, 10);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(size * 0.7);
-  doc.text("M", x + size / 2, y + size * 0.74, { align: "center" });
+  try {
+    doc.addImage(MORRIS_LOGO_PDF_DATA_URL, "PNG", x, y, size, size, undefined, "FAST");
+  } catch (e) {
+    // Defensive fallback: if jsPDF fails to embed the data URL for any reason,
+    // fall back to the previous gold-square M so the header is never empty.
+    doc.setFillColor(232, 160, 32);
+    doc.roundedRect(x, y, size, size, 4, 4, "F");
+    doc.setTextColor(10, 10, 10);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(size * 0.7);
+    doc.text("M", x + size / 2, y + size * 0.74, { align: "center" });
+    if (process.env.NODE_ENV !== "production") console.error("Morris logo embed failed", e);
+  }
 }
 
 function extractRef(content) {
