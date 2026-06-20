@@ -8,7 +8,7 @@ const STORAGE_KEY = "morris_onboarding_done_v1";
 const STEPS = [
   {
     title: "Welcome to Morris.",
-    body: "Built by a UK duct fitter who got tired of paperwork stealing his evenings. 88+ tools, AI document writer, all the chase letters you'll ever need.",
+    body: "Built by a UK duct fitter who got tired of paperwork stealing his evenings. 80+ tools, AI document writer, all the chase letters you'll ever need.",
     cta: "Show me around",
     icon: null,
   },

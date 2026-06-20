@@ -69,7 +69,7 @@ export default function Landing() {
               <a href="#tools" className="btn-secondary">See the tools</a>
             </div>
             <div className="mt-10 flex flex-wrap gap-x-8 gap-y-3 text-sm text-[#A19D94]">
-              <span className="flex items-center gap-2"><CheckCircle2 size={16} className="text-[#E8A020]" /> 88+ trade-specific tools</span>
+              <span className="flex items-center gap-2"><CheckCircle2 size={16} className="text-[#E8A020]" /> 80+ trade-specific tools</span>
               <span className="flex items-center gap-2"><CheckCircle2 size={16} className="text-[#E8A020]" /> UK CIS, HMRC & HSE aware</span>
               <span className="flex items-center gap-2"><CheckCircle2 size={16} className="text-[#E8A020]" /> Generates PDFs on your phone</span>
             </div>
@@ -98,7 +98,7 @@ export default function Landing() {
           <div className="flex items-end justify-between flex-wrap gap-6 mb-12">
             <div>
               <div className="text-[#E8A020] text-xs uppercase tracking-widest mb-3">Everything you need</div>
-              <h2 className="font-display text-5xl md:text-6xl">88+ tools.<br/>One toolbox.</h2>
+              <h2 className="font-display text-5xl md:text-6xl">80+ tools.<br/>One toolbox.</h2>
             </div>
             <p className="max-w-md text-[#A19D94]">RAMS. CIS invoices. Extension of Time claims. Retention chasers. Everything in one place, nothing left to chase.</p>
           </div>

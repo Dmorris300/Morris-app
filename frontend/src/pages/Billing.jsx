@@ -199,7 +199,7 @@ export default function Billing() {
             <div>
               <div className="text-xs uppercase tracking-widest text-[#E8A020] mb-2">3-day free trial</div>
               <div className="font-display text-3xl mb-2">Try every tool. No card needed.</div>
-              <p className="text-[#A19D94] text-sm">Unlocks all 88+ tools and unlimited documents for 3 days. After that, pick a plan or drop back to Free.</p>
+              <p className="text-[#A19D94] text-sm">Unlocks all 80+ tools and unlimited documents for 3 days. After that, pick a plan or drop back to Free.</p>
             </div>
             <button onClick={startTrial} className="btn-primary flex items-center gap-2" disabled={busy === "trial"} data-testid="start-trial-btn">
               {busy === "trial" ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
