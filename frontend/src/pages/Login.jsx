@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { MorrisLogo, MorrisWordmark } from "../components/MorrisLogo";
+import PasswordInput from "../components/PasswordInput";
 import api from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { toast } from "sonner";
@@ -77,14 +78,23 @@ export function Field({ label, value, onChange, type = "text", placeholder = "",
   return (
     <label className="block">
       <div className="text-xs uppercase tracking-widest text-[#A19D94] mb-2">{label}</div>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="input-base"
-        data-testid={testId}
-      />
+      {type === "password" ? (
+        <PasswordInput
+          value={value}
+          onChange={onChange}
+          placeholder={placeholder}
+          testId={testId}
+        />
+      ) : (
+        <input
+          type={type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="input-base"
+          data-testid={testId}
+        />
+      )}
     </label>
   );
 }

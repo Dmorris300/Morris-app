@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import api from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { MorrisLogo, MorrisWordmark } from "../components/MorrisLogo";
+import PasswordInput from "../components/PasswordInput";
 import { Loader2, UserPlus, AlertCircle } from "lucide-react";
 
 export default function AcceptInvite() {
@@ -67,7 +68,7 @@ export default function AcceptInvite() {
               <input className="input-base" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="07700 900001" data-testid="accept-phone" />
             </Field>
             <Field label="Password">
-              <input type="password" className="input-base" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} data-testid="accept-password" />
+              <PasswordInput value={password} onChange={setPassword} required minLength={6} autoComplete="new-password" testId="accept-password" />
             </Field>
             <button type="submit" className="btn-primary w-full flex items-center justify-center gap-2" disabled={busy} data-testid="accept-submit">
               {busy ? <Loader2 size={14} className="animate-spin"/> : <UserPlus size={14}/>}
