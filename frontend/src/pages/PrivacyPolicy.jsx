@@ -19,7 +19,7 @@ export default function PrivacyPolicy() {
           <h2 className="font-display text-2xl text-[#E8A020] mb-3">Third Party Services</h2>
           <p className="text-[#F0EDE8] mb-3">Morris uses the following third party services which may process your data.</p>
           <ul className="space-y-2 text-[#A19D94] text-sm">
-            <li><strong className="text-[#F0EDE8]">Anthropic</strong> processes your document generation prompts to generate document content.</li>
+            <li><strong className="text-[#F0EDE8]">Document generation service</strong> a third-party provider processes your document prompts to produce the document content.</li>
             <li><strong className="text-[#F0EDE8]">Emergent</strong> hosts the Morris application and serves it to your device.</li>
             <li><strong className="text-[#F0EDE8]">Stripe</strong> processes payment information for paid subscriptions.</li>
             <li><strong className="text-[#F0EDE8]">Resend</strong> delivers transactional emails such as password resets and receipts.</li>

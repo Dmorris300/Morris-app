@@ -123,7 +123,7 @@ export default function OfflineMode() {
         <p>1. When your phone loses signal, Morris keeps running. You can still open tools, fill them in and save drafts to your device.</p>
         <p>2. Each draft is encrypted in your browser's local storage with your account ID.</p>
         <p>3. The moment you reconnect, come back to this page and tap "Sync now" — Morris will push every queued item to the Vault.</p>
-        <p>4. AI generation (Verbal to Variation, Photo to Document) needs signal to call Claude — those features will queue the inputs for you to run when back online.</p>
+        <p>4. Verbal to Variation and Photo to Document need a connection to generate results — those features will queue your inputs and run automatically once you&apos;re back online.</p>
       </div>
     </div>
   );
