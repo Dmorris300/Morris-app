@@ -282,7 +282,7 @@ export function generateRamsPdf({ data, user, today }) {
   subheading(state, "Prepared by");
   kvTable(state, [
     ["Name",      user?.fullName || ""],
-    ["Role",      user?.signatureRole || ""],
+    ["Role",      user?.signatureRole || "Director"],
     ["Company",   user?.companyName || ""],
     ["Date",      todayStr],
   ]);

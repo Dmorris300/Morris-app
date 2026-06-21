@@ -288,7 +288,6 @@ export default function Rams() {
     // surface what's missing in the UI.
     const missing = [];
     if (!user?.fullName)        missing.push("Full name (Profile)");
-    if (!user?.signatureRole)   missing.push("Role (Profile)");
     if (!user?.signature && !liveSignature) missing.push("Signature (Profile or this page)");
     if (!task.trim())           missing.push("Task (Scope of Works)");
     if (hazards.length === 0 || !hazards.some((h) => h.hazard.trim() && h.activity.trim())) {

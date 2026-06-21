@@ -313,14 +313,15 @@ export default function Profile() {
           <div className="text-[10px] uppercase tracking-[0.2em] text-[#E8A020] flex items-center gap-2 mb-3">
             <PenTool size={12}/> Sign-off settings
           </div>
-          <Row label="Your role (appears in sign-off block)">
+          <Row label="Role (appears on every document sign-off block)">
             <input
               className="input-base"
               value={f.signatureRole}
               onChange={(e) => setF({ ...f, signatureRole: e.target.value })}
-              placeholder="e.g. Director, Site Manager, Owner, Operative"
+              placeholder="e.g. Director, Site Manager, Supervisor, Subcontractor, Operative, Business Owner"
               data-testid="profile-signature-role"
             />
+            <div className="text-[10px] text-[#706D66] mt-1 leading-relaxed">If left blank Morris will default to &ldquo;Director&rdquo; in the sign-off block of generated documents.</div>
           </Row>
           <div className="block">
             <div className="text-xs uppercase tracking-widest text-[#A19D94] mb-1">Saved signature</div>
