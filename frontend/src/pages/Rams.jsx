@@ -367,6 +367,14 @@ export default function Rams() {
   };
 
   // ---- UI building blocks (uses the same Inp/Drop/Area style as other dedicated tools) ----
+  // Section numbering: increments only when a <Section> actually renders.
+  // This means if any section is later wrapped in a `{cond && ...}` guard,
+  // the visible numbering stays consecutive (1, 2, 3…) regardless of which
+  // logical/template section it maps to. Reset on every render so React's
+  // StrictMode double-invocation can't drift the counter.
+  let _sectionNum = 0;
+  const sn = () => ++_sectionNum;
+
   return (
     <div className="p-6 md:p-10 max-w-7xl mx-auto" data-testid="page-rams">
       <Link to="/app" className="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-[#A19D94] hover:text-[#E8A020] mb-4">
@@ -393,7 +401,7 @@ export default function Rams() {
       )}
 
       {/* 1. Document Control */}
-      <Section title="1. Document Control" testId="rams-section-1">
+      <Section title={`${sn()}. Document Control`} testId="rams-section-1">
         <Grid>
           <Inp label="Document Reference" value={documentRef} onChange={setDocumentRef} placeholder="Auto-generated if blank" testId="rams-doc-ref" />
           <Inp label="Current Revision" value={documentRevision} onChange={setDocumentRevision} testId="rams-doc-rev" />
@@ -407,7 +415,7 @@ export default function Rams() {
       </Section>
 
       {/* 2. Revision History */}
-      <Section title="2. Revision History" testId="rams-section-2">
+      <Section title={`${sn()}. Revision History`} testId="rams-section-2">
         <div className="text-xs text-[#A19D94] mb-3">Add a new row each time the RAMS is reissued for the same job.</div>
         <div className="grid gap-3">
           {revisionHistory.map((r, idx) => (
@@ -428,7 +436,7 @@ export default function Rams() {
       </Section>
 
       {/* 3. Scope of Works */}
-      <Section title="3. Scope of Works" testId="rams-section-3">
+      <Section title={`${sn()}. Scope of Works`} testId="rams-section-3">
         <Grid>
           <div className="sm:col-span-2 lg:col-span-3"><Inp label="Task" value={task} onChange={setTask} placeholder='e.g. "First fix ductwork on second floor"' testId="rams-task" /></div>
           <Inp label="Estimated Duration" value={estimatedDuration} onChange={setEstimatedDuration} placeholder='e.g. "2 weeks"' testId="rams-duration" />
@@ -439,17 +447,17 @@ export default function Rams() {
       </Section>
 
       {/* 5. Persons at Risk */}
-      <Section title="5. Persons at Risk" testId="rams-section-5">
+      <Section title={`${sn()}. Persons at Risk`} testId="rams-section-5">
         <CheckboxRow options={PERSONS_OPTIONS} selected={personsAtRisk} onToggle={togglePerson} testId="rams-persons" />
       </Section>
 
       {/* 6. Training and Competence */}
-      <Section title="6. Training and Competence" testId="rams-section-6">
+      <Section title={`${sn()}. Training and Competence`} testId="rams-section-6">
         <CheckboxRow options={TRAINING_OPTIONS} selected={training} onToggle={toggleTraining} testId="rams-training" />
       </Section>
 
       {/* 9. Hazards */}
-      <Section title="9. Hazard Detail and Control Measures" testId="rams-section-9" icon={<ShieldAlert size={14}/>}>
+      <Section title={`${sn()}. Hazard Detail and Control Measures`} testId="rams-section-9" icon={<ShieldAlert size={14}/>}>
         <div className="grid gap-4">
           {hazards.map((h, idx) => {
             const init = (Number(h.likelihoodBefore) || 0) * (Number(h.severityBefore) || 0);
@@ -512,7 +520,7 @@ export default function Rams() {
       </Section>
 
       {/* 10. Control Measures and PPE */}
-      <Section title="10. Control Measures and PPE" testId="rams-section-10">
+      <Section title={`${sn()}. Control Measures and PPE`} testId="rams-section-10">
         <CheckboxRow options={PPE_OPTIONS} selected={ppe} onToggle={togglePpe} testId="rams-ppe" />
         {ppeSuggestions.length > 0 && (
           <div className="mt-4 rounded p-3 flex flex-col gap-2"
@@ -533,7 +541,7 @@ export default function Rams() {
       </Section>
 
       {/* 11. Plant and Equipment */}
-      <Section title="11. Plant and Equipment" testId="rams-section-11">
+      <Section title={`${sn()}. Plant and Equipment`} testId="rams-section-11">
         <CheckboxRow options={COMMON_EQUIPMENT} selected={equipment} onToggle={toggleEquip} testId="rams-equipment" />
         {equipSuggestions.length > 0 && (
           <div className="mt-4 rounded p-3 flex flex-col gap-2"
@@ -551,7 +559,7 @@ export default function Rams() {
       </Section>
 
       {/* 12. COSHH */}
-      <Section title="12. COSHH" testId="rams-section-12">
+      <Section title={`${sn()}. COSHH`} testId="rams-section-12">
         <div className="grid gap-3">
           {coshh.map((c, idx) => {
             const composed = composeCoshhLine(c);
@@ -590,7 +598,7 @@ export default function Rams() {
       </Section>
 
       {/* 13. Permits and Authorisations */}
-      <Section title="13. Permits and Authorisations" testId="rams-section-13">
+      <Section title={`${sn()}. Permits and Authorisations`} testId="rams-section-13">
         <Inp label="What this RAMS does NOT cover" value={notCovered} onChange={setNotCovered} placeholder="e.g. hot works, confined space, live electrical work" testId="rams-not-covered" />
         <div className="mt-3 text-xs text-[#A19D94] leading-relaxed">
           The PDF will auto-append: <em className="text-[#F0EDE8]">{`"If the work changes and any of these activities are needed, stop work, review this RAMS and put a separate permit or assessment in place before starting again."`}</em>
@@ -598,12 +606,12 @@ export default function Rams() {
       </Section>
 
       {/* 14. Sequence of Operations */}
-      <Section title="14. Sequence of Operations" testId="rams-section-14">
+      <Section title={`${sn()}. Sequence of Operations`} testId="rams-section-14">
         <Area label="Step-by-step method (one step per line)" value={sequence} onChange={setSequence} rows={6} placeholder="Step by step. Plain words. e.g. 'Mark the cut line. Check no cables behind. Cut with extraction running.'" testId="rams-sequence" />
       </Section>
 
       {/* 16. Welfare */}
-      <Section title="16. Welfare Arrangements" testId="rams-section-16">
+      <Section title={`${sn()}. Welfare Arrangements`} testId="rams-section-16">
         <Grid>
           <Inp label="Toilets"        value={welfareToilets} onChange={setWelfareToilets} testId="rams-welfare-toilets" />
           <Inp label="Washing"        value={welfareWashing} onChange={setWelfareWashing} testId="rams-welfare-washing" />
@@ -613,7 +621,7 @@ export default function Rams() {
       </Section>
 
       {/* 17. Environmental */}
-      <Section title="17. Environmental Considerations" testId="rams-section-17">
+      <Section title={`${sn()}. Environmental Considerations`} testId="rams-section-17">
         <Grid>
           <Inp label="Waste disposal"   value={envWaste}     onChange={setEnvWaste}     testId="rams-env-waste" />
           <Inp label="Dust and noise"   value={envDustNoise} onChange={setEnvDustNoise} testId="rams-env-dustnoise" />
@@ -623,7 +631,7 @@ export default function Rams() {
       </Section>
 
       {/* 18. Emergency */}
-      <Section title="18. Emergency Procedures" testId="rams-section-18">
+      <Section title={`${sn()}. Emergency Procedures`} testId="rams-section-18">
         <Grid>
           <Inp label="First Aider on site" value={firstAiderName} onChange={setFirstAiderName} testId="rams-emerg-fa" />
           <Inp label="Assembly point"      value={assemblyPoint}  onChange={setAssemblyPoint}  testId="rams-emerg-assembly" />
@@ -634,7 +642,7 @@ export default function Rams() {
       </Section>
 
       {/* 19. Sign Off */}
-      <Section title="19. Prepared by — Sign Off" testId="rams-section-19">
+      <Section title={`${sn()}. Prepared by — Sign Off`} testId="rams-section-19">
         <LiveSignatureBlock
           label="Prepared by"
           subtitle="Your signature is stamped on the PDF. If neither this signature nor a profile signature is set, export is blocked."
