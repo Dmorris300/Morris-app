@@ -646,6 +646,14 @@ async def generate(req: GenerateReq, authorization: Optional[str] = Header(None)
     today_str = datetime.now(timezone.utc).strftime("%d %B %Y")
     review_date_str = (datetime.now(timezone.utc) + timedelta(days=365)).strftime("%d %B %Y")
 
+    # Tools that are NOT compliance / RAMS / COSHH / H&S documents and must
+    # never receive an auto-generated 1-year review date. Site Diary is a
+    # daily record, not a periodic-review document. The user can still pass
+    # an "optionalReviewDate" input themselves; that value flows through the
+    # normal inputs block to the AI prompt.
+    NO_AUTO_REVIEW_DATE_TOOLS = {"site-diary", "multiuser-site-diary"}
+    suppress_auto_review = req.toolId in NO_AUTO_REVIEW_DATE_TOOLS
+
     # Build a clean profile block — only include fields the user has actually filled.
     profile_lines = [f"Name: {full_name}", f"Trade: {trade}"]
     if company:
@@ -703,10 +711,12 @@ async def generate(req: GenerateReq, authorization: Optional[str] = Header(None)
         "DOCUMENT HEADER RULE: Every document MUST begin with a header block in this exact format:\n"
         "DOCUMENT REFERENCE: {ref}\n"
         "DATE: {today}\n"
-        "If this is a compliance, RAMS, COSHH, H&S or assessment document also include:\n"
-        "REVIEW DATE: {review}\n"
-        "Then a blank line and the document body.\n"
-        .format(ref=ref_number, today=today_str, review=review_date_str)
+        + ("This document is a daily record, NOT a compliance assessment. DO NOT include a 'REVIEW DATE' line in the header under any circumstances. If the user supplied an 'optionalReviewDate' input, surface it ONCE near the end of the body as 'Review date: <value>'. Otherwise omit the review date completely.\n"
+           if suppress_auto_review else
+           "If this is a compliance, RAMS, COSHH, H&S or assessment document also include:\n"
+           "REVIEW DATE: {review}\n"
+        )
+        + "Then a blank line and the document body.\n"
         + "AUTHOR PROFILE (use these exact values wherever a name, company, address, UTR, VAT or CIS reference is needed):\n"
         + profile_block + "\n"
         "Personalise the document to this profile. Do not invent details.\n"
@@ -722,8 +732,12 @@ async def generate(req: GenerateReq, authorization: Optional[str] = Header(None)
         f"Tool: {req.toolName}\n"
         f"Document reference (use this in the header): {ref_number}\n"
         f"Today's date: {today_str}\n"
-        f"Review date (if applicable): {review_date_str}\n"
-        f"Trade: {trade}\n"
+        + (
+            ""  # Site Diary etc. — no auto review date
+            if suppress_auto_review else
+            f"Review date (if applicable): {review_date_str}\n"
+        )
+        + f"Trade: {trade}\n"
         f"User details:\n{inputs_text or '(none provided)'}\n\n"
         f"Instructions: {req.promptTemplate}\n\n"
         "Produce the final document text only — no preamble, no explanation."

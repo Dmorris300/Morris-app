@@ -149,8 +149,10 @@ Use only UK English. Do not use placeholder text. Use today's date and the auto-
       sel("hsObservations", "Health and Safety observations to record?", ["No", "Yes"]),
       tao("hsObservationsDetail", "If Yes, describe the H&S observations (near misses, incidents, hazards spotted)"),
       sel("photosAttached", "Photos attached", ["No", "Yes"]),
+      fpo("optionalReviewDate", "Optional Review Date (leave blank for a daily diary)", null, "date"),
     ],
     `Produce a professional UK site diary entry. Format as follows:
+0. HEADER OVERRIDE — A Site Diary is a DAILY RECORD, not a compliance assessment. DO NOT include any "REVIEW DATE" line in the header under any circumstances unless an Optional Review Date value was supplied in the inputs. If an Optional Review Date IS supplied, print one line near the bottom of the document: "Review date: DD/MM/YYYY". Otherwise omit the review date completely. This overrides the global header rule.
 1. OPENING STATEMENT — at the very top of the document, in bold capitals on its own line, print: 'THIS IS AN OFFICIAL SITE RECORD AND MAY BE USED IN THE EVENT OF A CONTRACTUAL DISPUTE.'
 2. HEADER — DATE, SITE.
 3. WEATHER — Temperature, Wind, Rain.

@@ -26,6 +26,9 @@ const isRequired = (_field) => false;
 // Auto-default value for date-style fields. Supports field.prefill = 'today' | 'today+Nd'.
 // Also defensive matching by field.name patterns so date inputs without explicit prefill still pre-populate.
 const autoDefaultFor = (field) => {
+  // Explicit opt-out: if the tool config sets prefill: null the field must
+  // start blank, even when its name happens to contain "review" / "date" etc.
+  if (field.prefill === null) return "";
   if (field.prefill === "today") return todayIso();
   if (typeof field.prefill === "string" && field.prefill.startsWith("today+")) {
     const m = field.prefill.match(/^today\+(\d+)d$/);
