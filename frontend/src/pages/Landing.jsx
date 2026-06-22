@@ -69,9 +69,9 @@ export default function Landing() {
               <a href="#tools" className="btn-secondary">See the tools</a>
             </div>
             <div className="mt-10 flex flex-wrap gap-x-8 gap-y-3 text-sm text-[#A19D94]">
-              <span className="flex items-center gap-2"><CheckCircle2 size={16} className="text-[#E8A020]" /> 80+ trade-specific tools</span>
-              <span className="flex items-center gap-2"><CheckCircle2 size={16} className="text-[#E8A020]" /> UK CIS, HMRC & HSE aware</span>
-              <span className="flex items-center gap-2"><CheckCircle2 size={16} className="text-[#E8A020]" /> Generates PDFs on your phone</span>
+              <span className="flex items-center gap-2"><CheckCircle2 size={16} className="text-[#E8A020]" /> 80+ tools built for your trade</span>
+              <span className="flex items-center gap-2"><CheckCircle2 size={16} className="text-[#E8A020]" /> Designed around UK construction compliance</span>
+              <span className="flex items-center gap-2"><CheckCircle2 size={16} className="text-[#E8A020]" /> Professional PDFs, generated on your phone</span>
             </div>
           </div>
         </div>
