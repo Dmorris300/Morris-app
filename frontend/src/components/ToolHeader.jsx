@@ -7,7 +7,7 @@ import { downloadPdf } from "../lib/pdf";
 import { emojiFor, disclaimerFor, requiresReview } from "../lib/tools-config";
 import { TradeSwitcher } from "./TradeSwitcher";
 
-export default function ToolHeader({ tool, infoOpen, setInfoOpen }) {
+export default function ToolHeader({ tool, infoOpen, setInfoOpen, extraActions }) {
   const { user, refresh } = useAuth();
   const [tradeSwitchOpen, setTradeSwitchOpen] = useState(false);
   const isFav = (user?.favourites || []).includes(tool.id);
@@ -49,6 +49,7 @@ export default function ToolHeader({ tool, infoOpen, setInfoOpen }) {
           <button onClick={toggleFav} className={`btn-secondary flex items-center gap-2 ${isFav ? "text-[#E8A020] border-[#E8A020]/40" : ""}`} data-testid="tool-fav-btn">
             <Star size={16} fill={isFav ? "#E8A020" : "none"} /> Favourite
           </button>
+          {extraActions}
         </div>
       </div>
       {infoOpen && (() => {

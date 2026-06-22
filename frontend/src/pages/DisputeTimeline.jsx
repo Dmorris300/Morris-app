@@ -6,6 +6,8 @@ import { useAuth } from "../lib/auth";
 import api from "../lib/api";
 import { downloadPdf } from "../lib/pdf";
 import LiveSignatureBlock from "../components/LiveSignatureBlock";
+import DraftSaveButton from "../components/DraftSaveButton";
+import useToolDraft from "../hooks/useToolDraft";
 
 const TOOL_ID   = "dispute-timeline";
 const TOOL_NAME = "Dispute Timeline";
@@ -114,6 +116,28 @@ export default function DisputeTimeline() {
   const [result, setResult]             = useState("");
   const [refNumber, setRefNumber]       = useState("");
   const [liveSignature, setLiveSignature] = useState("");
+
+  // ---------- Draft save/resume ----------
+  const getDraftData = () => ({
+    project, siteAddress, disputeRef, timelineStarted, disputeWith,
+    nature, natureOther, amount, status, rows,
+    result, refNumber, liveSignature,
+  });
+  useToolDraft(TOOL_ID, (p) => {
+    if (p.project !== undefined) setProject(p.project);
+    if (p.siteAddress !== undefined) setSiteAddress(p.siteAddress);
+    if (p.disputeRef !== undefined) setDisputeRef(p.disputeRef);
+    if (p.timelineStarted !== undefined) setTimelineStarted(p.timelineStarted);
+    if (p.disputeWith !== undefined) setDisputeWith(p.disputeWith);
+    if (p.nature !== undefined) setNature(p.nature);
+    if (p.natureOther !== undefined) setNatureOther(p.natureOther);
+    if (p.amount !== undefined) setAmount(p.amount);
+    if (p.status !== undefined) setStatus(p.status);
+    if (Array.isArray(p.rows)) setRows(p.rows);
+    if (p.result !== undefined) setResult(p.result);
+    if (p.refNumber !== undefined) setRefNumber(p.refNumber);
+    if (p.liveSignature !== undefined) setLiveSignature(p.liveSignature);
+  });
 
   const isFav = (user?.favourites || []).includes(TOOL_ID);
   const toggleFav = async () => {
@@ -296,6 +320,7 @@ Rules:
         <div className="flex items-center gap-2">
           <button onClick={() => setInfoOpen(true)} className="btn-secondary flex items-center gap-2" data-testid="dt-info-btn"><Info size={14}/> Info</button>
           <button onClick={toggleFav} className={`btn-secondary flex items-center gap-2 ${isFav ? "text-[#E8A020] border-[#E8A020]/40" : ""}`} data-testid="dt-fav-btn"><Star size={14} fill={isFav ? "#E8A020" : "none"}/> Favourite</button>
+          <DraftSaveButton tool={{ id: TOOL_ID, name: TOOL_NAME }} getDraftData={getDraftData} />
         </div>
       </div>
 

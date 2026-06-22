@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ChevronLeft, Download, Info, Star, X, Plus, Trash2, ShieldAlert, AlertTriangle,
@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import { useAuth } from "../lib/auth";
 import api from "../lib/api";
 import LiveSignatureBlock from "../components/LiveSignatureBlock";
+import DraftSaveButton from "../components/DraftSaveButton";
+import { draftIdFromQuery, clearDraftQueryParam, fetchDraft } from "../lib/drafts";
 import {
   downloadRamsPdf,
   ratingFromScore,
@@ -194,6 +196,74 @@ export default function Rams() {
   // UI
   const [infoOpen, setInfoOpen] = useState(false);
   const [generating, setGenerating] = useState(false);
+
+  // ---------- Draft save/resume ----------
+  // Snapshot every piece of form state so a Save/Resume cycle perfectly
+  // restores the document, including dynamic-row arrays (hazards, revisions,
+  // COSHH substances, PPE, plant…).
+  const getDraftData = () => ({
+    documentRef, documentRevision, clientName, principalContractor,
+    siteAddress, supervisorName, revisionHistory, task, estimatedDuration,
+    operativesCount, workAtHeight, overallRiskRating, personsAtRisk,
+    training, hazards, ppe, ppeOverrideNote, equipment, coshh, notCovered,
+    sequence, welfareToilets, welfareWashing, welfareRest, welfareWater,
+    envWaste, envDustNoise, envHours, envSpills, firstAiderName,
+    assemblyPoint, emergencyContacts, liveSignature,
+  });
+
+  const draftRestoredFor = useRef(null);
+  useEffect(() => {
+    const id = draftIdFromQuery();
+    if (!id || draftRestoredFor.current === id) return;
+    draftRestoredFor.current = id;
+    (async () => {
+      try {
+        const d = await fetchDraft(id);
+        if (!d || d.toolId !== TOOL_ID) return;
+        const p = d.data || {};
+        // Restore each field with a guard so older drafts with missing keys
+        // don't blank the user's current state.
+        if (p.documentRef !== undefined) setDocumentRef(p.documentRef);
+        if (p.documentRevision !== undefined) setDocumentRevision(p.documentRevision);
+        if (p.clientName !== undefined) setClientName(p.clientName);
+        if (p.principalContractor !== undefined) setPrincipalContractor(p.principalContractor);
+        if (p.siteAddress !== undefined) setSiteAddress(p.siteAddress);
+        if (p.supervisorName !== undefined) setSupervisorName(p.supervisorName);
+        if (Array.isArray(p.revisionHistory)) setRevisionHistory(p.revisionHistory);
+        if (p.task !== undefined) setTask(p.task);
+        if (p.estimatedDuration !== undefined) setEstimatedDuration(p.estimatedDuration);
+        if (p.operativesCount !== undefined) setOperativesCount(p.operativesCount);
+        if (p.workAtHeight !== undefined) setWorkAtHeight(p.workAtHeight);
+        if (p.overallRiskRating !== undefined) setOverallRiskRating(p.overallRiskRating);
+        if (Array.isArray(p.personsAtRisk)) setPersonsAtRisk(p.personsAtRisk);
+        if (Array.isArray(p.training)) setTraining(p.training);
+        if (Array.isArray(p.hazards)) setHazards(p.hazards);
+        if (Array.isArray(p.ppe)) setPpe(p.ppe);
+        if (p.ppeOverrideNote !== undefined) setPpeOverrideNote(p.ppeOverrideNote);
+        if (Array.isArray(p.equipment)) setEquipment(p.equipment);
+        if (Array.isArray(p.coshh)) setCoshh(p.coshh);
+        if (p.notCovered !== undefined) setNotCovered(p.notCovered);
+        if (p.sequence !== undefined) setSequence(p.sequence);
+        if (p.welfareToilets !== undefined) setWelfareToilets(p.welfareToilets);
+        if (p.welfareWashing !== undefined) setWelfareWashing(p.welfareWashing);
+        if (p.welfareRest !== undefined) setWelfareRest(p.welfareRest);
+        if (p.welfareWater !== undefined) setWelfareWater(p.welfareWater);
+        if (p.envWaste !== undefined) setEnvWaste(p.envWaste);
+        if (p.envDustNoise !== undefined) setEnvDustNoise(p.envDustNoise);
+        if (p.envHours !== undefined) setEnvHours(p.envHours);
+        if (p.envSpills !== undefined) setEnvSpills(p.envSpills);
+        if (p.firstAiderName !== undefined) setFirstAiderName(p.firstAiderName);
+        if (p.assemblyPoint !== undefined) setAssemblyPoint(p.assemblyPoint);
+        if (p.emergencyContacts !== undefined) setEmergencyContacts(p.emergencyContacts);
+        if (p.liveSignature !== undefined) setLiveSignature(p.liveSignature);
+        toast.success("Draft restored");
+      } catch (e) {
+        if (process.env.NODE_ENV !== "production") console.error("RAMS draft restore failed", e);
+      } finally {
+        clearDraftQueryParam();
+      }
+    })();
+  }, []); // run once on mount
 
   const isFav = (user?.favourites || []).includes(TOOL_ID);
   const toggleFav = async () => {
@@ -389,6 +459,7 @@ export default function Rams() {
         <div className="flex items-center gap-2">
           <button onClick={() => setInfoOpen(true)} className="btn-secondary flex items-center gap-2" data-testid="rams-info-btn"><Info size={14}/> Info</button>
           <button onClick={toggleFav} className={`btn-secondary flex items-center gap-2 ${isFav ? "text-[#E8A020] border-[#E8A020]/40" : ""}`} data-testid="rams-fav-btn"><Star size={14} fill={isFav ? "#E8A020" : "none"}/> Favourite</button>
+          <DraftSaveButton tool={{ id: TOOL_ID, name: TOOL_NAME }} getDraftData={getDraftData} />
         </div>
       </div>
 

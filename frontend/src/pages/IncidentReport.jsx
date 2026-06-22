@@ -6,6 +6,8 @@ import { useAuth } from "../lib/auth";
 import api from "../lib/api";
 import { downloadPdf } from "../lib/pdf";
 import LiveSignatureBlock from "../components/LiveSignatureBlock";
+import DraftSaveButton from "../components/DraftSaveButton";
+import useToolDraft from "../hooks/useToolDraft";
 
 const TOOL_ID   = "incident-report";
 const TOOL_NAME = "Incident Report";
@@ -115,6 +117,46 @@ export default function IncidentReport() {
   const [liveSignature, setLiveSignature] = useState("");
 
   const reportDate = isoToday();
+
+  // ---------- Draft save/resume ----------
+  const getDraftData = () => ({
+    incidentDate, incidentTime, siteAddress, exactLocation, incidentType,
+    personName, personRole, personEmployer, personContact, natureOfInjury,
+    natureOfInjuryOther, bodyPart, takenToHospital, timeOff, description,
+    factors, factorOther, firstAidGiven, firstAidDetails, witnesses,
+    immediateActions, correctiveActions, riddorReported, riddorRef,
+    riddorReportedDate, result, refNumber, liveSignature,
+  });
+  useToolDraft(TOOL_ID, (p) => {
+    if (p.incidentDate !== undefined) setIncidentDate(p.incidentDate);
+    if (p.incidentTime !== undefined) setIncidentTime(p.incidentTime);
+    if (p.siteAddress !== undefined) setSiteAddress(p.siteAddress);
+    if (p.exactLocation !== undefined) setExactLocation(p.exactLocation);
+    if (p.incidentType !== undefined) setIncidentType(p.incidentType);
+    if (p.personName !== undefined) setPersonName(p.personName);
+    if (p.personRole !== undefined) setPersonRole(p.personRole);
+    if (p.personEmployer !== undefined) setPersonEmployer(p.personEmployer);
+    if (p.personContact !== undefined) setPersonContact(p.personContact);
+    if (p.natureOfInjury !== undefined) setNatureOfInjury(p.natureOfInjury);
+    if (p.natureOfInjuryOther !== undefined) setNatureOfInjuryOther(p.natureOfInjuryOther);
+    if (p.bodyPart !== undefined) setBodyPart(p.bodyPart);
+    if (p.takenToHospital !== undefined) setTakenToHospital(p.takenToHospital);
+    if (p.timeOff !== undefined) setTimeOff(p.timeOff);
+    if (p.description !== undefined) setDescription(p.description);
+    if (Array.isArray(p.factors)) setFactors(p.factors);
+    if (p.factorOther !== undefined) setFactorOther(p.factorOther);
+    if (p.firstAidGiven !== undefined) setFirstAidGiven(p.firstAidGiven);
+    if (p.firstAidDetails !== undefined) setFirstAidDetails(p.firstAidDetails);
+    if (p.witnesses !== undefined) setWitnesses(p.witnesses);
+    if (p.immediateActions !== undefined) setImmediateActions(p.immediateActions);
+    if (p.correctiveActions !== undefined) setCorrectiveActions(p.correctiveActions);
+    if (p.riddorReported !== undefined) setRiddorReported(p.riddorReported);
+    if (p.riddorRef !== undefined) setRiddorRef(p.riddorRef);
+    if (p.riddorReportedDate !== undefined) setRiddorReportedDate(p.riddorReportedDate);
+    if (p.result !== undefined) setResult(p.result);
+    if (p.refNumber !== undefined) setRefNumber(p.refNumber);
+    if (p.liveSignature !== undefined) setLiveSignature(p.liveSignature);
+  });
 
   const isFav = (user?.favourites || []).includes(TOOL_ID);
   const toggleFav = async () => {
@@ -316,6 +358,7 @@ Rules:
         <div className="flex items-center gap-2">
           <button onClick={() => setInfoOpen(true)} className="btn-secondary flex items-center gap-2" data-testid="ir-info-btn"><Info size={14}/> Info</button>
           <button onClick={toggleFav} className={`btn-secondary flex items-center gap-2 ${isFav ? "text-[#E8A020] border-[#E8A020]/40" : ""}`} data-testid="ir-fav-btn"><Star size={14} fill={isFav ? "#E8A020" : "none"}/> Favourite</button>
+          <DraftSaveButton tool={{ id: TOOL_ID, name: TOOL_NAME }} getDraftData={getDraftData} />
         </div>
       </div>
 

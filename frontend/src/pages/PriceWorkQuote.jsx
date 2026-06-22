@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronLeft, FileText, Mail, Download, Copy, Info, Star, X, Plus, Trash2, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
@@ -6,6 +6,8 @@ import { useAuth } from "../lib/auth";
 import api from "../lib/api";
 import { downloadPdf } from "../lib/pdf";
 import LiveSignatureBlock from "../components/LiveSignatureBlock";
+import DraftSaveButton from "../components/DraftSaveButton";
+import { draftIdFromQuery, clearDraftQueryParam, fetchDraft } from "../lib/drafts";
 
 const TOOL_ID   = "price-work-quote";
 const TOOL_NAME = "Price Work Quote";
@@ -96,6 +98,50 @@ export default function PriceWorkQuote() {
   const [result, setResult]             = useState("");
   const [refNumber, setRefNumber]       = useState("");
   const [liveSignature, setLiveSignature] = useState("");
+
+  // ---------- Draft save/resume ----------
+  const getDraftData = () => ({
+    quoteRef, quoteDate, validUntil, project, siteAddress, quotedTo,
+    contactName, scope, drawingRef, rows, vatRegistered, vatRate,
+    paymentTerms, paymentTermsOther, included, excluded, additionalNotes,
+    result, refNumber, liveSignature,
+  });
+  const draftRestoredFor = useRef(null);
+  useEffect(() => {
+    const id = draftIdFromQuery();
+    if (!id || draftRestoredFor.current === id) return;
+    draftRestoredFor.current = id;
+    (async () => {
+      try {
+        const d = await fetchDraft(id);
+        if (!d || d.toolId !== TOOL_ID) return;
+        const p = d.data || {};
+        if (p.quoteRef !== undefined) setQuoteRef(p.quoteRef);
+        if (p.quoteDate !== undefined) setQuoteDate(p.quoteDate);
+        if (p.validUntil !== undefined) setValidUntil(p.validUntil);
+        if (p.project !== undefined) setProject(p.project);
+        if (p.siteAddress !== undefined) setSiteAddress(p.siteAddress);
+        if (p.quotedTo !== undefined) setQuotedTo(p.quotedTo);
+        if (p.contactName !== undefined) setContactName(p.contactName);
+        if (p.scope !== undefined) setScope(p.scope);
+        if (p.drawingRef !== undefined) setDrawingRef(p.drawingRef);
+        if (Array.isArray(p.rows)) setRows(p.rows);
+        if (p.vatRegistered !== undefined) setVatRegistered(p.vatRegistered);
+        if (p.vatRate !== undefined) setVatRate(p.vatRate);
+        if (p.paymentTerms !== undefined) setPaymentTerms(p.paymentTerms);
+        if (p.paymentTermsOther !== undefined) setPaymentTermsOther(p.paymentTermsOther);
+        if (p.included !== undefined) setIncluded(p.included);
+        if (p.excluded !== undefined) setExcluded(p.excluded);
+        if (p.additionalNotes !== undefined) setAdditionalNotes(p.additionalNotes);
+        if (p.result !== undefined) setResult(p.result);
+        if (p.refNumber !== undefined) setRefNumber(p.refNumber);
+        if (p.liveSignature !== undefined) setLiveSignature(p.liveSignature);
+        toast.success("Draft restored");
+      } catch (e) {
+        if (process.env.NODE_ENV !== "production") console.error("Quote draft restore failed", e);
+      } finally { clearDraftQueryParam(); }
+    })();
+  }, []); // run once on mount
 
   const isFav = (user?.favourites || []).includes(TOOL_ID);
   const toggleFav = async () => {
@@ -292,6 +338,7 @@ Rules:
         <div className="flex items-center gap-2">
           <button onClick={() => setInfoOpen(true)} className="btn-secondary flex items-center gap-2" data-testid="pwq-info-btn"><Info size={14}/> Info</button>
           <button onClick={toggleFav} className={`btn-secondary flex items-center gap-2 ${isFav ? "text-[#E8A020] border-[#E8A020]/40" : ""}`} data-testid="pwq-fav-btn"><Star size={14} fill={isFav ? "#E8A020" : "none"}/> Favourite</button>
+          <DraftSaveButton tool={{ id: TOOL_ID, name: TOOL_NAME }} getDraftData={getDraftData} />
         </div>
       </div>
 

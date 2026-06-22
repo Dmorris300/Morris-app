@@ -128,6 +128,19 @@ class CISPayment(BaseModel):
     notes: Optional[str] = ""
 
 
+class DraftSave(BaseModel):
+    """A user-initiated mid-form save. Validation is intentionally permissive —
+    drafts may carry partial / blank data. Each draft is per-user + per-tool;
+    a single user can keep many drafts of the same tool (e.g. one per job).
+    """
+    toolId: str
+    toolName: str
+    title: Optional[str] = None       # auto-derived if blank
+    data: Dict[str, Any] = Field(default_factory=dict)
+    # When updating an existing draft. None = create a new one.
+    draftId: Optional[str] = None
+
+
 class ExpenseEntry(BaseModel):
     """An allowable business expense logged by the user."""
     date: str
@@ -1031,6 +1044,81 @@ async def update_cis(pid: str, p: CISPayment, authorization: Optional[str] = Hea
         raise HTTPException(status_code=404, detail="Payment not found")
     doc = await db.cis_payments.find_one({"id": pid, "userId": user["id"]}, {"_id": 0})
     return doc
+
+
+# ---------- Drafts ----------
+# Mid-form save/resume. Stored per-user, per-tool. Validation is intentionally
+# permissive so users can capture progress at any point, even with required
+# fields blank.
+
+@api_router.get("/drafts")
+async def list_drafts(authorization: Optional[str] = Header(None)):
+    token = authorization.replace("Bearer ", "") if authorization else None
+    user = await get_user(token)
+    cursor = db.drafts.find(
+        {"userId": user["id"]},
+        {"_id": 0, "data": 0},  # don't ship full body in the list view
+    ).sort("updatedAt", -1)
+    return await cursor.to_list(length=500)
+
+
+@api_router.get("/drafts/{draft_id}")
+async def get_draft(draft_id: str, authorization: Optional[str] = Header(None)):
+    token = authorization.replace("Bearer ", "") if authorization else None
+    user = await get_user(token)
+    doc = await db.drafts.find_one({"id": draft_id, "userId": user["id"]}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    return doc
+
+
+@api_router.post("/drafts")
+async def save_draft(req: DraftSave, authorization: Optional[str] = Header(None)):
+    token = authorization.replace("Bearer ", "") if authorization else None
+    user = await get_user(token)
+    now_iso = datetime.now(timezone.utc).isoformat()
+    title = (req.title or "").strip() or f"{req.toolName} draft"
+
+    if req.draftId:
+        # Update existing — guarded by userId so users can't poke each other's drafts.
+        result = await db.drafts.update_one(
+            {"id": req.draftId, "userId": user["id"]},
+            {"$set": {
+                "title": title,
+                "data": req.data,
+                "updatedAt": now_iso,
+            }},
+        )
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="Draft not found")
+        doc = await db.drafts.find_one({"id": req.draftId, "userId": user["id"]}, {"_id": 0})
+        return doc
+
+    # Create
+    draft_id = str(uuid.uuid4())
+    doc = {
+        "id": draft_id,
+        "userId": user["id"],
+        "toolId": req.toolId,
+        "toolName": req.toolName,
+        "title": title,
+        "data": req.data,
+        "createdAt": now_iso,
+        "updatedAt": now_iso,
+    }
+    await db.drafts.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@api_router.delete("/drafts/{draft_id}")
+async def delete_draft(draft_id: str, authorization: Optional[str] = Header(None)):
+    token = authorization.replace("Bearer ", "") if authorization else None
+    user = await get_user(token)
+    result = await db.drafts.delete_one({"id": draft_id, "userId": user["id"]})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    return {"ok": True}
 
 
 # ---------- CIS Refund Summary → email to accountant ----------

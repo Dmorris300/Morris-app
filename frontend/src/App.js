@@ -16,6 +16,7 @@ import GenericToolPage from "./pages/GenericToolPage";
 import VerbalToVariation from "./pages/VerbalToVariation";
 import PhotoToDocument from "./pages/PhotoToDocument";
 import SitePhotoLibrary from "./pages/SitePhotoLibrary";
+import Drafts from "./pages/Drafts";
 import CISRefundPredictor from "./pages/CISRefundPredictor";
 import MileageTracker from "./pages/MileageTracker";
 import PaymentChaser from "./pages/PaymentChaser";
@@ -138,6 +139,7 @@ function App() {
             <Route path="wow/verbal-to-variation" element={<ProfileGate><VerbalToVariation /></ProfileGate>} />
             <Route path="wow/photo-to-document" element={<ProfileGate><PhotoToDocument /></ProfileGate>} />
             <Route path="site-photo-library" element={<ProfileGate><SitePhotoLibrary /></ProfileGate>} />
+            <Route path="drafts" element={<ProfileGate><Drafts /></ProfileGate>} />
             <Route path="cis-predictor" element={<ProfileGate><CISRefundPredictor /></ProfileGate>} />
             <Route path="mileage" element={<ProfileGate><MileageTracker /></ProfileGate>} />
             <Route path="vat" element={<ProfileGate><VatThreshold /></ProfileGate>} />

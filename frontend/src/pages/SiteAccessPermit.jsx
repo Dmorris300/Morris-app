@@ -6,6 +6,8 @@ import { useAuth } from "../lib/auth";
 import api from "../lib/api";
 import { downloadPdf } from "../lib/pdf";
 import LiveSignatureBlock from "../components/LiveSignatureBlock";
+import DraftSaveButton from "../components/DraftSaveButton";
+import useToolDraft from "../hooks/useToolDraft";
 
 const TOOL_ID   = "site-access-permit";
 const TOOL_NAME = "Site Access Permit";
@@ -129,6 +131,46 @@ export default function SiteAccessPermit() {
   const [generating, setGenerating]     = useState(false);
   const [result, setResult]             = useState("");
   const [refNumber, setRefNumber]       = useState("");
+
+  // ---------- Draft save/resume ----------
+  const getDraftData = () => ({
+    project, siteAddress, permitRef, issueDate, permitType, permitTypeOther,
+    location, validFrom, validTo, reason, holderName, holderCompany,
+    holderRole, partySize, hazards, additionalHazards, ppe, ppeOther,
+    controls, conditions, emergencyProc, issuerSignature, holderSignature,
+    worksCompleted, areaSafe, closedBy, closedAt, result, refNumber,
+  });
+  useToolDraft(TOOL_ID, (p) => {
+    if (p.project !== undefined) setProject(p.project);
+    if (p.siteAddress !== undefined) setSiteAddress(p.siteAddress);
+    if (p.permitRef !== undefined) setPermitRef(p.permitRef);
+    if (p.issueDate !== undefined) setIssueDate(p.issueDate);
+    if (p.permitType !== undefined) setPermitType(p.permitType);
+    if (p.permitTypeOther !== undefined) setPermitTypeOther(p.permitTypeOther);
+    if (p.location !== undefined) setLocation(p.location);
+    if (p.validFrom !== undefined) setValidFrom(p.validFrom);
+    if (p.validTo !== undefined) setValidTo(p.validTo);
+    if (p.reason !== undefined) setReason(p.reason);
+    if (p.holderName !== undefined) setHolderName(p.holderName);
+    if (p.holderCompany !== undefined) setHolderCompany(p.holderCompany);
+    if (p.holderRole !== undefined) setHolderRole(p.holderRole);
+    if (p.partySize !== undefined) setPartySize(p.partySize);
+    if (p.hazards && typeof p.hazards === "object") setHazards(p.hazards);
+    if (p.additionalHazards !== undefined) setAdditionalHazards(p.additionalHazards);
+    if (Array.isArray(p.ppe)) setPpe(p.ppe);
+    if (p.ppeOther !== undefined) setPpeOther(p.ppeOther);
+    if (p.controls !== undefined) setControls(p.controls);
+    if (p.conditions !== undefined) setConditions(p.conditions);
+    if (p.emergencyProc !== undefined) setEmergencyProc(p.emergencyProc);
+    if (p.issuerSignature !== undefined) setIssuerSignature(p.issuerSignature);
+    if (p.holderSignature !== undefined) setHolderSignature(p.holderSignature);
+    if (p.worksCompleted !== undefined) setWorksCompleted(p.worksCompleted);
+    if (p.areaSafe !== undefined) setAreaSafe(p.areaSafe);
+    if (p.closedBy !== undefined) setClosedBy(p.closedBy);
+    if (p.closedAt !== undefined) setClosedAt(p.closedAt);
+    if (p.result !== undefined) setResult(p.result);
+    if (p.refNumber !== undefined) setRefNumber(p.refNumber);
+  });
 
   const isFav = (user?.favourites || []).includes(TOOL_ID);
   const toggleFav = async () => {
@@ -313,6 +355,7 @@ Rules:
         <div className="flex items-center gap-2">
           <button onClick={() => setInfoOpen(true)} className="btn-secondary flex items-center gap-2" data-testid="sap-info-btn"><Info size={14}/> Info</button>
           <button onClick={toggleFav} className={`btn-secondary flex items-center gap-2 ${isFav ? "text-[#E8A020] border-[#E8A020]/40" : ""}`} data-testid="sap-fav-btn"><Star size={14} fill={isFav ? "#E8A020" : "none"}/> Favourite</button>
+          <DraftSaveButton tool={{ id: TOOL_ID, name: TOOL_NAME }} getDraftData={getDraftData} />
         </div>
       </div>
 

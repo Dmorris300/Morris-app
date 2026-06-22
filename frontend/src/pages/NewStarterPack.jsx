@@ -6,6 +6,8 @@ import { useAuth } from "../lib/auth";
 import api from "../lib/api";
 import { downloadPdf } from "../lib/pdf";
 import LiveSignatureBlock from "../components/LiveSignatureBlock";
+import DraftSaveButton from "../components/DraftSaveButton";
+import useToolDraft from "../hooks/useToolDraft";
 
 const TOOL_ID   = "new-starter-pack";
 const TOOL_NAME = "New Starter Pack";
@@ -135,6 +137,49 @@ export default function NewStarterPack() {
   const [refNumber, setRefNumber]       = useState("");
 
   const isCis = employment !== "Employed (PAYE)";
+
+  // ---------- Draft save/resume ----------
+  const getDraftData = () => ({
+    project, siteAddress, joinDate, fullName, dob, homeAddress, phone, email,
+    nokName, nokRelationship, nokPhone, medical, employment, utr,
+    cisVerification, rightToWorkChecked, rightToWorkType, niNumber,
+    documents, cscsNumber, cscsExpiry, ppe, ppeOther, ppeOtherStatus,
+    ppeNotes, induction, inductionNotes, employerSignature, starterSignature,
+    result, refNumber,
+  });
+  useToolDraft(TOOL_ID, (p) => {
+    if (p.project !== undefined) setProject(p.project);
+    if (p.siteAddress !== undefined) setSiteAddress(p.siteAddress);
+    if (p.joinDate !== undefined) setJoinDate(p.joinDate);
+    if (p.fullName !== undefined) setFullName(p.fullName);
+    if (p.dob !== undefined) setDob(p.dob);
+    if (p.homeAddress !== undefined) setHomeAddress(p.homeAddress);
+    if (p.phone !== undefined) setPhone(p.phone);
+    if (p.email !== undefined) setEmail(p.email);
+    if (p.nokName !== undefined) setNokName(p.nokName);
+    if (p.nokRelationship !== undefined) setNokRelationship(p.nokRelationship);
+    if (p.nokPhone !== undefined) setNokPhone(p.nokPhone);
+    if (p.medical !== undefined) setMedical(p.medical);
+    if (p.employment !== undefined) setEmployment(p.employment);
+    if (p.utr !== undefined) setUtr(p.utr);
+    if (p.cisVerification !== undefined) setCisVerification(p.cisVerification);
+    if (p.rightToWorkChecked !== undefined) setRightToWorkChecked(p.rightToWorkChecked);
+    if (p.rightToWorkType !== undefined) setRightToWorkType(p.rightToWorkType);
+    if (p.niNumber !== undefined) setNiNumber(p.niNumber);
+    if (p.documents && typeof p.documents === "object") setDocuments(p.documents);
+    if (p.cscsNumber !== undefined) setCscsNumber(p.cscsNumber);
+    if (p.cscsExpiry !== undefined) setCscsExpiry(p.cscsExpiry);
+    if (p.ppe && typeof p.ppe === "object") setPpe(p.ppe);
+    if (p.ppeOther !== undefined) setPpeOther(p.ppeOther);
+    if (p.ppeOtherStatus !== undefined) setPpeOtherStatus(p.ppeOtherStatus);
+    if (p.ppeNotes !== undefined) setPpeNotes(p.ppeNotes);
+    if (p.induction && typeof p.induction === "object") setInduction(p.induction);
+    if (p.inductionNotes !== undefined) setInductionNotes(p.inductionNotes);
+    if (p.employerSignature !== undefined) setEmployerSignature(p.employerSignature);
+    if (p.starterSignature !== undefined) setStarterSignature(p.starterSignature);
+    if (p.result !== undefined) setResult(p.result);
+    if (p.refNumber !== undefined) setRefNumber(p.refNumber);
+  });
 
   const isFav = (user?.favourites || []).includes(TOOL_ID);
   const toggleFav = async () => {
@@ -315,6 +360,7 @@ Rules:
         <div className="flex items-center gap-2">
           <button onClick={() => setInfoOpen(true)} className="btn-secondary flex items-center gap-2" data-testid="nsp-info-btn"><Info size={14}/> Info</button>
           <button onClick={toggleFav} className={`btn-secondary flex items-center gap-2 ${isFav ? "text-[#E8A020] border-[#E8A020]/40" : ""}`} data-testid="nsp-fav-btn"><Star size={14} fill={isFav ? "#E8A020" : "none"}/> Favourite</button>
+          <DraftSaveButton tool={{ id: TOOL_ID, name: TOOL_NAME }} getDraftData={getDraftData} />
         </div>
       </div>
 

@@ -6,6 +6,8 @@ import { useAuth } from "../lib/auth";
 import api from "../lib/api";
 import { downloadPdf } from "../lib/pdf";
 import LiveSignatureBlock from "../components/LiveSignatureBlock";
+import DraftSaveButton from "../components/DraftSaveButton";
+import useToolDraft from "../hooks/useToolDraft";
 
 const TOOL_ID   = "bad-debt-letter";
 const TOOL_NAME = "Bad Debt Letter";
@@ -95,6 +97,33 @@ export default function BadDebtLetter() {
   const [result, setResult]               = useState("");
   const [refNumber, setRefNumber]         = useState("");
   const [liveSignature, setLiveSignature] = useState("");
+
+  // ---------- Draft save/resume ----------
+  const getDraftData = () => ({
+    letterDate, debtor, originalDate, originalAmount, invoiceNumber,
+    worksDescription, outstanding, previousChases, interestAuto,
+    interestManual, compensationAuto, compensationManual, finalDeadline,
+    nextStep, result, refNumber, liveSignature,
+  });
+  useToolDraft(TOOL_ID, (p) => {
+    if (p.letterDate !== undefined) setLetterDate(p.letterDate);
+    if (p.debtor !== undefined) setDebtor(p.debtor);
+    if (p.originalDate !== undefined) setOriginalDate(p.originalDate);
+    if (p.originalAmount !== undefined) setOriginalAmount(p.originalAmount);
+    if (p.invoiceNumber !== undefined) setInvoiceNumber(p.invoiceNumber);
+    if (p.worksDescription !== undefined) setWorksDescription(p.worksDescription);
+    if (p.outstanding !== undefined) setOutstanding(p.outstanding);
+    if (p.previousChases !== undefined) setPreviousChases(p.previousChases);
+    if (p.interestAuto !== undefined) setInterestAuto(p.interestAuto);
+    if (p.interestManual !== undefined) setInterestManual(p.interestManual);
+    if (p.compensationAuto !== undefined) setCompensationAuto(p.compensationAuto);
+    if (p.compensationManual !== undefined) setCompensationManual(p.compensationManual);
+    if (p.finalDeadline !== undefined) setFinalDeadline(p.finalDeadline);
+    if (p.nextStep !== undefined) setNextStep(p.nextStep);
+    if (p.result !== undefined) setResult(p.result);
+    if (p.refNumber !== undefined) setRefNumber(p.refNumber);
+    if (p.liveSignature !== undefined) setLiveSignature(p.liveSignature);
+  });
 
   const isFav = (user?.favourites || []).includes(TOOL_ID);
   const toggleFav = async () => {
@@ -282,6 +311,7 @@ Rules:
         <div className="flex items-center gap-2">
           <button onClick={() => setInfoOpen(true)} className="btn-secondary flex items-center gap-2" data-testid="bdl-info-btn"><Info size={14}/> Info</button>
           <button onClick={toggleFav} className={`btn-secondary flex items-center gap-2 ${isFav ? "text-[#E8A020] border-[#E8A020]/40" : ""}`} data-testid="bdl-fav-btn"><Star size={14} fill={isFav ? "#E8A020" : "none"}/> Favourite</button>
+          <DraftSaveButton tool={{ id: TOOL_ID, name: TOOL_NAME }} getDraftData={getDraftData} />
         </div>
       </div>
 

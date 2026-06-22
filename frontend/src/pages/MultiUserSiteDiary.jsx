@@ -6,6 +6,8 @@ import { useAuth } from "../lib/auth";
 import api from "../lib/api";
 import { downloadPdf } from "../lib/pdf";
 import LiveSignatureBlock from "../components/LiveSignatureBlock";
+import DraftSaveButton from "../components/DraftSaveButton";
+import useToolDraft from "../hooks/useToolDraft";
 
 const TOOL_ID   = "multiuser-site-diary";
 const TOOL_NAME = "Multi-User Site Diary";
@@ -91,6 +93,26 @@ export default function MultiUserSiteDiary() {
   const [result, setResult]             = useState("");
   const [refNumber, setRefNumber]       = useState("");
   const [liveSignature, setLiveSignature] = useState("");
+
+  // ---------- Draft save/resume ----------
+  const getDraftData = () => ({
+    project, siteAddress, diaryDate, weather, siteStatus, gangs,
+    visitors, instructions, overallNotes, result, refNumber, liveSignature,
+  });
+  useToolDraft(TOOL_ID, (p) => {
+    if (p.project !== undefined) setProject(p.project);
+    if (p.siteAddress !== undefined) setSiteAddress(p.siteAddress);
+    if (p.diaryDate !== undefined) setDiaryDate(p.diaryDate);
+    if (p.weather !== undefined) setWeather(p.weather);
+    if (p.siteStatus !== undefined) setSiteStatus(p.siteStatus);
+    if (Array.isArray(p.gangs)) setGangs(p.gangs);
+    if (p.visitors !== undefined) setVisitors(p.visitors);
+    if (p.instructions !== undefined) setInstructions(p.instructions);
+    if (p.overallNotes !== undefined) setOverallNotes(p.overallNotes);
+    if (p.result !== undefined) setResult(p.result);
+    if (p.refNumber !== undefined) setRefNumber(p.refNumber);
+    if (p.liveSignature !== undefined) setLiveSignature(p.liveSignature);
+  });
 
   const isFav = (user?.favourites || []).includes(TOOL_ID);
   const toggleFav = async () => {
@@ -255,6 +277,7 @@ Rules:
         <div className="flex items-center gap-2">
           <button onClick={() => setInfoOpen(true)} className="btn-secondary flex items-center gap-2" data-testid="msd-info-btn"><Info size={14}/> Info</button>
           <button onClick={toggleFav} className={`btn-secondary flex items-center gap-2 ${isFav ? "text-[#E8A020] border-[#E8A020]/40" : ""}`} data-testid="msd-fav-btn"><Star size={14} fill={isFav ? "#E8A020" : "none"}/> Favourite</button>
+          <DraftSaveButton tool={{ id: TOOL_ID, name: TOOL_NAME }} getDraftData={getDraftData} />
         </div>
       </div>
 

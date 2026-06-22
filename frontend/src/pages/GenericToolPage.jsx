@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getToolById, isDualSignoff } from "../lib/tools-config";
 import ToolHeader, { ResultActions } from "../components/ToolHeader";
+import DraftSaveButton from "../components/DraftSaveButton";
+import { draftIdFromQuery, clearDraftQueryParam, fetchDraft } from "../lib/drafts";
 import LiveSignatureBlock from "../components/LiveSignatureBlock";
 import api from "../lib/api";
 import { useAuth } from "../lib/auth";
@@ -114,6 +116,36 @@ export default function GenericToolPage() {
     }
   }, [toolId, tool]);
 
+  // Draft restore — if the URL has ?draft=<id> we fetch the draft on mount and
+  // hydrate `values`, `result`, `refNumber`, and any attached photos. Runs once
+  // per toolId (the ref guard mirrors the photo-intent handling so StrictMode's
+  // double-invocation doesn't lose the hydration).
+  const draftRestoredFor = useRef(null);
+  useEffect(() => {
+    if (!tool) return;
+    const id = draftIdFromQuery();
+    if (!id) return;
+    if (draftRestoredFor.current === id) return;
+    draftRestoredFor.current = id;
+    (async () => {
+      try {
+        const d = await fetchDraft(id);
+        if (!d || d.toolId !== toolId) return;
+        const payload = d.data || {};
+        if (payload.values && typeof payload.values === "object") setValues(payload.values);
+        if (typeof payload.result === "string") setResult(payload.result);
+        if (typeof payload.refNumber === "string") setRefNumber(payload.refNumber);
+        if (Array.isArray(payload.attachedPhotos)) setAttachedPhotos(payload.attachedPhotos);
+        if (payload.attachedPhoto) setAttachedPhoto(payload.attachedPhoto);
+        toast.success("Draft restored");
+      } catch (e) {
+        if (process.env.NODE_ENV !== "production") console.error("Draft restore failed", e);
+      } finally {
+        clearDraftQueryParam();
+      }
+    })();
+  }, [toolId, tool]);
+
   // No required-field gating — users can generate with whatever they've entered.
   const missingRequired = [];
 
@@ -212,7 +244,20 @@ export default function GenericToolPage() {
 
   return (
     <div className="p-6 md:p-10 max-w-6xl mx-auto" data-testid={`tool-page-${tool.id}`}>
-      <ToolHeader tool={tool} infoOpen={infoOpen} setInfoOpen={setInfoOpen} />
+      <ToolHeader
+        tool={tool}
+        infoOpen={infoOpen}
+        setInfoOpen={setInfoOpen}
+        extraActions={(
+          <DraftSaveButton
+            tool={tool}
+            getDraftData={() => ({
+              values, result, refNumber,
+              attachedPhoto, attachedPhotos,
+            })}
+          />
+        )}
+      />
 
       {tool.warningBanner && (
         <div
@@ -246,7 +291,7 @@ export default function GenericToolPage() {
                 ? `${attachedPhotos.length} photo${attachedPhotos.length === 1 ? "" : "s"} attached via Photo to Document`
                 : "Photo attached via Photo to Document"}
             </div>
-            <div className="text-[11px] text-[#A19D94] mt-0.5">All images will be embedded in the final PDF under a "Photographic Evidence" annex.</div>
+            <div className="text-[11px] text-[#A19D94] mt-0.5">All images will be embedded in the final PDF under a &ldquo;Photographic Evidence&rdquo; annex.</div>
           </div>
           <button
             type="button"
@@ -439,6 +484,12 @@ export default function GenericToolPage() {
 
 function RedirectTo({ path }) {
   const nav = useNavigate();
-  useEffect(() => { nav(path, { replace: true }); }, [path]);
+  useEffect(() => {
+    // Preserve the existing query string (e.g. ?draft=<id>) when redirecting
+    // a /app/tool/<id> URL to its dedicated page. Without this, deep-links
+    // like "resume draft" lose the parameter and the restore never fires.
+    const search = typeof window !== "undefined" ? window.location.search : "";
+    nav(`${path}${search}`, { replace: true });
+  }, [path]);
   return null;
 }
