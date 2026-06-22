@@ -27,6 +27,14 @@ Dark-themed construction administration SaaS web application for UK tradespeople
 
 ## What's been implemented
 
+- ✅ **[FEATURE] RAMS — 8 new supplementary sections render in PDF** (Feb 22, 2026)
+  - Added the 8 new RAMS sections (Site Induction, Manual Handling, Noise and Vibration, Keeping the Site Tidy, Fire and Emergency Evacuation, Who This RAMS Has Been Shared With, Client / Principal Contractor Sign-Off, Reviewing This RAMS) to the PDF renderer at `/app/frontend/src/lib/rams-pdf.js`. UI form blocks in `Rams.jsx` were already in place from the previous step; this completes the round-trip into the exported PDF.
+  - Refactored `section()` helper in `rams-pdf.js` to use a `state.sectionNum` auto-incrementing counter (matches the `sn()` pattern in the UI). Removed all hardcoded section numbers from the renderer so additions/removals stay sequential. Added `noIncrement` + `suffix` options for the 12a sub-section (Substances Requiring a Separate Licensed Assessment).
+  - Wired through the 8 new fields in `Rams.jsx` `onDownload` data payload (`siteInduction`, `manualHandling`, `noiseAndVibration`, `keepingSiteTidy`, `fireEvacuation`, `sharedWith`, `clientSignOffName/Role/Date/Signature`, `reviewSchedule`).
+  - `sharedWith` is parsed into a "Name / Company / Role" table. Client Sign-Off renders the kvTable + the drawn signature image. Site Induction has a sensible default if left blank.
+  - Verified end-to-end via testing_agent (iteration_10): UI sections numbered 1-23 sequentially, all 9 distinctive test snippets and all 8 section titles appear in the exported PDF (5 pages, 120KB). 100% pass.
+
+
 ### Feb 2026 (this session, after fork)
 - ✅ **[FEATURE] Photo to Document — Multi-Photo PDF + Site Photo Library** (Feb 20, 2026)
   - Updated `pdf.js` to accept a `photos` array (alongside legacy single `photo`). When photos are attached, a new "Photographic Evidence" annex is appended on its own page with: per-photo header ("Photo N of M"), date/time/location stamp line, the embedded image, and an optional Note block. Each photo block is rendered with proper page-break logic so long notes don't overflow.
