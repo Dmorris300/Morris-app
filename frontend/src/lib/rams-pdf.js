@@ -48,10 +48,10 @@ export function generateRamsPdf({ data, user, today }) {
   drawHeader(doc, pageWidth, MARGIN, user, company, todayStr,
     `RAMS — ${data.task || "Task"}`);
 
-  const state = { y: 150, doc, pageWidth, pageHeight, user, company, todayStr, ref, userName };
+  const state = { y: 150, doc, pageWidth, pageHeight, user, company, todayStr, ref, userName, sectionNum: 0 };
 
-  // ===== 1. Document Control =====
-  section(state, "1. Document Control");
+  // ===== Document Control =====
+  section(state, "Document Control");
   kvTable(state, [
     ["Document Reference",       ref || "—"],
     ["Revision",                 currentRevision(data)],
@@ -64,8 +64,8 @@ export function generateRamsPdf({ data, user, today }) {
     ["Site Address",             data.siteAddress || "—"],
   ]);
 
-  // ===== 2. Revision History =====
-  section(state, "2. Revision History");
+  // ===== Revision History =====
+  section(state, "Revision History");
   table(state, ["Rev", "Date", "Description", "Author"], (data.revisionHistory || []).map((r) => [
     r.rev || "",
     r.date || "",
@@ -73,8 +73,8 @@ export function generateRamsPdf({ data, user, today }) {
     r.author || "",
   ]));
 
-  // ===== 3. Scope of Works =====
-  section(state, "3. Scope of Works");
+  // ===== Scope of Works =====
+  section(state, "Scope of Works");
   kvTable(state, [
     ["Task",                  data.task || "—"],
     ["Estimated Duration",    data.estimatedDuration || "—"],
@@ -83,8 +83,8 @@ export function generateRamsPdf({ data, user, today }) {
     ["Overall Risk Rating",   data.overallRiskRating || "—"],
   ]);
 
-  // ===== 4. Legislation =====
-  section(state, "4. Legislation");
+  // ===== Legislation =====
+  section(state, "Legislation");
   bullets(state, [
     "Management of Health and Safety at Work Regulations 1999",
     "Manual Handling Operations Regulations 1992",
@@ -96,16 +96,27 @@ export function generateRamsPdf({ data, user, today }) {
     "CDM 2015",
   ]);
 
-  // ===== 5. Persons at Risk =====
-  section(state, "5. Persons at Risk");
+  // ===== Persons at Risk =====
+  section(state, "Persons at Risk");
   bullets(state, data.personsAtRisk?.length ? data.personsAtRisk : ["Site operatives"]);
 
-  // ===== 6. Training and Competence =====
-  section(state, "6. Training and Competence");
+  // ===== Training and Competence =====
+  section(state, "Training and Competence");
   bullets(state, data.training?.length ? data.training : ["No specific training selected"]);
 
-  // ===== 7. Risk Matrix Key =====
-  section(state, "7. Risk Matrix Key");
+  // ===== Site Induction (new — universal) =====
+  {
+    const siteInd = (data.siteInduction || "").trim();
+    section(state, "Site Induction");
+    if (siteInd) {
+      para(state, siteInd);
+    } else {
+      para(state, "All operatives must attend the site-specific induction before starting work. The induction covers site rules, hazards, welfare arrangements, emergency procedures and points of contact.");
+    }
+  }
+
+  // ===== Risk Matrix Key =====
+  section(state, "Risk Matrix Key");
   para(state, "Use the same scoring on every RAMS. Likelihood × Severity = Risk Score.");
   table(state, ["Likelihood", "Meaning"], [
     ["1", "Very unlikely to happen"],
@@ -129,8 +140,8 @@ export function generateRamsPdf({ data, user, today }) {
     ["15–25", "High",   "Stop work. Add controls until the score drops. Do not proceed without written sign-off."],
   ], { colored: [null, ratingPaletteFor] });
 
-  // ===== 8. Risk Register Summary =====
-  section(state, "8. Risk Register Summary");
+  // ===== Risk Register Summary =====
+  section(state, "Risk Register Summary");
   const summaryRows = (data.hazards || []).map((h) => {
     const init  = (Number(h.likelihoodBefore) || 0) * (Number(h.severityBefore) || 0);
     const sevAfter = Number(h.severityAfter ?? h.severityBefore) || 0;
@@ -150,8 +161,8 @@ export function generateRamsPdf({ data, user, today }) {
     colWidths: [USABLE - 200, 100, 100],
   });
 
-  // ===== 9. Hazard Detail and Control Measures =====
-  section(state, "9. Hazard Detail and Control Measures");
+  // ===== Hazard Detail and Control Measures =====
+  section(state, "Hazard Detail and Control Measures");
   (data.hazards || []).forEach((h, i) => {
     subheading(state, `Hazard ${i + 1}. ${composeHazardLine(h)}`);
     const sevAfter = h.severityAfter ?? h.severityBefore;
@@ -175,23 +186,41 @@ export function generateRamsPdf({ data, user, today }) {
     spacer(state, 8);
   });
 
-  // ===== 10. Control Measures and PPE =====
-  section(state, "10. Control Measures and PPE");
+  // ===== Control Measures and PPE =====
+  section(state, "Control Measures and PPE");
   bullets(state, (data.ppe || []).length ? data.ppe : ["No PPE listed"]);
   if (data.ppeOverrideNote) {
     para(state, `Override note: ${data.ppeOverrideNote}`);
   }
 
-  // ===== 11. Plant and Equipment =====
-  section(state, "11. Plant and Equipment");
+  // ===== Manual Handling (new — trade-aware) =====
+  {
+    const mh = (data.manualHandling || "").trim();
+    if (mh) {
+      section(state, "Manual Handling");
+      para(state, mh);
+    }
+  }
+
+  // ===== Noise and Vibration (new) =====
+  {
+    const nv = (data.noiseAndVibration || "").trim();
+    if (nv) {
+      section(state, "Noise and Vibration");
+      para(state, nv);
+    }
+  }
+
+  // ===== Plant and Equipment =====
+  section(state, "Plant and Equipment");
   bullets(state, (data.equipment || []).length ? data.equipment : ["No plant or equipment listed"]);
   para(state, "All plant and equipment listed above has been checked and is in date.");
 
-  // ===== 12. COSHH =====
+  // ===== COSHH =====
   const coshhStd = (data.coshh || []).filter((c) => !c.licensedSeparate);
   const coshhLic = (data.coshh || []).filter((c) =>  c.licensedSeparate);
 
-  section(state, "12. COSHH");
+  section(state, "COSHH");
   if (coshhStd.length === 0) {
     para(state, "No hazardous substances in standard use on this task.");
   } else {
@@ -201,7 +230,7 @@ export function generateRamsPdf({ data, user, today }) {
   }
 
   if (coshhLic.length > 0) {
-    section(state, "12a. Substances Requiring a Separate Licensed Assessment");
+    section(state, "Substances Requiring a Separate Licensed Assessment", { suffix: "a", noIncrement: true });
     para(state, "STOP — the following substances need a separate licensed assessment before work starts. Do not proceed until that assessment is in place.");
     coshhLic.forEach((c) => {
       subheading(state, c.substance || "Substance");
@@ -210,8 +239,8 @@ export function generateRamsPdf({ data, user, today }) {
     });
   }
 
-  // ===== 13. Permits and Authorisations =====
-  section(state, "13. Permits and Authorisations");
+  // ===== Permits and Authorisations =====
+  section(state, "Permits and Authorisations");
   if (data.notCovered) {
     para(state, `This RAMS does not cover: ${data.notCovered}.`);
   } else {
@@ -219,8 +248,8 @@ export function generateRamsPdf({ data, user, today }) {
   }
   para(state, "If the work changes and any of these activities are needed, stop work, review this RAMS and put a separate permit or assessment in place before starting again. Hot works, confined space, live electrical work, asbestos work and any other licensed activity must always have their own permit.");
 
-  // ===== 14. Sequence of Operations =====
-  section(state, "14. Sequence of Operations");
+  // ===== Sequence of Operations =====
+  section(state, "Sequence of Operations");
   const steps = (data.sequence || "").split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
   if (steps.length === 0) {
     para(state, "To be completed by supervisor before works start.");
@@ -228,16 +257,25 @@ export function generateRamsPdf({ data, user, today }) {
     numbered(state, steps);
   }
 
-  // ===== 15. Work at Height =====
-  section(state, "15. Work at Height");
+  // ===== Keeping the Site Tidy (new) =====
+  {
+    const kt = (data.keepingSiteTidy || "").trim();
+    if (kt) {
+      section(state, "Keeping the Site Tidy");
+      para(state, kt);
+    }
+  }
+
+  // ===== Work at Height =====
+  section(state, "Work at Height");
   if (data.workAtHeight) {
     para(state, "Working at height applies on this task. A separate Working at Height Rescue Plan must be in place before any work above 1.8 metres starts. All harnesses must be in date and inspected on the day. Stop work if any equipment fails inspection.");
   } else {
     para(state, "No work at height on this task.");
   }
 
-  // ===== 16. Welfare Arrangements =====
-  section(state, "16. Welfare Arrangements");
+  // ===== Welfare Arrangements =====
+  section(state, "Welfare Arrangements");
   kvTable(state, [
     ["Toilets",          data.welfareToilets || "—"],
     ["Washing",          data.welfareWashing || "—"],
@@ -245,8 +283,8 @@ export function generateRamsPdf({ data, user, today }) {
     ["Drinking water",   data.welfareWater || "—"],
   ]);
 
-  // ===== 17. Environmental Considerations =====
-  section(state, "17. Environmental Considerations");
+  // ===== Environmental Considerations =====
+  section(state, "Environmental Considerations");
   kvTable(state, [
     ["Waste disposal",     data.envWaste || "—"],
     ["Dust and noise",     data.envDustNoise || "—"],
@@ -254,8 +292,8 @@ export function generateRamsPdf({ data, user, today }) {
     ["Spill management",   data.envSpills || "—"],
   ]);
 
-  // ===== 18. Emergency Procedures =====
-  section(state, "18. Emergency Procedures");
+  // ===== Emergency Procedures =====
+  section(state, "Emergency Procedures");
   kvTable(state, [
     ["First Aider on site", data.firstAiderName || "—"],
     ["Assembly point",      data.assemblyPoint || "—"],
@@ -270,8 +308,64 @@ export function generateRamsPdf({ data, user, today }) {
     }));
   }
 
-  // ===== 19. Briefing and Sign-Off =====
-  section(state, "19. Briefing and Sign-Off");
+  // ===== Fire and Emergency Evacuation (new) =====
+  {
+    const fe = (data.fireEvacuation || "").trim();
+    if (fe) {
+      section(state, "Fire and Emergency Evacuation");
+      para(state, fe);
+    }
+  }
+
+  // ===== Who This RAMS Has Been Shared With (new) =====
+  {
+    const sw = (data.sharedWith || "").trim();
+    if (sw) {
+      section(state, "Who This RAMS Has Been Shared With");
+      const lines = sw.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+      // Parse "Name, Company, Role" rows where possible
+      const rows = lines.map((ln) => {
+        const parts = ln.split(",").map((p) => p.trim());
+        if (parts.length >= 3) return [parts[0], parts[1], parts.slice(2).join(", ")];
+        if (parts.length === 2) return [parts[0], parts[1], ""];
+        return [parts[0], "", ""];
+      });
+      table(state, ["Name", "Company", "Role"], rows);
+      para(state, "All operatives covered by this RAMS must read and acknowledge it before starting work.");
+    }
+  }
+
+  // ===== Client / Principal Contractor Sign-Off (new) =====
+  {
+    const hasClient = (data.clientSignOffName || data.clientSignOffRole || data.clientSignOffDate || data.clientSignOffSignature);
+    if (hasClient) {
+      section(state, "Client / Principal Contractor Sign-Off");
+      kvTable(state, [
+        ["Name", data.clientSignOffName || "—"],
+        ["Role", data.clientSignOffRole || "—"],
+        ["Date", data.clientSignOffDate || "—"],
+      ]);
+      if (data.clientSignOffSignature) {
+        if (state.y + 60 > pageHeight - 70) { newPage(state); }
+        try {
+          doc.addImage(data.clientSignOffSignature, "PNG", MARGIN, state.y, 150, 56, undefined, "FAST");
+          state.y += 64;
+        } catch { /* fall through */ }
+      }
+    }
+  }
+
+  // ===== Reviewing This RAMS (new) =====
+  {
+    const rs = (data.reviewSchedule || "").trim();
+    if (rs) {
+      section(state, "Reviewing This RAMS");
+      para(state, rs);
+    }
+  }
+
+  // ===== Briefing and Sign-Off =====
+  section(state, "Briefing and Sign-Off");
   para(state, "Everyone listed below has been briefed on this RAMS. They confirm they understand the hazards, controls and method of work.");
   // Empty rows for operatives to sign in person
   const briefRows = Array.from({ length: Math.max(6, (data.operativesCount || 0)) }, () => ["", "", ""]);
@@ -382,13 +476,21 @@ function newPage(state) {
   state.y = 110;
 }
 
-function section(state, title) {
+function section(state, title, opts = {}) {
   ensureRoom(state, 34);
   const { doc } = state;
+  // Auto-numbering: increment counter unless noIncrement set. When noIncrement is
+  // true (e.g. "12a" sub-section), reuse the current counter with the supplied
+  // suffix string so the number still maps to its parent section.
+  if (!opts.noIncrement) {
+    state.sectionNum = (state.sectionNum || 0) + 1;
+  }
+  const num = `${state.sectionNum}${opts.suffix || ""}`;
+  const fullTitle = `${num}. ${title}`;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
   doc.setTextColor(...INK);
-  doc.text(title, MARGIN, state.y);
+  doc.text(fullTitle, MARGIN, state.y);
   doc.setDrawColor(...GOLD);
   doc.setLineWidth(0.6);
   doc.line(MARGIN, state.y + 4, PAGE_W - MARGIN, state.y + 4);

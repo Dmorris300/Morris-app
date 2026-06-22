@@ -17,6 +17,7 @@ import {
 } from "../lib/rams-pdf";
 import { fireToolNotification } from "../lib/notification-triggers";
 import { saveToolData } from "../lib/tool-persistence";
+import { getManualHandlingPlaceholder } from "../lib/manual-handling-placeholders";
 
 const TOOL_ID   = "rams";
 const TOOL_NAME = "RAMS";
@@ -193,9 +194,32 @@ export default function Rams() {
   // SIGN-OFF
   const [liveSignature, setLiveSignature] = useState("");
 
+  // New supplementary sections (Site Induction, Manual Handling, Noise &
+  // Vibration, Housekeeping, Fire & Evacuation, Sharing, Client sign-off,
+  // Review schedule). These sit between the existing core sections and are
+  // automatically numbered by the same sn() counter as the rest, so adding
+  // them doesn't break section numbering anywhere downstream.
+  const [siteInduction, setSiteInduction]         = useState("");
+  const [manualHandling, setManualHandling]       = useState("");
+  const [noiseAndVibration, setNoiseAndVibration] = useState("");
+  const [keepingSiteTidy, setKeepingSiteTidy]     = useState("");
+  const [fireEvacuation, setFireEvacuation]       = useState("");
+  const [sharedWith, setSharedWith]               = useState("");
+  const [clientSignOffName, setClientSignOffName]           = useState("");
+  const [clientSignOffRole, setClientSignOffRole]           = useState("");
+  const [clientSignOffDate, setClientSignOffDate]           = useState("");
+  const [clientSignOffSignature, setClientSignOffSignature] = useState("");
+  const [reviewSchedule, setReviewSchedule]       = useState("");
+
   // UI
   const [infoOpen, setInfoOpen] = useState(false);
   const [generating, setGenerating] = useState(false);
+
+  // Trade-aware placeholder for the Manual Handling textarea. Mirrors the
+  // "Personalised for [Trade] · Switch" system that the global ToolHeader
+  // already exposes — when the user swaps their trade in the pill, this
+  // placeholder updates on next render automatically.
+  const manualHandlingPlaceholder = getManualHandlingPlaceholder(user?.trade);
 
   // ---------- Draft save/resume ----------
   // Snapshot every piece of form state so a Save/Resume cycle perfectly
@@ -209,6 +233,10 @@ export default function Rams() {
     sequence, welfareToilets, welfareWashing, welfareRest, welfareWater,
     envWaste, envDustNoise, envHours, envSpills, firstAiderName,
     assemblyPoint, emergencyContacts, liveSignature,
+    // New supplementary sections
+    siteInduction, manualHandling, noiseAndVibration, keepingSiteTidy,
+    fireEvacuation, sharedWith, clientSignOffName, clientSignOffRole,
+    clientSignOffDate, clientSignOffSignature, reviewSchedule,
   });
 
   const draftRestoredFor = useRef(null);
@@ -256,6 +284,18 @@ export default function Rams() {
         if (p.assemblyPoint !== undefined) setAssemblyPoint(p.assemblyPoint);
         if (p.emergencyContacts !== undefined) setEmergencyContacts(p.emergencyContacts);
         if (p.liveSignature !== undefined) setLiveSignature(p.liveSignature);
+        // New supplementary sections
+        if (p.siteInduction !== undefined) setSiteInduction(p.siteInduction);
+        if (p.manualHandling !== undefined) setManualHandling(p.manualHandling);
+        if (p.noiseAndVibration !== undefined) setNoiseAndVibration(p.noiseAndVibration);
+        if (p.keepingSiteTidy !== undefined) setKeepingSiteTidy(p.keepingSiteTidy);
+        if (p.fireEvacuation !== undefined) setFireEvacuation(p.fireEvacuation);
+        if (p.sharedWith !== undefined) setSharedWith(p.sharedWith);
+        if (p.clientSignOffName !== undefined) setClientSignOffName(p.clientSignOffName);
+        if (p.clientSignOffRole !== undefined) setClientSignOffRole(p.clientSignOffRole);
+        if (p.clientSignOffDate !== undefined) setClientSignOffDate(p.clientSignOffDate);
+        if (p.clientSignOffSignature !== undefined) setClientSignOffSignature(p.clientSignOffSignature);
+        if (p.reviewSchedule !== undefined) setReviewSchedule(p.reviewSchedule);
         toast.success("Draft restored");
       } catch (e) {
         if (process.env.NODE_ENV !== "production") console.error("RAMS draft restore failed", e);
@@ -420,6 +460,11 @@ export default function Rams() {
         welfareToilets, welfareWashing, welfareRest, welfareWater,
         envWaste, envDustNoise, envHours, envSpills,
         firstAiderName, assemblyPoint, emergencyContacts,
+        // New supplementary sections (rendered in rams-pdf.js when filled)
+        siteInduction, manualHandling, noiseAndVibration, keepingSiteTidy,
+        fireEvacuation, sharedWith,
+        clientSignOffName, clientSignOffRole, clientSignOffDate, clientSignOffSignature,
+        reviewSchedule,
       };
       const userWithSig = { ...(user || {}), signature: liveSignature || user?.signature };
       downloadRamsPdf({ data, user: userWithSig });
@@ -526,6 +571,21 @@ export default function Rams() {
         <CheckboxRow options={TRAINING_OPTIONS} selected={training} onToggle={toggleTraining} testId="rams-training" />
       </Section>
 
+      {/* Site Induction (new — trade-neutral) */}
+      <Section title={`${sn()}. Site Induction`} testId="rams-section-site-induction">
+        <label className="block">
+          <div className="text-xs uppercase tracking-widest text-[#A19D94] mb-1">Site induction process</div>
+          <textarea
+            value={siteInduction}
+            onChange={(e) => setSiteInduction(e.target.value)}
+            className="input-base min-h-[110px]"
+            placeholder="e.g. 'All operatives must attend the site-specific induction before starting work. Induction covers site rules, hazards, welfare arrangements, emergency procedures and points of contact.'"
+            data-testid="rams-site-induction"
+          />
+          <div className="text-[10px] text-[#706D66] mt-1">Universal across trades. Leave blank to use a sensible default in the generated document.</div>
+        </label>
+      </Section>
+
       {/* 9. Hazards */}
       <Section title={`${sn()}. Hazard Detail and Control Measures`} testId="rams-section-9" icon={<ShieldAlert size={14}/>}>
         <div className="grid gap-4">
@@ -610,6 +670,42 @@ export default function Rams() {
         )}
       </Section>
 
+      {/* Manual Handling (new — trade-aware placeholder) */}
+      <Section title={`${sn()}. Manual Handling`} testId="rams-section-manual-handling">
+        <label className="block">
+          <div className="text-xs uppercase tracking-widest text-[#A19D94] mb-1">
+            Manual handling activities and controls
+            {user?.trade && (
+              <span className="ml-2 normal-case tracking-normal text-[10px] text-[#E8A020]">
+                · Personalised for {user.trade}
+              </span>
+            )}
+          </div>
+          <textarea
+            value={manualHandling}
+            onChange={(e) => setManualHandling(e.target.value)}
+            className="input-base min-h-[110px]"
+            placeholder={manualHandlingPlaceholder}
+            data-testid="rams-manual-handling"
+          />
+          <div className="text-[10px] text-[#706D66] mt-1">Describe how heavy or awkward loads are handled on site. Example updates when you switch trade via the &ldquo;Personalised for&rdquo; pill at the top.</div>
+        </label>
+      </Section>
+
+      {/* Noise and Vibration (new — trade-neutral) */}
+      <Section title={`${sn()}. Noise and Vibration`} testId="rams-section-noise-vibration">
+        <label className="block">
+          <div className="text-xs uppercase tracking-widest text-[#A19D94] mb-1">Noise &amp; vibration exposure controls</div>
+          <textarea
+            value={noiseAndVibration}
+            onChange={(e) => setNoiseAndVibration(e.target.value)}
+            className="input-base min-h-[110px]"
+            placeholder="e.g. 'Hearing protection worn when using power tools or working near machinery. Anti-vibration gloves available for prolonged power-tool use. Tool trigger times monitored against HAV exposure limits.'"
+            data-testid="rams-noise-vibration"
+          />
+        </label>
+      </Section>
+
       {/* 11. Plant and Equipment */}
       <Section title={`${sn()}. Plant and Equipment`} testId="rams-section-11">
         <CheckboxRow options={COMMON_EQUIPMENT} selected={equipment} onToggle={toggleEquip} testId="rams-equipment" />
@@ -680,6 +776,20 @@ export default function Rams() {
         <Area label="Step-by-step method (one step per line)" value={sequence} onChange={setSequence} rows={6} placeholder="Step by step. Plain words. e.g. 'Mark the cut line. Check no cables behind. Cut with extraction running.'" testId="rams-sequence" />
       </Section>
 
+      {/* Keeping the Site Tidy (new — trade-neutral) */}
+      <Section title={`${sn()}. Keeping the Site Tidy`} testId="rams-section-housekeeping">
+        <label className="block">
+          <div className="text-xs uppercase tracking-widest text-[#A19D94] mb-1">Housekeeping and waste arrangements</div>
+          <textarea
+            value={keepingSiteTidy}
+            onChange={(e) => setKeepingSiteTidy(e.target.value)}
+            className="input-base min-h-[110px]"
+            placeholder="e.g. 'Work area kept clear of off-cuts and packaging throughout the day. Waste segregated into the site skips at the end of each shift. Walkways and emergency routes kept clear at all times.'"
+            data-testid="rams-keep-tidy"
+          />
+        </label>
+      </Section>
+
       {/* 16. Welfare */}
       <Section title={`${sn()}. Welfare Arrangements`} testId="rams-section-16">
         <Grid>
@@ -709,6 +819,66 @@ export default function Rams() {
         <div className="mt-4">
           <Area label="Emergency contact numbers (Role: Number — one per line)" value={emergencyContacts} onChange={setEmergencyContacts} rows={3} placeholder={"Site Manager: 07000 000000\nFirst Aider: 07000 000001\nNearest A&E: ..."} testId="rams-emerg-contacts" />
         </div>
+      </Section>
+
+      {/* Fire and Emergency Evacuation (new — trade-neutral) */}
+      <Section title={`${sn()}. Fire and Emergency Evacuation`} testId="rams-section-fire-evac">
+        <label className="block">
+          <div className="text-xs uppercase tracking-widest text-[#A19D94] mb-1">Fire and evacuation arrangements</div>
+          <textarea
+            value={fireEvacuation}
+            onChange={(e) => setFireEvacuation(e.target.value)}
+            className="input-base min-h-[110px]"
+            placeholder="e.g. 'On hearing the fire alarm all operatives must stop work, isolate equipment if safe to do so, and proceed to the site assembly point via the marked routes. Fire extinguishers located at the site office and welfare unit. Do not re-enter the site until the fire marshal gives the all clear.'"
+            data-testid="rams-fire-evac"
+          />
+        </label>
+      </Section>
+
+      {/* Who This RAMS Has Been Shared With (new — trade-neutral) */}
+      <Section title={`${sn()}. Who This RAMS Has Been Shared With`} testId="rams-section-shared-with">
+        <label className="block">
+          <div className="text-xs uppercase tracking-widest text-[#A19D94] mb-1">Names, companies and roles (one per line)</div>
+          <textarea
+            value={sharedWith}
+            onChange={(e) => setSharedWith(e.target.value)}
+            className="input-base min-h-[110px]"
+            placeholder={"e.g.\nJohn Smith, ABC Construction, Site Manager\nJane Doe, ABC Construction, Foreman\nMike Brown, XYZ Subbie, Operative"}
+            data-testid="rams-shared-with"
+          />
+          <div className="text-[10px] text-[#706D66] mt-1">All operatives covered by this RAMS must read and acknowledge it before starting work.</div>
+        </label>
+      </Section>
+
+      {/* Client / Principal Contractor Sign-Off (new — trade-neutral) */}
+      <Section title={`${sn()}. Client / Principal Contractor Sign-Off`} testId="rams-section-client-signoff">
+        <Grid>
+          <Inp label="Name" value={clientSignOffName} onChange={setClientSignOffName} placeholder="e.g. 'John Smith'" testId="rams-client-name" />
+          <Inp label="Role" value={clientSignOffRole} onChange={setClientSignOffRole} placeholder="e.g. 'Site Manager'" testId="rams-client-role" />
+          <Inp label="Date" type="date" value={clientSignOffDate} onChange={setClientSignOffDate} testId="rams-client-date" />
+        </Grid>
+        <div className="mt-4">
+          <LiveSignatureBlock
+            label="Client / Principal Contractor signature"
+            value={clientSignOffSignature}
+            onChange={setClientSignOffSignature}
+            testId="rams-client-sig"
+          />
+        </div>
+      </Section>
+
+      {/* Reviewing This RAMS (new — trade-neutral) */}
+      <Section title={`${sn()}. Reviewing This RAMS`} testId="rams-section-reviewing">
+        <label className="block">
+          <div className="text-xs uppercase tracking-widest text-[#A19D94] mb-1">Review schedule and triggers</div>
+          <textarea
+            value={reviewSchedule}
+            onChange={(e) => setReviewSchedule(e.target.value)}
+            className="input-base min-h-[90px]"
+            placeholder="e.g. 'This RAMS will be reviewed annually, or sooner if the scope of works changes, a new hazard is identified, an incident or near-miss occurs, or new operatives join the works.'"
+            data-testid="rams-reviewing"
+          />
+        </label>
       </Section>
 
       {/* 19. Sign Off */}
