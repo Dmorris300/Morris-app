@@ -491,18 +491,25 @@ End with an ISSUED BY block auto-populated from profile (full name printed, comp
       fp("finalDateForPayment", "Final date for payment (typically valuation + 30 days)", "today+30d", "date"),
       f("originalContractSum", "Original contract sum (£)", "number"),
       f("variationsApproved", "Approved variations to date (£)", "number"),
-      fo("variationsPending", "Pending variations submitted (£)", "number"),
+      fo("variationsPending", "Pending variations submitted (£) — shown for information only, NOT included in the sum applied for", "number"),
       f("dayworks", "Dayworks claimed this period (£)", "number"),
       f("materialsOnSite", "Materials on site not yet fixed (£)", "number"),
       f("materialsOffSite", "Materials off site (with vesting certificate) (£)", "number"),
-      f("grossValueToDate", "Gross value of works completed to date (£)", "number"),
+      f("grossValueToDate", "Gross value of works completed to date (£) — must equal contract sum + approved variations + dayworks + materials", "number"),
       sel("retentionPercent", "Retention rate", ["0%", "3%", "5%", "10%"]),
+      sel("retentionOnMaterials", "Apply retention to materials on site?", ["No", "Yes"]),
       f("previouslyApplied", "Previously applied for cumulative (£)", "number"),
       f("previouslyCertified", "Previously certified / paid cumulative (£)", "number"),
-      sel("vatStatus", "VAT status", ["Standard rate 20%", "Reduced rate 5%", "Zero rated", "Domestic reverse charge (CIS)", "Not VAT registered"]),
-      sel("cisApplicable", "CIS deduction applies?", ["Yes — 20%", "Yes — 30%", "Yes — Gross", "No"]),
+      // Labour / materials split for THIS period — used SOLELY for CIS.
+      // CIS is calculated as cisRate × labourThisPeriod. It must never be a
+      // percentage of the gross valuation or of the net sum due.
+      f("labourThisPeriod", "Labour value in THIS period (£) — CIS is deducted from this figure only", "number"),
+      f("materialsThisPeriodCis", "Materials value in THIS period (£) — CIS-exempt", "number"),
+      sel("cisApplicable", "CIS deduction applies?", ["No", "Yes — 20%", "Yes — 30%", "Yes — Gross (0%)"]),
+      sel("vatStatus", "VAT status", ["Domestic reverse charge (CIS)", "Standard rate 20%", "Reduced rate 5%", "Zero rated", "Not VAT registered"]),
       tao("worksDescription", "Brief description of works completed this period (multi-line)"),
-      tao("variationsList", "List of variations included (one per line: VO ref — description — £value)"),
+      tao("variationsList", "Approved variations included (one per line: VO ref — description — £value)"),
+      tao("variationsPendingList", "Pending / notified variations (one per line: VO ref — description — £value). Shown for information only, NOT summed into the application."),
       tao("notes", "Any other notes (optional)"),
     ],
     `Produce a UK interim Application for Payment under the Housing Grants Construction and Regeneration Act 1996 (as amended). Plain direct construction English. No padding. No banned consultant words.
@@ -521,44 +528,55 @@ End with an ISSUED BY block auto-populated from profile (full name printed, comp
    Contract reference: {contractRef}
    Contract form: {contractForm}
 
-6. VALUATION — a clear money table, one line per row, with £ values right-aligned. Use ONLY the fields the user supplied (skip any blank cleanly). Build it in this exact order, then auto-calculate the totals where indicated:
+6. VALUATION — clean money table with £ values right-aligned. Skip any blank fields cleanly. Build it in this exact order and auto-calculate every line marked [calc]. Show every intermediate figure so a QS can audit the maths.
 
    Original contract sum                          £{originalContractSum}
    Approved variations to date                  + £{variationsApproved}
-   Pending variations submitted                 + £{variationsPending}
    Dayworks this period                         + £{dayworks}
    Materials on site (not yet fixed)            + £{materialsOnSite}
    Materials off site (vesting certificate)     + £{materialsOffSite}
    ___________________________________________________________
-   GROSS VALUE OF WORKS TO DATE                   £{grossValueToDate}
-   Less retention at {retentionPercent}            - £[calc: gross × retention%]
+   GROSS VALUE OF WORKS TO DATE                   £[calc]
+   Less retention at {retentionPercent}            - £[calc]
    ___________________________________________________________
-   NET VALUE AFTER RETENTION                      £[calc: gross - retention]
+   NET VALUE AFTER RETENTION                      £[calc]
    Less previously certified / paid             - £{previouslyCertified}
    ___________________________________________________________
-   NET SUM DUE THIS APPLICATION                   £[calc: net after retention - previously certified]
+   NET SUM DUE THIS APPLICATION                   £[calc]
 
-   If CIS applies, add a CIS deduction line on labour only and show the cash payable after CIS.
-   If VAT is standard or reduced rated, add a VAT line and show the gross amount payable.
-   If 'Domestic reverse charge (CIS)' is selected, add a single line: 'VAT: Domestic reverse charge — VAT to be accounted for by the customer.'
-   Show all calculation working transparently so the QS can audit it.
+   PENDING VARIATIONS RULE: 'Pending / notified variations' (variationsPending, variationsPendingList) are NEVER added to the GROSS VALUE OF WORKS TO DATE. They are shown separately below the main table in a small labelled block titled 'PENDING VARIATIONS (notified — for information only, not included in the sum applied for)' with the total. If none supplied, omit the block.
+
+   RETENTION RULE: retention is a percentage of the GROSS VALUE OF WORKS TO DATE. If 'retentionOnMaterials' is 'No' (the default), first subtract materialsOnSite + materialsOffSite from the retention base — the printed retention line then reads 'Less retention at {retentionPercent} (excluding materials on site) - £[calc]'. If 'Yes', retain the full gross. Never apply retention to a base that would produce a negative retention figure.
+
+   CIS RULE (this is the most important rule in this document — it MUST be enforced): CIS is deducted from the labour value in THIS period ONLY. Compute CIS = cisRate × labourThisPeriod. Never compute CIS as a percentage of the gross valuation, the net sum due after retention, or any figure other than labourThisPeriod. If labourThisPeriod is blank or zero, DO NOT print a CIS deduction line — instead print 'CIS deduction: £0.00 (no labour claimed this period)'.
+
+   CIS/VAT SECTION FORMAT (produced ONLY if cisApplicable != 'No'):
+   Labour value this period                       £{labourThisPeriod}
+   Materials value this period (CIS-exempt)       £{materialsThisPeriodCis}
+   CIS deduction at {cisRate} on labour element - £[calc: cisRate × labourThisPeriod]
+   NET PAYABLE AFTER CIS                          £[calc: NET SUM DUE THIS APPLICATION - CIS deduction]
+
+   VAT SECTION FORMAT:
+   - If vatStatus is 'Domestic reverse charge (CIS)': print exactly 'VAT: £0.00 — Domestic reverse charge for construction services applies (VAT Notice 735). Customer to account for VAT to HMRC. Applicable when the recipient is CIS-registered and VAT-registered and this is not the end user.' Do NOT add a VAT amount to the total.
+   - If vatStatus is 'Standard rate 20%' / 'Reduced rate 5%' / 'Zero rated': add 'VAT at N%: + £[calc]' and 'GROSS AMOUNT PAYABLE INCLUDING VAT: £[calc]'.
+   - If vatStatus is 'Not VAT registered': omit VAT entirely.
 
 7. WORKS COMPLETED THIS PERIOD — short paragraph from {worksDescription}. If blank, omit.
 
-8. VARIATIONS INCLUDED — numbered list from {variationsList}. If blank, write 'None this period'.
+8. VARIATIONS INCLUDED — numbered list from {variationsList} — APPROVED only. If blank, write 'None this period'.
 
 9. PAYMENT TIMELINE — three lines, exactly:
    Due date for payment: {dueDate}
    Final date for payment: {finalDateForPayment}
-   Payment terms: Section 110 Housing Grants Construction and Regeneration Act 1996 (as amended).
+   Payment terms: Sections 110, 110A and 111 of the Housing Grants Construction and Regeneration Act 1996 (as amended).
 
-10. STATUTORY NOTICE BLOCK — one short paragraph: 'This is a Notice for Payment served under Section 110 of the Housing Grants Construction and Regeneration Act 1996 (as amended). If a Pay Less Notice is not served by the prescribed period before the final date for payment, the sum applied for becomes the notified sum and is payable in full.'
+10. STATUTORY NOTICE BLOCK — one short paragraph, exact wording: 'This is the payee's notice served under section 110A(3) of the Housing Grants Construction and Regeneration Act 1996 (as amended). If a Pay Less Notice under section 111 is not served by the prescribed period before the final date for payment, the sum applied for becomes the notified sum and is payable in full.'
 
 11. INTEREST WARNING — one short line: 'Late Payment of Commercial Debts (Interest) Act 1998 applies. Interest accrues at 8% above the Bank of England base rate plus £40 to £100 fixed compensation per debt.'
 
 12. NOTES — only if {notes} is supplied. Print verbatim under a 'NOTES' label.
 
-13. SIGN-OFF — single contractor sign-off block (auto from profile).
+13. SIGN-OFF — single contractor sign-off block auto from profile. If the profile role is missing, OMIT the Role line entirely — never print '(role not set in profile)' or any square-bracket placeholder. Sort codes MUST be printed in the format NN-NN-NN (e.g. '60-00-01', not '600001').
 
 Rules: never invent figures. Always show the maths. If a field is blank, drop the line entirely — do not write £0 unless the user typed 0. No square-bracket placeholders. No 'kinetic', 'utilise', 'endeavour', 'facilitate', 'prior to', 'operatives are advised'. Short sentences. Read it out loud and it should sound like a QS, not a consultant.`
   ),

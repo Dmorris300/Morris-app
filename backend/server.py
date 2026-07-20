@@ -797,6 +797,19 @@ async def generate(req: GenerateReq, authorization: Optional[str] = Header(None)
             "7. Never invent Preliminaries. If subtotalPrelims is blank or 0, omit the Preliminaries row from every table and omit the section on Page 2.\n\n"
             if req.toolId == "quote-builder" else ""
         )
+        + (
+            # ---------- Application for Payment — tool-specific tightening ----------
+            "APPLICATION FOR PAYMENT — TOOL-SPECIFIC RULES:\n"
+            "1. CIS BASIS (HARD RULE): CIS is ONLY deducted from the labour value in this period ('labourThisPeriod'). Compute CIS = cisRate × labourThisPeriod, rounded to 2 decimals. Never deduct CIS as a percentage of the gross valuation, the net sum due after retention, or the amount previously applied. If labourThisPeriod is blank or zero, print 'CIS deduction: £0.00 (no labour claimed this period)'. If cisApplicable is 'No', omit CIS lines entirely — never say '20% of net sum'.\n"
+            "2. VAT REVERSE CHARGE (HARD RULE): If vatStatus is 'Domestic reverse charge (CIS)', add ZERO VAT to the total and print the statutory phrase 'Domestic reverse charge for construction services applies (VAT Notice 735). Customer to account for VAT to HMRC.' Do NOT add a VAT amount. Do NOT print a 'GROSS AMOUNT PAYABLE INCLUDING VAT' line — the payable figure is the 'NET PAYABLE AFTER CIS'.\n"
+            "3. PENDING VARIATIONS: Never add pending / notified variations into the GROSS VALUE OF WORKS TO DATE, and never into the sum applied for. They appear in a separate labelled block underneath the main valuation table titled 'PENDING VARIATIONS (notified — for information only, not included in the sum applied for)'. If none supplied, omit the block.\n"
+            "4. RETENTION ON MATERIALS: If retentionOnMaterials is 'No' (default), the retention base excludes 'materialsOnSite' and 'materialsOffSite'. The printed retention line is labelled 'Less retention at N% (excluding materials on site)'. If retentionOnMaterials is 'Yes', apply retention to the full gross and label the line 'Less retention at N%' (without the exclusion note).\n"
+            "5. STATUTORY REFS: Use s.110A(3) for the payee's notice and s.111 for Pay Less Notices. Do NOT say 'Notice for Payment served under Section 110' — s.110 is about payment DATES, not notices.\n"
+            "6. SORT CODES: Format sort codes as NN-NN-NN (e.g. '60-00-01'). Never print a sort code as a run-on string like '600001'.\n"
+            "7. NO PLACEHOLDER LEAKS: If the profile's signature role is missing, OMIT the 'Role:' line entirely. Never print '(role not set in profile)' or any parenthetical placeholder. Same for any other missing profile field.\n"
+            "8. VAT ROUNDING: All VAT and interim totals rounded to 2 decimals with the '£' symbol.\n\n"
+            if req.toolId == "application-for-payment" else ""
+        )
         + _signoff_instructions(req.toolId, user, bool(user.get("signature")))
     )
 
