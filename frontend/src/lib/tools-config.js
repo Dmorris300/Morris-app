@@ -61,28 +61,30 @@ export const TOOLS = [
       fp("instructionDate", "Date and time instruction was given", "today", "datetime-local"),
       f("instructionLocation", "Location on site where instruction was given"),
       sel("reasonForVariation", "Reason for variation", ["Client Request", "Unforeseen Site Condition", "Design Error", "Scope Change", "Material Substitution", "Other"]),
-      tao("referenceDocuments", "Reference documents (drawings, RFIs, emails — one per line)"),
+      sel("instructionMethod", "Method of original instruction", ["Verbal", "Email", "WhatsApp", "Text message", "Written", "Other"]),
+      tao("referenceDocuments", "Reference documents (drawings, RFIs, emails — one per line). If method above was Verbal, record the written follow-up here (e.g. 'Email confirmation sent to Michael Turner, 20 Jul 2026, 15:04')."),
       ta("originalScope", "Description of original agreed scope"),
       ta("variation", "Description of what the variation adds or changes"),
       f("labourCost", "Labour cost (£)", "number"),
       f("materialsCost", "Materials cost (£)", "number"),
       fo("plantEquipmentCost", "Plant and equipment cost (£)", "number"),
       fo("prelimsOverheads", "Preliminaries and overheads (£)", "number"),
-      f("timeImpact", "Time impact (additional days required)", "number"),
-      fpo("newPCDate", "New Practical Completion date", "today", "date"),
-      sel("instructionMethod", "Method of original instruction", ["Verbal", "Email", "WhatsApp", "Text message", "Written", "Other"]),
-      fo("clauseRef", "Reference to original contract clause being varied"),
+      tgl("addVat", "Add VAT to the total"),
+      fo("vatRate", "VAT rate (%) — leave blank for the UK standard 20%", "number"),
+      f("timeImpact", "Additional days required (whole days, 0 if none)", "number"),
+      fpo("newPCDate", "New Practical Completion date (leave blank if not changing)", "today", "date"),
+      fo("clauseRef", "Contract clause being varied (leave blank unless you have a genuine clause reference — e.g. 'Clause 5.3' or a JCT/NEC section)"),
     ],
-    `Write a formal UK Variation Order from the trade to the client/main contractor. Use VO-NNN format for the variation number (taken from the provided document reference). Reference the Housing Grants, Construction and Regeneration Act 1996 in the footer. Format:
-1. HEADER — VARIATION ORDER {ref}, today's date, project/site, raised by (use the value supplied), to (client/main contractor), original contract reference and date.
+    `Write a formal UK Variation Order from the trade to the client/main contractor. Use VO-NNN format for the variation number (taken from the provided document reference). Reference the Housing Grants, Construction and Regeneration Act 1996 in the authorisation section. Format:
+1. HEADER — VARIATION ORDER {ref}, today's date, project/site, raised by (use the value supplied), to (client/main contractor), original contract reference and date. NEVER include a REVIEW DATE line — a Variation Order is a one-off contractual instrument, not a periodic-review document.
 2. INSTRUCTION DETAILS — instructor name + role, date/time, location, method.
-3. REASON FOR VARIATION — use the value supplied (Client Request / Unforeseen Site Condition / Design Error / Scope Change / Material Substitution / Other).
-4. REFERENCE DOCUMENTS — list every supplied document reference (drawing numbers, RFIs, email refs) as a numbered list. If none, state 'None'.
-5. ORIGINAL SCOPE — use the value supplied.
-6. VARIED SCOPE — use the value supplied.
-7. COST BREAKDOWN — produce a table with rows for: Labour, Materials, Plant and Equipment (if supplied), Preliminaries and Overheads (if supplied). Auto-calculate and clearly state TOTAL VARIATION COST = sum of all rows. Show in £ to two decimals.
-8. TIME IMPACT — additional days, new Practical Completion date (use the picker value if supplied).
-9. CONTRACT CLAUSE — reference clause if supplied.
+3. REASON FOR VARIATION — use the value supplied exactly (Client Request / Unforeseen Site Condition / Design Error / Scope Change / Material Substitution / Other).
+4. REFERENCE DOCUMENTS — list every supplied document reference (drawing numbers, RFIs, emails, written follow-up confirmations) as a numbered list. If none, state 'None'.
+5. ORIGINAL SCOPE — use the value supplied. Do not embellish.
+6. VARIED SCOPE — use the value supplied. Say plainly what is being added, removed or changed and why. Do not open with 'Following revised site instructions…' or 'to accommodate changes to…' — write like a contracts manager explaining the change to the client in one clean sentence, then any supporting detail.
+7. COST BREAKDOWN — produce a clean table. Only include rows the user actually supplied a value for. Show each figure to 2 decimals with '£' prefix. If addVat is true, print 'Sub-total', then 'VAT at N%' (default 20% if vatRate is blank), then 'TOTAL VARIATION COST (inc. VAT)'. If addVat is false or blank, print 'TOTAL VARIATION COST' as the sum of the rows above and do NOT mention VAT.
+8. TIME IMPACT — write additional days as a WHOLE NUMBER of working days (e.g. '2 working days'). NEVER format with decimals or a currency symbol. If the user supplied 0 or blank, state 'No additional programme impact identified at this stage. Any impact will be notified separately.' Print 'New Practical Completion date' only if the user supplied one.
+9. CONTRACT CLAUSE — only render this section if the user supplied a GENUINE clause reference (e.g. 'Clause 5.3', 'JCT SBC 2016 s.3.14', 'NEC4 Option Y'). If the field is blank or just repeats the instruction method (e.g. 'Site Instruction', 'Verbal'), OMIT the whole CONTRACT CLAUSE section — do not print an empty heading.
 10. AUTHORISATION REQUEST — request a written instruction or counter-signature within 7 days. Reference HGCRA 1996.
 Close with: 'To confirm acceptance of this variation please sign and return a copy or reply in writing.'`
   ),

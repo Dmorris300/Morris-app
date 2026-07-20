@@ -661,10 +661,26 @@ async def generate(req: GenerateReq, authorization: Optional[str] = Header(None)
 
     # Tools that are NOT compliance / RAMS / COSHH / H&S documents and must
     # never receive an auto-generated 1-year review date. Site Diary is a
-    # daily record, not a periodic-review document. The user can still pass
-    # an "optionalReviewDate" input themselves; that value flows through the
-    # normal inputs block to the AI prompt.
-    NO_AUTO_REVIEW_DATE_TOOLS = {"site-diary", "multiuser-site-diary"}
+    # daily record; Variation Orders and other commercial documents are
+    # one-off contractual instruments — they must never get a Review Date
+    # in the header. The user can still pass an "optionalReviewDate" input
+    # themselves; that value flows through the normal inputs block.
+    NO_AUTO_REVIEW_DATE_TOOLS = {
+        "site-diary", "multiuser-site-diary",
+        # Commercial / contractual — never a review-cycle document:
+        "variation-letter", "verbal-to-variation",
+        "quote-builder", "price-work-quote", "tender-letter",
+        "cis-invoice", "application-for-payment", "daywork-sheet",
+        "subbie-payment-cert", "final-account-statement",
+        "retention-chaser", "payment-chaser", "bad-debt-letter",
+        "hmrc-correspondence", "complaint-letter",
+        "delay-notice", "eot-claim", "practical-completion-certificate",
+        "novation-letter", "contra-charge-dispute", "lds-dispute",
+        "subcontract-letter", "reference-letter", "rate-increase-letter",
+        "meeting-notes", "progress-report",
+        "delivery-record", "purchase-order", "timesheet",
+        "site-access-permit", "incident-report",
+    }
     suppress_auto_review = req.toolId in NO_AUTO_REVIEW_DATE_TOOLS
 
     # Build a clean profile block — only include fields the user has actually filled.
@@ -756,6 +772,19 @@ async def generate(req: GenerateReq, authorization: Optional[str] = Header(None)
            if (req.toolId == "cis-invoice" and ni_number) else "")
         + "\n"
         + (bank_block + "\n\n" if bank_block else "")
+        + (
+            # ---------- Variation Order — tool-specific tightening ----------
+            "VARIATION ORDER — TOOL-SPECIFIC RULES:\n"
+            "1. Time Impact: 'Additional days' is a whole number of working days. NEVER format it with decimals or a currency symbol. Write it as e.g. '2 working days' (or '0 working days' if the user supplied 0/blank). Do not write '2.00' or '2000.00'.\n"
+            "2. If the value the user supplied for 'timeImpact' is 0, blank, or clearly not a whole number of days, output the Time Impact section as: 'No additional programme impact identified at this stage. Any impact will be notified separately.' Do not invent a number.\n"
+            "3. If the user did NOT supply a New Practical Completion date, do NOT print one. Omit that line entirely.\n"
+            "4. Contract Clause: only render the 'CONTRACT CLAUSE' section if the user supplied a genuine clause reference (e.g. a numbered clause, contract section, or JCT/NEC reference). If the field is blank, missing, or simply repeats the instruction method (e.g. 'Site Instruction', 'Verbal', 'Email'), OMIT the whole 'CONTRACT CLAUSE' section — do not print a heading with placeholder or duplicated content.\n"
+            "5. Cost Breakdown: only include rows the user actually supplied a value for. Never invent Plant, Preliminaries or Overheads figures. Show every figure to 2 decimals with '£' prefix. Show TOTAL VARIATION COST as the arithmetic sum of the rows above.\n"
+            "6. VAT: if the user ticked 'addVat' (or supplied any 'vatRate'), print a 'Sub-total' row above the total, a 'VAT at N%' row (default 20% if a rate wasn't specified), and 'TOTAL VARIATION COST (inc. VAT)' as the final row. If VAT is not ticked, do NOT mention VAT at all.\n"
+            "7. Voice: write like a UK contracts manager or QS explaining the change to the client. Plain, direct, no consultant filler. Avoid phrases like 'following revised site instructions', 'to accommodate changes to', 'in order to facilitate' — say what changed and why in one clean sentence. Never use markdown, asterisks or square-bracket placeholders.\n"
+            "8. The reason for variation must be printed exactly as supplied ('Client Request', 'Unforeseen Site Condition', 'Design Error', 'Scope Change', 'Material Substitution', 'Other'). Do not paraphrase.\n\n"
+            if req.toolId in {"variation-letter", "verbal-to-variation"} else ""
+        )
         + _signoff_instructions(req.toolId, user, bool(user.get("signature")))
     )
 

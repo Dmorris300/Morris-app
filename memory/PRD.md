@@ -27,6 +27,16 @@ Dark-themed construction administration SaaS web application for UK tradespeople
 
 ## What's been implemented
 
+- ✅ **[FEATURE] Variation Order — 6 fixes from real-output review** (Feb 20, 2026)
+  - **(a) No REVIEW DATE on Variation Orders**: extended `NO_AUTO_REVIEW_DATE_TOOLS` in `server.py` to include `variation-letter`, `verbal-to-variation`, and every other commercial/one-off contractual instrument (quotes, tenders, invoices, applications for payment, chasers, dispute letters, HMRC correspondence, delivery records, purchase orders, timesheets, permits, incident reports).
+  - **(b) Whole-number "additional days"**: added a tool-specific rule to the backend prompt — Time Impact must be printed as whole working days ("2 working days"), never `2000.00` or `2.00`. If blank/0, print the "no additional programme impact identified" fallback instead. Front-end label updated to "Additional days required (whole days, 0 if none)".
+  - **(c) Empty CONTRACT CLAUSE section omitted**: prompt now forces the whole heading to be skipped when the clause field is blank or duplicates the instruction method (was previously rendering `CONTRACT CLAUSE: Site Instruction` — meaningless).
+  - **(d) Optional VAT block in Cost Breakdown**: new `addVat` toggle + `vatRate` field. When ticked, output renders Sub-total → VAT at N% (defaults 20%) → TOTAL (inc. VAT). When off, no VAT is mentioned anywhere.
+  - **(e) Tightened writing tone**: VARIED SCOPE opens with a clean one-sentence explanation instead of consultant filler like "Following revised site instructions… to accommodate changes to…". Ties into the Global Morris Writing Standard.
+  - **(f) Verbal-method follow-up hint**: reference-documents placeholder now explicitly asks the user to record the written follow-up (email/SI) when the original method was verbal.
+  - ✅ Verified live: curl against `/api/generate` with a full sample produced clean output — REVIEW DATE absent, "2 working days" printed, CONTRACT CLAUSE section suppressed, VAT block £2,000.00 → £400.00 → £2,400.00 rendered correctly. Front-end smoke test confirmed all 6 new field labels/placeholders visible on the form.
+
+
 - ✅ **[FEATURE] RAMS Hazard Add-Form 3-Step Redesign + Global Writing Standard** (Feb 20, 2026)
   - Rebuilt the RAMS Hazard card into a professional 3-step journey ("1 — Identify the Risk", "2 — Assess the Initial Risk", "3 — Control the Risk") with 11 clearly ordered fields, gold step headers and consistent labelling.
   - Renamed fields per spec: "Hazard or Substance Name" → **Hazard** (no default, placeholder "e.g. Construction dust, exposed cables, moving machinery"); "Activity That Causes the Exposure" → **Task or Activity Creating the Risk**; "Exposure Route / Mechanism" → **How Could Someone Be Harmed?** (new 15-option alphabetical dropdown, Other at bottom, no auto-selection); "Persons Affected" → **Who Could Be Harmed?** (new 5-chip set: Operatives / Supervisor / Other Trades / Visitors / Members of the Public).
