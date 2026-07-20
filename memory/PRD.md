@@ -27,6 +27,13 @@ Dark-themed construction administration SaaS web application for UK tradespeople
 
 ## What's been implemented
 
+- ✅ **[FEATURE] Payment Tracker ↔ Payment Chaser two-way link** (Feb 20, 2026)
+  - **Payment Tracker → `saveToolData` emission**: added an effect in `PaymentTracker.jsx` that pushes every populated row into `localStorage[morris.tool_data.payment-tracker]` on every state change (invoice number typed, amount entered, status changed, etc.). Each record is shaped for the alerts scanner (`id, reference, invoiceNumber, counterparty, contractor, project, dueDate, invoiceDueDate, status, paid, outstanding, amount`) so Phase 3 proactive alerts (e.g. "Invoice INV-XX — 30 days overdue — £6,720 outstanding") fire without the user having to click Generate. Verified live: browser `localStorage.getItem` returns the full record set the moment the user types values.
+  - **New "Final notice served" status**: added to `STATUS_OPTIONS` in Payment Tracker, sits between "Overdue — chasing" and "Disputed".
+  - **Payment Chaser → status write-back**: after a Stage 3 (Final Notice) letter is generated AND the user linked a Payment Tracker row via "Import from Payment Tracker", a gold banner appears offering two one-click actions: "Mark 'Final notice served'" (primary) or "Mark 'Disputed'" (secondary), plus a Skip. Handler calls `fetchDraft(draftId) → mutate the single row by id → saveDraft(draftId)` — everything else on the tracker draft is left untouched.
+  - **Also**: fixed the stale mailto subject line that still referred to the pre-refactor "NOTICE OF INTENTION TO PURSUE LEGAL ACTION" — now reads "FINAL NOTICE FOR PAYMENT — invoice N".
+
+
 - ✅ **[FEATURE] Payment Chaser — 8-point improvement pack** (Feb 20, 2026)
   - **Preserved core**: 3-stage escalation (First Reminder / Second Reminder / Final Notice), Morris theme, mobile-first layout, signature workflow, PDF export — all untouched.
   - **Payment Tracker linking**: new "Import from Payment Tracker" button opens a modal listing outstanding invoices from the user's latest saved Payment Tracker draft (filters to rows with an outstanding balance and status not 'Paid in full' or 'Written off'). Selecting a row auto-populates client name, project, invoice number, invoice date, invoice amount, outstanding, description, due date. Empty-tracker state renders a helpful message. All populated fields remain editable. A gold "Linked to Payment Tracker · Invoice N" pill appears until the user unlinks.

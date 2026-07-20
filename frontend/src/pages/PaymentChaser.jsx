@@ -6,7 +6,7 @@ import { ChevronLeft, FileText, Mail, MessageSquare, Phone, Download, Copy, Info
 import { downloadPdf } from "../lib/pdf";
 import LiveSignatureBlock from "../components/LiveSignatureBlock";
 import { Link } from "react-router-dom";
-import { listDrafts, fetchDraft } from "../lib/drafts";
+import { listDrafts, fetchDraft, saveDraft } from "../lib/drafts";
 
 // Chase history — local, per-browser. Records every generated chase against
 // the invoice being chased so Stage 2/3 letters can reference real previous
@@ -111,6 +111,11 @@ export default function PaymentChaser() {
   const [trackerRows, setTrackerRows] = useState([]); // outstanding rows loaded from Payment Tracker draft
   const [trackerLoading, setTrackerLoading] = useState(false);
   const [trackerModalOpen, setTrackerModalOpen] = useState(false);
+  // Set to a status string after Stage 3 export while a Payment Tracker row
+  // is still linked. Shows the "Mark tracker row" prompt inline until the
+  // user either updates the row or dismisses the prompt.
+  const [writeBackAvailable, setWriteBackAvailable] = useState(false);
+  const [writingBack, setWritingBack] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState("");
   const [refNumber, setRefNumber] = useState("");
@@ -178,7 +183,35 @@ export default function PaymentChaser() {
     toast.success(`Linked to Payment Tracker · ${row.invoiceNumber}`);
   };
 
-  // ---------- Auto-fill previous chases from local history ----------
+  // ---------- Payment Tracker status write-back (post-Stage 3) ----------
+  // Only offered while a linkedTrackerInvoice is still active. Updates a
+  // single row on the linked Payment Tracker draft — everything else on
+  // the draft is preserved untouched.
+  const writeBackTrackerStatus = async (newStatus) => {
+    if (!linkedTrackerInvoice) return;
+    setWritingBack(true);
+    try {
+      const full = await fetchDraft(linkedTrackerInvoice.draftId);
+      const rows = Array.isArray(full?.data?.rows) ? full.data.rows : [];
+      const idx = rows.findIndex((r) => r.id === linkedTrackerInvoice.rowId);
+      if (idx === -1) throw new Error("row not found");
+      const nextRows = rows.map((r, i) => (i === idx ? { ...r, status: newStatus } : r));
+      const nextData = { ...full.data, rows: nextRows };
+      await saveDraft({
+        toolId: "payment-tracker",
+        toolName: full.toolName || "Payment Tracker",
+        title: full.title,
+        data: nextData,
+        draftId: linkedTrackerInvoice.draftId,
+      });
+      setWriteBackAvailable(false);
+      toast.success(`Payment Tracker row updated · ${newStatus}`);
+    } catch {
+      toast.error("Could not update Payment Tracker row");
+    } finally {
+      setWritingBack(false);
+    }
+  };
   // Runs whenever the invoice number is changed. Only fills the field when
   // it's currently empty so we don't overwrite anything the user typed.
   useEffect(() => {
@@ -284,6 +317,9 @@ Rules: never invent dates, contractual clauses, notices, amounts or legal rights
       setRefNumber(r.data.refNumber || "");
       // Record this chase in local history so the NEXT stage picks up the date.
       recordChase(form.invNo, stage);
+      // If this was a Stage 3 chase against a Payment Tracker row, offer to
+      // write the "Final notice served" status back to the tracker.
+      if (stage === 3 && linkedTrackerInvoice) setWriteBackAvailable(true);
       toast.success("Letter generated");
     } catch (err) {
       const d = err?.response?.data?.detail;
@@ -545,6 +581,46 @@ Rules: never invent dates, contractual clauses, notices, amounts or legal rights
         {/* ---------- OUTPUT ---------- */}
         <div className="card-dark p-6">
           <div className="text-xs uppercase tracking-widest text-[#E8A020] mb-3">Generated letter</div>
+
+          {/* Post-Stage-3 tracker status write-back prompt */}
+          {writeBackAvailable && linkedTrackerInvoice && (
+            <div
+              className="mb-4 p-3 rounded flex flex-col sm:flex-row sm:items-center gap-2"
+              style={{ background: "rgba(232,160,32,0.10)", border: "1px solid rgba(232,160,32,0.4)" }}
+              data-testid="pc-writeback-banner"
+            >
+              <div className="text-xs text-[#F0EDE8] flex-1">
+                Final Notice generated. Update Payment Tracker row <span className="text-[#E8A020]">{form.invNo}</span> to reflect this?
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  onClick={() => writeBackTrackerStatus("Final notice served")}
+                  disabled={writingBack}
+                  className="btn-primary text-[11px]"
+                  data-testid="pc-writeback-final"
+                >
+                  Mark ‘Final notice served’
+                </button>
+                <button
+                  onClick={() => writeBackTrackerStatus("Disputed")}
+                  disabled={writingBack}
+                  className="btn-secondary text-[11px]"
+                  data-testid="pc-writeback-dispute"
+                >
+                  Mark ‘Disputed’
+                </button>
+                <button
+                  onClick={() => setWriteBackAvailable(false)}
+                  disabled={writingBack}
+                  className="text-[11px] text-[#A19D94] hover:text-[#F0EDE8] px-2"
+                  data-testid="pc-writeback-skip"
+                >
+                  Skip
+                </button>
+              </div>
+            </div>
+          )}
+
           {!result ? (
             <div className="text-sm text-[#706D66] italic">Fill in the form and click Generate.</div>
           ) : (
@@ -552,7 +628,7 @@ Rules: never invent dates, contractual clauses, notices, amounts or legal rights
               <div className="flex gap-2 mb-3 flex-wrap" data-testid="pc-actions">
                 <button onClick={onCopy} className="btn-secondary flex items-center gap-2 text-xs"><Copy size={12}/> Copy</button>
                 <button onClick={onDownload} className="btn-secondary flex items-center gap-2 text-xs"><Download size={12}/> PDF</button>
-                <a href={`mailto:?subject=${encodeURIComponent(stage === 3 ? "NOTICE OF INTENTION TO PURSUE LEGAL ACTION" : `Payment reminder — invoice ${form.invNo}`)}&body=${encodeURIComponent(result)}`} className="btn-secondary flex items-center gap-2 text-xs"><Mail size={12}/> Email</a>
+                <a href={`mailto:?subject=${encodeURIComponent(stage === 3 ? `FINAL NOTICE FOR PAYMENT — invoice ${form.invNo}` : `Payment reminder — invoice ${form.invNo}`)}&body=${encodeURIComponent(result)}`} className="btn-secondary flex items-center gap-2 text-xs"><Mail size={12}/> Email</a>
                 <a href={`sms:?body=${encodeURIComponent(`Re invoice ${form.invNo}: ${fGBP(totalDue)} now due. See letter sent. ${user?.fullName || ""}`)}`} className="btn-secondary flex items-center gap-2 text-xs"><Phone size={12}/> SMS</a>
                 <a href={`https://wa.me/?text=${encodeURIComponent(result)}`} target="_blank" rel="noreferrer" className="btn-secondary flex items-center gap-2 text-xs"><MessageSquare size={12}/> WhatsApp</a>
               </div>

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronLeft, FileText, Mail, Download, Copy, Info, Star, X, Plus, Trash2, AlertTriangle, Wallet } from "lucide-react";
 import { toast } from "sonner";
@@ -8,6 +8,7 @@ import { downloadPdf } from "../lib/pdf";
 import LiveSignatureBlock from "../components/LiveSignatureBlock";
 import DraftSaveButton from "../components/DraftSaveButton";
 import useToolDraft from "../hooks/useToolDraft";
+import { saveToolData } from "../lib/tool-persistence";
 
 const TOOL_ID   = "payment-tracker";
 const TOOL_NAME = "Payment Tracker";
@@ -57,6 +58,7 @@ const STATUS_OPTIONS = [
   "Partially paid",
   "Paid in full",
   "Overdue — chasing",
+  "Final notice served",
   "Disputed",
   "Written off",
 ];
@@ -141,6 +143,30 @@ export default function PaymentTracker() {
       return { ...r, ref: refForIndex(i), cis, net, outstanding, isOverdueNow };
     });
   }, [rows]);
+
+  // Emit each row to the tool-persistence store shaped for the alerts scanner.
+  // Runs on every meaningful change so Phase 3 proactive alerts (invoice N
+  // days overdue, N invoices now 30+ days overdue etc.) fire without the user
+  // having to click Generate. See alerts.js -> checkPaymentTracker.
+  useEffect(() => {
+    const records = decorated
+      .filter((r) => (r.invoiceNumber || "").trim() || Number(r.invoiceAmount) > 0)
+      .map((r) => ({
+        id: r.id,
+        reference: r.ref,
+        invoiceNumber: r.invoiceNumber,
+        counterparty: r.contractor,
+        contractor: r.contractor,
+        project: r.project,
+        dueDate: r.paymentDueDate,
+        invoiceDueDate: r.paymentDueDate,
+        status: r.status,
+        paid: r.status === "Paid in full",
+        outstanding: r.outstanding,
+        amount: r.invoiceAmount,
+      }));
+    saveToolData(TOOL_ID, records);
+  }, [decorated]);
 
   const summary = useMemo(() => {
     const populated = decorated.filter((r) => (r.invoiceNumber || "").trim() || (r.project || "").trim() || N(r.invoiceAmount) > 0);
