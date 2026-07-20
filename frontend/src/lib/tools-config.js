@@ -803,49 +803,165 @@ Rules: never invent figures. Always show the maths. If a field is blank, drop th
 Rules: never invent facts. If a field is blank, leave the line out cleanly. No square-bracket placeholders. No 'kinetic', 'utilise', 'endeavour', 'facilitate', 'prior to', 'operatives are advised'. Short sentences. Firm but plain. Read it out loud and it should sound like a contractor protecting his money, not a consultant.`
   ),
   t("eot-claim", "Extension of Time Claim", "documents",
-    "A formal Extension of Time claim. protects you from Liquidated Damages when delays are not your fault.",
+    "A professional UK construction Extension of Time / delay notification document. Distinguishes the factual cause of delay from contractual entitlement, and separates entitlement to additional TIME from entitlement to MONEY. Every conclusion is based only on the information you supply.",
     [
+      // ===== 1. CONTRACT DETAILS =====
       f("project", "Project name"),
       ta("projectAddress", "Project address"),
       f("contractRef", "Contract reference"),
       f("contractorLegalName", "Contractor legal name"),
-      f("clientLegalName", "Client legal name"),
-      sel("contractClause", "Relevant contract clause", ["JCT Section 2.28", "NEC4 Clause 60.1", "Other"]),
-      fo("contractClauseOther", "If Other, specify clause"),
-      sel("delayCause", "Cause of delay", ["Variation", "Late instruction", "Late information", "Adverse weather", "Strike / industrial action", "Force majeure", "Unforeseen ground conditions", "Client default", "Other"]),
+      f("clientLegalName", "Client / Employer / Main contractor legal name"),
+      sel("formOfContract", "Form of contract", ["JCT", "NEC4", "Other / Bespoke"]),
+      // JCT branch (fill only if JCT selected)
+      fo("jctContractType", "JCT contract type / edition — JCT only (e.g. 'JCT SBC 2016 with Quantities')"),
+      fo("jctClause", "Relevant JCT clause — JCT only (e.g. 'Clause 2.28' — do NOT hard-code, quote the actual clause you rely on)"),
+      fo("jctRelevantEvent", "Relevant Event relied upon — JCT only (e.g. 'Relevant Event 2.29.5 — Compliance with instructions')"),
+      // NEC4 branch (fill only if NEC4 selected)
+      fo("necContractOption", "NEC4 contract type / Option — NEC4 only (e.g. 'ECC Option A: Priced contract with activity schedule')"),
+      fo("necCompensationEventClause", "Compensation Event clause / reference — NEC4 only (e.g. '60.1(1)')"),
+      fo("necCompensationEventRef", "Compensation Event reference number — NEC4 only (optional)"),
+      // Bespoke branch (fill only if Other / Bespoke selected)
+      fo("bespokeContractName", "Contract name — Other / Bespoke only"),
+      fo("bespokeClause", "Relevant clause — Other / Bespoke only"),
+      fo("bespokeMechanism", "Contractual delay / extension mechanism — Other / Bespoke only (describe how the contract handles delays)"),
+
+      // ===== 2. NOTICE & PROCEDURAL COMPLIANCE =====
+      fp("delayEventOccurredDate", "Date delay event occurred", "today", "date"),
+      fp("delayEventKnownDate", "Date delay event first became known", "today", "date"),
+      sel("contractualNoticeIssued", "Has contractual notice been issued?", ["No", "Yes"]),
+      fpo("noticeIssuedDate", "Date notice issued — only if Yes above", "today", "date"),
+      fo("noticeReference", "Notice reference — only if Yes above"),
+      fo("noticeRecipient", "Recipient of notice — only if Yes above"),
+      fo("noticeDeadlineIfKnown", "Contractual notification deadline (if known) — free text"),
+      sel("noticeWithinTimeLimit", "Was notice issued within the contractual time requirement?", ["Unknown", "Yes", "No"]),
+
+      // ===== 3. DELAY EVENT =====
+      sel("delayCause", "Cause / type of delay", [
+        "Variation",
+        "Late instruction",
+        "Late information",
+        "Adverse weather",
+        "Client default",
+        "Force majeure",
+        "Strike / industrial action",
+        "Unforeseen ground conditions",
+        "Other",
+      ]),
+      fo("delayCauseOther", "If 'Other', describe the cause of delay"),
       ta("delayDescription", "Detailed description of the delay event"),
+      fo("responsibleParty", "Responsible party (if known)"),
       fp("delayStartDate", "Delay event start date", "today", "date"),
-      f("delayEndDate", "Delay event end date"),
+      fpo("delayEndDate", "Delay event end date — leave blank if ongoing", "today", "date"),
+      sel("delayOngoing", "Is the delay event ongoing?", ["No", "Yes"]),
       ta("mitigationEfforts", "Mitigation efforts undertaken by the contractor"),
-      f("calendarDays", "Calendar days lost", "number"),
-      f("workingDays", "Working days lost", "number"),
-      sel("methodOfAnalysis", "Method of delay analysis", ["Time Impact Analysis", "As-Planned vs As-Built", "Impacted As-Planned", "Collapsed As-Built", "Window Analysis"]),
-      f("programmeRef", "Programme reference (e.g. P-001 rev 03)"),
-      ta("impactExplanation", "Critical path impact explanation"),
+
+      // ===== 4. PROGRAMME & CRITICAL PATH =====
+      fo("programmeRef", "Baseline / accepted programme reference (e.g. 'P-001')"),
+      fo("programmeRevision", "Programme revision"),
+      fpo("programmeDate", "Programme date", "today", "date"),
+      fo("affectedActivity", "Affected activity / Activity IDs"),
+      tao("affectedWorksDescription", "Description of affected works"),
+      sel("criticalPath", "Was the affected activity on the critical path?", ["Unknown", "Yes", "No"]),
+      tao("impactExplanation", "Critical path impact — describe how the delay affects the completion date"),
+      sel("methodOfAnalysis", "Method of delay analysis", [
+        "Not formally analysed",
+        "Time Impact Analysis",
+        "Windows Analysis",
+        "As-Planned vs As-Built",
+        "Impacted As-Planned",
+        "Collapsed As-Built",
+        "Other",
+      ]),
+      fo("methodOfAnalysisOther", "If 'Other' method, describe"),
+
+      // ===== 5. CONCURRENT DELAY =====
+      sel("concurrentDelay", "Concurrent delay identified?", ["Unknown", "No", "Yes"]),
+      tao("concurrentDescription", "Description of concurrent delay — only if Yes above"),
+      fo("concurrentResponsibleParty", "Responsible party for the concurrent delay — only if Yes above"),
+      fo("concurrentPeriod", "Period of concurrent delay — only if Yes above"),
+      tao("concurrentEffect", "Contractor's view on effect on this EOT claim — only if Yes above"),
+
+      // ===== 6. TIME CLAIMED =====
+      f("calendarDays", "Calendar days of delay experienced", "number"),
+      f("workingDays", "Working days of delay experienced", "number"),
+      fo("previousEotDays", "Previous Extensions of Time granted (days) — cumulative", "number"),
       fp("currentCompletionDate", "Current contract completion date", "today", "date"),
-      f("revisedCompletionDate", "Revised completion date requested"),
-      sel("claimingLossAndExpense", "Also claiming Loss and Expense?", ["No", "Yes"]),
-      fo("prolongedOverheads", "If yes — prolonged overheads (£)", "number"),
-      fo("plantHire", "If yes — additional plant hire (£)", "number"),
-      fo("staffCosts", "If yes — additional staff / supervision costs (£)", "number"),
-      tao("evidenceReferences", "Evidence references (instructions, RFIs, emails, drawings, weather reports — one per line)"),
+      f("eotDaysRequested", "Extension of Time requested (days)", "number"),
+      fpo("revisedCompletionDate", "Revised completion date requested — leave blank to auto-calculate", "today", "date"),
+
+      // ===== 7. LOSS & EXPENSE / COST =====
+      sel("claimingLossAndExpense", "Are you also notifying or claiming additional cost / loss and expense?", ["No", "Yes", "To be assessed separately"]),
+      fo("prolongedOverheads", "Prolongation costs (£)", "number"),
+      fo("plantHire", "Additional plant hire (£)", "number"),
+      fo("additionalLabour", "Additional labour (£)", "number"),
+      fo("staffCosts", "Additional staff / supervision (£)", "number"),
+      fo("siteOverheads", "Site overheads (£)", "number"),
+      fo("headOfficeOverheads", "Head office overheads (£)", "number"),
+      fo("otherCosts", "Other costs (£)", "number"),
+      fo("costsTotalClaimed", "Total claimed (£) — leave blank to auto-sum", "number"),
+      tao("costsBasis", "Basis of calculation / explanation of how the costs have been calculated"),
+      tao("costsRecordsRefs", "Supporting cost records references (one per line)"),
+
+      // ===== 8. EVIDENCE (structured) =====
+      tao("evidenceInstructions", "Instructions (references — one per line)"),
+      tao("evidenceRfis", "RFIs (references — one per line)"),
+      tao("evidenceEmails", "Emails / correspondence (references — one per line)"),
+      tao("evidenceDrawings", "Drawings (references — one per line)"),
+      tao("evidenceSiteDiaries", "Site diaries (references — one per line)"),
+      tao("evidenceProgressPhotos", "Progress photographs (references — one per line)"),
+      tao("evidenceMeetingMinutes", "Meeting minutes (references — one per line)"),
+      tao("evidenceProgrammeUpdates", "Programme updates (references — one per line)"),
+      tao("evidenceWeatherRecords", "Weather records (references — one per line)"),
+      tao("evidenceDeliveryRecords", "Delivery records (references — one per line)"),
+      tao("evidenceLabourRecords", "Labour records (references — one per line)"),
+      tao("evidenceOther", "Other evidence (references — one per line)"),
     ],
-    `Produce a UK Extension of Time Claim. Use EOT-NNN format for the claim reference (taken from the provided document reference). Use the user's profile for the contractor block (auto-populated). Format:
-1. HEADER — Claim reference {ref}, today's date.
-2. PROJECT DETAILS — Project name, address, contract reference, contractor legal name, client legal name.
-3. CONTRACT CLAUSE — quote the relevant clause (use the value supplied, with the 'Other' free text if specified).
-4. DELAY EVENT — cause, detailed description, start date and end date.
-5. CRITICAL PATH ANALYSIS — calendar days lost, working days lost, method of analysis, programme reference, impact explanation showing how the event affects the critical path.
-6. MITIGATION — describe mitigation efforts as supplied.
-7. EXTENSION REQUESTED — current contract completion date, revised completion date requested, total days requested.
-8. LOSS AND EXPENSE (only if Yes was supplied) — show a clean financial summary table:
-   Prolonged overheads: £{prolongedOverheads}
-   Additional plant hire: £{plantHire}
-   Additional staff / supervision costs: £{staffCosts}
-   Auto-calculated TOTAL LOSS AND EXPENSE: £{sum}
-9. EVIDENCE — list every evidence reference supplied as a numbered list. If none, state 'Available on request'.
-10. DECISION REQUESTED — request the client / contract administrator's written decision on the extension within 14 days.
-APPENDED STATEMENT — print verbatim on its own line as the final paragraph before the signature blocks: 'Under JCT contracts an Extension of Time does not automatically grant financial compensation. A separate Loss and Expense claim must be submitted.'`
+    `Produce a UK Extension of Time / delay notification document at a professional-consultant standard, based ONLY on the information the user supplied. Do not invent contract clauses, dates, evidence, programme impacts or legal entitlement. Do not assume a delay event automatically qualifies for an EOT. Do not assume EOT entitlement automatically creates financial entitlement. Use the terminology appropriate to the selected {formOfContract}. Use cautious professional wording where entitlement is uncertain (e.g. 'Subject to the terms and amendments of the Contract…', 'Based on the information presently available…', 'The Contractor considers that…'). Never print square-bracket placeholders — omit the section, or clearly state that the information has not been provided.
+
+Section order (skip a section cleanly if the corresponding user input is blank):
+
+1. DOCUMENT TITLE — 'EXTENSION OF TIME CLAIM' if formOfContract is JCT or Other/Bespoke; 'NOTICE OF COMPENSATION EVENT — EXTENSION OF TIME' if formOfContract is NEC4. Underneath: Claim reference {ref}, today's date.
+
+2. PROJECT DETAILS — Project, Project address, Contract reference.
+
+3. PARTIES — Contractor legal name, Client / Employer / Main contractor legal name.
+
+4. CONTRACT DETAILS — Print ONLY the fields matching the selected form of contract. JCT: 'JCT contract type/edition', 'Relevant clause', 'Relevant Event'. NEC4: 'NEC4 contract type / Option', 'Compensation Event clause', 'Compensation Event reference'. Other/Bespoke: 'Contract name', 'Relevant clause', 'Contractual delay / extension mechanism'. If a field is blank, omit it — never write 'not supplied' or a placeholder. If NONE of the branch fields were completed, print one line: 'The Contractor's contractual mechanism is subject to confirmation and further review.'
+
+5. EXECUTIVE SUMMARY — 3 to 5 short sentences summarising: what event occurred, when, calendar/working days impact, whether critical path was affected (only state if criticalPath = Yes), and the number of days of EOT requested. Neutral factual tone. Do NOT state entitlement as a given.
+
+6. CONTRACTUAL BASIS — one short paragraph identifying the contractual mechanism the Contractor relies upon (using only the fields supplied for the selected branch). Close with the sentence: 'The Contractor considers that the delay event described below falls within the above mechanism. Entitlement remains subject to assessment under the applicable Contract provisions.'
+
+7. NOTICE AND PROCEDURAL COMPLIANCE — If contractualNoticeIssued = Yes: state the notice date, reference and recipient exactly as supplied, and whether it was issued within the contractual time requirement (per noticeWithinTimeLimit). If noticeWithinTimeLimit = No, state factually 'Notice was issued outside the stated contractual period.' — do NOT state that entitlement has been lost unless the user has said so in their inputs. If contractualNoticeIssued = No: print exactly: 'No contractual notice has been issued in respect of this delay event. Contractual notice requirements should be checked immediately.'
+
+8. DESCRIPTION OF DELAY EVENT — Cause / type of delay (with delayCauseOther if 'Other'), detailed description, responsible party if supplied. Do NOT state that the selected cause creates entitlement — say only what happened.
+
+9. CHRONOLOGY OF EVENTS — a small table with columns Date / Event: (a) delayEventOccurredDate — 'Delay event occurred'; (b) delayEventKnownDate — 'Delay event first became known'; (c) delayStartDate — 'Delay start'; (d) delayEndDate — 'Delay end' (or 'Ongoing' if delayOngoing = Yes); (e) noticeIssuedDate if supplied — 'Contractual notice issued'. Omit any row where the date is blank.
+
+10. PROGRAMME AND CRITICAL PATH IMPACT — programmeRef, programmeRevision, programmeDate, affectedActivity, affectedWorksDescription. Then a single line 'Critical path impact: <Yes | No | Unknown>' from criticalPath. Then the impactExplanation paragraph verbatim. If criticalPath = Unknown, add the sentence: 'Critical path impact remains subject to confirmation upon further programme analysis.' Never invent programme references.
+
+11. DELAY ANALYSIS — 'Method of delay analysis: {methodOfAnalysis}'. If methodOfAnalysis = 'Not formally analysed', append: 'A formal forensic delay analysis has not been prepared for this notification. This does not preclude entitlement under the applicable Contract provisions.' If 'Other', use methodOfAnalysisOther.
+
+12. MITIGATION MEASURES — verbatim from mitigationEfforts. If blank, omit this section — do not invent measures.
+
+13. CONCURRENT DELAY ASSESSMENT — only if concurrentDelay = Yes. Print description, responsible party, period, and contractor's view. End with the sentence: 'The effect of concurrency on the Extension of Time entitlement is a matter for assessment under the applicable Contract provisions and any relevant contract amendments.' If concurrentDelay = No or Unknown, omit this section entirely.
+
+14. EXTENSION OF TIME REQUESTED — Calendar days of delay experienced, Working days of delay experienced, Previous EOTs granted (if any), Current contract completion date, and (BOLD, on its own line) 'Extension of Time requested: {eotDaysRequested} days'. Immediately after, print the sentence: 'The Contractor draws a distinction between the total delay experienced and the Extension of Time contractually requested; the two are not automatically identical.'
+
+15. REVISED COMPLETION DATE REQUESTED — if revisedCompletionDate was supplied, print it. Otherwise auto-compute Current contract completion date + eotDaysRequested calendar days and print it, prefixed 'Revised completion date requested (calculated): '. If the supplied revisedCompletionDate does not reconcile with the arithmetic, print BOTH values and the sentence: 'The requested revised completion date does not reconcile arithmetically with the current completion date plus the Extension of Time requested. Please review.'
+
+16. LOSS AND EXPENSE / ADDITIONAL COST POSITION — only if claimingLossAndExpense = Yes or 'To be assessed separately'. If 'To be assessed separately', print a single paragraph: 'The Contractor reserves the right to notify additional cost, loss and expense arising from the delay event under the applicable Contract provisions. Any such claim will be assessed and notified separately.' If Yes, print a clean money table with £ values right-aligned including only the cost rows the user supplied a value for (prolongation, plant hire, additional labour, staff/supervision, site overheads, head office overheads, other costs). Then TOTAL COST CLAIMED = costsTotalClaimed if supplied, otherwise the arithmetic sum. Then costsBasis paragraph if supplied. Then a numbered list of costsRecordsRefs if supplied. Close with EXACTLY this paragraph: 'Entitlement to Extension of Time and entitlement to additional payment / loss and expense are separate contractual matters. An award of Extension of Time does not, of itself, entitle the Contractor to additional payment.'${``}
+${`   For NEC4 contracts (formOfContract = NEC4), replace 'loss and expense' throughout this section with 'the assessed change in Prices' or 'compensation event' as appropriate, and use NEC compensation-event terminology throughout.`}
+
+17. SUPPORTING EVIDENCE SCHEDULE — a schedule table with 12 rows and the columns 'Category' / 'References supplied'. One row per category: Instructions, RFIs, Emails / Correspondence, Drawings, Site Diaries, Progress Photographs, Meeting Minutes, Programme Updates, Weather Records, Delivery Records, Labour Records, Other. For each category print the references from the corresponding evidence field verbatim (one per line). If a category is blank, print 'Not supplied' — do NOT invent evidence.
+
+18. RESERVATION OF RIGHTS — exact wording: 'The Contractor issues this notification without prejudice to any other rights, notices or claims it may have under the Contract, at common law or under any other enactment. The Contractor reserves the right to submit further and better particulars as additional information becomes available.'
+
+19. REQUESTED RESPONSE / DETERMINATION — For JCT/Bespoke: 'The Contractor respectfully requests the Contract Administrator's written assessment of the Extension of Time requested within the period specified by the Contract, or otherwise within 14 days from the date of this notification.' For NEC4: 'The Contractor respectfully requests the Project Manager's response and assessment under Clause 61 / 62 within the period specified by the Contract.'
+
+20. DECLARATION AND SIGNATURE — 'Declaration: The Contractor confirms that the information contained in this notification is true to the best of the Contractor's knowledge and belief, and is based on the records and information currently available. This notification does not constitute legal advice.' Then a single Prepared By block auto from profile (Name, Role/title if supplied, Company, today's date, signature). Then a separate optional block titled 'Recipient / Contract Administrator / Project Manager Signature (optional)' with blank Name, Role, Company, Date, Signature lines — the Recipient signature does not indicate agreement to the claim.
+
+RULES: never invent contract clauses, dates, evidence, programme impacts, legal entitlement or costs. Never state that a delay event automatically qualifies for an EOT. Never state that EOT entitlement automatically creates financial entitlement. Never include a REVIEW DATE line — this is a one-off notification, not a compliance/review document. Use plain UK construction English. Use the Morris Global Writing Standard. Read like professional construction correspondence prepared for submission to a contract administrator, employer, main contractor or project manager. Do not make the document unnecessarily aggressive. Preserve the Contractor's position without making unsupported legal claims.`
   ),
   t("lds-dispute", "LDs Dispute", "documents",
     "A formal letter disputing Liquidated Damages applied against you. Captures every detail needed to challenge the deduction under UK construction contract law (JCT / NEC / common law). Use this when a client or main contractor has notified you of LDs and you believe they should not apply.",

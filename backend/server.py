@@ -810,6 +810,21 @@ async def generate(req: GenerateReq, authorization: Optional[str] = Header(None)
             "8. VAT ROUNDING: All VAT and interim totals rounded to 2 decimals with the '£' symbol.\n\n"
             if req.toolId == "application-for-payment" else ""
         )
+        + (
+            # ---------- Extension of Time Claim — tool-specific tightening ----------
+            "EXTENSION OF TIME CLAIM — TOOL-SPECIFIC RULES:\n"
+            "1. NEVER assume that a delay event automatically qualifies for an Extension of Time. Base entitlement wording ONLY on the contract mechanism the user supplied (formOfContract + branch fields). If none supplied, print: 'The Contractor's contractual mechanism is subject to confirmation and further review.'\n"
+            "2. NEVER equate additional TIME with additional MONEY. An award of Extension of Time does NOT, of itself, entitle the Contractor to additional payment. Print exactly this sentence at the end of the Loss and Expense section: 'Entitlement to Extension of Time and entitlement to additional payment / loss and expense are separate contractual matters. An award of Extension of Time does not, of itself, entitle the Contractor to additional payment.'\n"
+            "3. TERMINOLOGY BY CONTRACT: If formOfContract is 'NEC4', use NEC terminology throughout — 'Compensation Event' not 'Extension of Time claim', 'Project Manager' not 'Contract Administrator', 'the assessed change in Prices' not 'loss and expense', 'Programme' with capital P. Document title becomes 'NOTICE OF COMPENSATION EVENT — EXTENSION OF TIME'. Response section references clauses 61/62. If formOfContract is 'JCT' or 'Other / Bespoke', use JCT/UK-standard terminology.\n"
+            "4. NOTICE COMPLIANCE: Never state that entitlement has been lost solely because notice was late unless the actual contract wording supplied by the user supports that conclusion. If contractualNoticeIssued = No, print exactly: 'No contractual notice has been issued in respect of this delay event. Contractual notice requirements should be checked immediately.'\n"
+            "5. CONCURRENT DELAY: If concurrentDelay = Yes, identify concurrency as an issue requiring contractual assessment; NEVER automatically determine its legal effect on the EOT.\n"
+            "6. TOTAL DELAY vs EOT REQUESTED: Print both figures. NEVER assume they are identical. Include the sentence: 'The Contractor draws a distinction between the total delay experienced and the Extension of Time contractually requested; the two are not automatically identical.'\n"
+            "7. AUTO-CALC REVISED COMPLETION DATE: If revisedCompletionDate is blank, compute currentCompletionDate + eotDaysRequested (calendar days) and prefix the output with 'Revised completion date requested (calculated): '. If the supplied revisedCompletionDate does not reconcile with the arithmetic, print BOTH and a warning line.\n"
+            "8. EVIDENCE SCHEDULE: Print the 12-row Supporting Evidence Schedule verbatim from the user's inputs. NEVER invent evidence, RFIs, meeting minutes, weather records or any other reference. If a category is blank, print 'Not supplied'.\n"
+            "9. NO PLACEHOLDERS: Do NOT emit '[INSERT CLAUSE]', '[ROLE NOT SET]', '[DATE REQUIRED]' or any square-bracket placeholder. Omit the section, or state cleanly that the information has not been provided.\n"
+            "10. TONE: professional, factual, contractually aware, concise but detailed, non-emotional. Preserve the Contractor's position WITHOUT making unsupported legal claims. Do NOT make the document unnecessarily aggressive.\n\n"
+            if req.toolId == "eot-claim" else ""
+        )
         + _signoff_instructions(req.toolId, user, bool(user.get("signature")))
     )
 
