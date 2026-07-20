@@ -27,6 +27,18 @@ Dark-themed construction administration SaaS web application for UK tradespeople
 
 ## What's been implemented
 
+- ✅ **[FEATURE] RAMS Hazard Add-Form 3-Step Redesign + Global Writing Standard** (Feb 20, 2026)
+  - Rebuilt the RAMS Hazard card into a professional 3-step journey ("1 — Identify the Risk", "2 — Assess the Initial Risk", "3 — Control the Risk") with 11 clearly ordered fields, gold step headers and consistent labelling.
+  - Renamed fields per spec: "Hazard or Substance Name" → **Hazard** (no default, placeholder "e.g. Construction dust, exposed cables, moving machinery"); "Activity That Causes the Exposure" → **Task or Activity Creating the Risk**; "Exposure Route / Mechanism" → **How Could Someone Be Harmed?** (new 15-option alphabetical dropdown, Other at bottom, no auto-selection); "Persons Affected" → **Who Could Be Harmed?** (new 5-chip set: Operatives / Supervisor / Other Trades / Visitors / Members of the Public).
+  - New **"Other" branch**: picking Other reveals a text input "Please Describe How Someone Could Be Harmed" — the custom text is validated, persisted through drafts, and rendered in the PDF *instead of* the raw word "Other" (via new `routeLabelFor` in rams-pdf.js).
+  - **Backward compatibility**: added `EXPOSURE_ROUTE_MIGRATION` and `PERSONS_MIGRATION` maps so old drafts using "Fall" / "Manual Strain" / "Noise" / "Impact/Strike" / "Site operatives" / "Site supervisor" etc. still load cleanly with values remapped to the new labels.
+  - **Rewrote `composeHazardLine`** in rams-pdf.js — no more concat formula ("Falling from ... while ..."). New natural-title format: `"<Hazard> from <activity>"` with sensible fallbacks. Applied to Risk Register Summary and Hazard Detail headings.
+  - **Fixed double-bullet bug**: `bullets()` in rams-pdf.js now strips any leading `•/·/‣/→/-/*` from user-typed lines before adding its own bullet.
+  - Updated all Hazard Detail kv-labels + COSHH table header to match the new naming.
+  - **Global Morris Writing Standard**: injected a new block into `/api/generate` system prompt in `server.py` — positions the Morris voice explicitly (between corporate and casual), adds context-aware guidance per document family (RAMS/Variations/Invoices/Chasers/Diaries/Quotes), and enforces the SAFETY AND LEGAL LANGUAGE RULE (never simplify at the cost of legal/tax/technical accuracy). Existing TONE AND LANGUAGE and BANNED WORDS rules preserved untouched.
+  - Verified end-to-end by testing_agent (iteration_11): 100% pass on 13 checks including full PDF text extraction — natural-title format present, custom "Other" text rendered, kv-labels updated, zero double bullets.
+
+
 - ✅ **[FEATURE] RAMS — 8 new supplementary sections render in PDF** (Feb 22, 2026)
   - Added the 8 new RAMS sections (Site Induction, Manual Handling, Noise and Vibration, Keeping the Site Tidy, Fire and Emergency Evacuation, Who This RAMS Has Been Shared With, Client / Principal Contractor Sign-Off, Reviewing This RAMS) to the PDF renderer at `/app/frontend/src/lib/rams-pdf.js`. UI form blocks in `Rams.jsx` were already in place from the previous step; this completes the round-trip into the exported PDF.
   - Refactored `section()` helper in `rams-pdf.js` to use a `state.sectionNum` auto-incrementing counter (matches the `sn()` pattern in the UI). Removed all hardcoded section numbers from the renderer so additions/removals stay sequential. Added `noIncrement` + `suffix` options for the 12a sub-section (Substances Requiring a Separate Licensed Assessment).
