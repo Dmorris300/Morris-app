@@ -34,24 +34,51 @@ function ukDate(iso) {
 }
 
 const EXPOSURE_ROUTES = [
-  "Inhalation",
-  "Skin Contact",
+  "Burns / Heat",
+  "Crushing / Trapping",
+  "Cuts / Punctures",
+  "Electrical Contact",
   "Eye Contact",
+  "Fall From Height",
   "Ingestion",
-  "Impact/Strike",
-  "Fall",
-  "Manual Strain",
-  "Noise",
+  "Inhalation",
+  "Manual Handling / Physical Strain",
+  "Noise Exposure",
+  "Skin Contact",
+  "Slip, Trip or Fall",
+  "Struck By / Impact",
+  "Vibration Exposure",
   "Other",
 ];
 
+// Migrate legacy exposure-route values so old drafts continue to load cleanly.
+const EXPOSURE_ROUTE_MIGRATION = {
+  "Fall":            "Fall From Height",
+  "Manual Strain":   "Manual Handling / Physical Strain",
+  "Noise":           "Noise Exposure",
+  "Impact/Strike":   "Struck By / Impact",
+};
+const migrateExposureRoute = (v) => EXPOSURE_ROUTE_MIGRATION[v] || v || "";
+
 const PERSONS_OPTIONS = [
-  "Site operatives",
-  "Site supervisor",
-  "Other trades",
-  "Members of the public",
+  "Operatives",
+  "Supervisor",
+  "Other Trades",
   "Visitors",
+  "Members of the Public",
 ];
+
+// Backward-compat map for older RAMS drafts / saved hazards that still hold the
+// pre-2026 labels ("Site operatives", "Site supervisor", etc.). Applied at
+// load time so nothing the user previously saved silently disappears.
+const PERSONS_MIGRATION = {
+  "Site operatives":         "Operatives",
+  "Site supervisor":         "Supervisor",
+  "Other trades":            "Other Trades",
+  "Members of the public":   "Members of the Public",
+};
+const migratePerson = (v) => PERSONS_MIGRATION[v] || v;
+const migratePersons = (arr) => Array.isArray(arr) ? arr.map(migratePerson) : arr;
 
 const TRAINING_OPTIONS = [
   "CSCS",
@@ -90,26 +117,27 @@ const COMMON_EQUIPMENT = [
 // Auto-suggestion rules: hazard pattern -> PPE / equipment label.
 const PPE_RULES = [
   { test: (h) => h.exposureRoute === "Inhalation" || /dust|cutting|drilling|grinding/i.test(`${h.hazard} ${h.activity}`), ppe: "RPE — dust mask or respirator", reason: "Dust or cutting in the air" },
-  { test: (h) => h.exposureRoute === "Noise" || /grinder|breaker|saw|impact/i.test(`${h.hazard} ${h.activity}`), ppe: "Hearing protection", reason: "Loud tools or machinery" },
-  { test: (h) => /handling|lift|carry|load/i.test(`${h.hazard} ${h.activity}`) || h.exposureRoute === "Manual Strain", ppe: "Gloves (cut-resistant)", reason: "Moving materials by hand" },
+  { test: (h) => h.exposureRoute === "Noise Exposure" || /grinder|breaker|saw|impact/i.test(`${h.hazard} ${h.activity}`), ppe: "Hearing protection", reason: "Loud tools or machinery" },
+  { test: (h) => /handling|lift|carry|load/i.test(`${h.hazard} ${h.activity}`) || h.exposureRoute === "Manual Handling / Physical Strain", ppe: "Gloves (cut-resistant)", reason: "Moving materials by hand" },
   { test: (h) => /chemical|adhesive|solvent|sealant|paint/i.test(`${h.hazard} ${h.activity}`) || h.exposureRoute === "Skin Contact", ppe: "Gloves (chemical)", reason: "Chemicals or adhesives" },
   { test: (h) => h.exposureRoute === "Eye Contact" || /dust|cutting|grinding|debris/i.test(`${h.hazard} ${h.activity}`), ppe: "Safety glasses", reason: "Risk of debris in eyes" },
-  { test: (h) => h.exposureRoute === "Fall" || /height|edge|roof|opening/i.test(`${h.hazard} ${h.activity}`), ppe: "Harness and lanyard", reason: "Work at height" },
+  { test: (h) => h.exposureRoute === "Fall From Height" || /height|edge|roof|opening/i.test(`${h.hazard} ${h.activity}`), ppe: "Harness and lanyard", reason: "Work at height" },
 ];
 
 const EQUIP_RULES = [
   { test: (h) => /struck by hidden services|underground|buried|cable/i.test(`${h.hazard} ${h.activity}`), equip: "CAT & Genny (cable avoidance)" },
-  { test: (h) => h.exposureRoute === "Fall" || /height|edge|roof/i.test(`${h.hazard} ${h.activity}`), equip: "Mobile tower scaffold" },
+  { test: (h) => h.exposureRoute === "Fall From Height" || /height|edge|roof/i.test(`${h.hazard} ${h.activity}`), equip: "Mobile tower scaffold" },
   { test: (h) => /cutting/i.test(`${h.hazard} ${h.activity}`), equip: "Circular saw with extraction" },
 ];
 
 function newHazard() {
   return {
     id: crypto.randomUUID(),
-    exposureRoute: "Inhalation",
+    exposureRoute: "",
+    exposureRouteOther: "",
     hazard: "",
     activity: "",
-    personsAffected: ["Site operatives"],
+    personsAffected: ["Operatives"],
     likelihoodBefore: 3,
     severityBefore: 3,
     likelihoodAfter: 1,
@@ -154,7 +182,7 @@ export default function Rams() {
   const [overallRiskRating, setOverallRiskRating]       = useState("Medium");
 
   // SECTION 5 — PERSONS AT RISK
-  const [personsAtRisk, setPersonsAtRisk] = useState(["Site operatives"]);
+  const [personsAtRisk, setPersonsAtRisk] = useState(["Operatives"]);
 
   // SECTION 6 — TRAINING AND COMPETENCE
   const [training, setTraining] = useState(["CSCS"]);
@@ -263,9 +291,14 @@ export default function Rams() {
         if (p.operativesCount !== undefined) setOperativesCount(p.operativesCount);
         if (p.workAtHeight !== undefined) setWorkAtHeight(p.workAtHeight);
         if (p.overallRiskRating !== undefined) setOverallRiskRating(p.overallRiskRating);
-        if (Array.isArray(p.personsAtRisk)) setPersonsAtRisk(p.personsAtRisk);
+        if (Array.isArray(p.personsAtRisk)) setPersonsAtRisk(migratePersons(p.personsAtRisk));
         if (Array.isArray(p.training)) setTraining(p.training);
-        if (Array.isArray(p.hazards)) setHazards(p.hazards);
+        if (Array.isArray(p.hazards)) setHazards(p.hazards.map((h) => ({
+          ...h,
+          exposureRoute: migrateExposureRoute(h.exposureRoute),
+          exposureRouteOther: h.exposureRouteOther || "",
+          personsAffected: migratePersons(h.personsAffected || []),
+        })));
         if (Array.isArray(p.ppe)) setPpe(p.ppe);
         if (p.ppeOverrideNote !== undefined) setPpeOverrideNote(p.ppeOverrideNote);
         if (Array.isArray(p.equipment)) setEquipment(p.equipment);
@@ -403,11 +436,17 @@ export default function Rams() {
     if (hazards.length === 0 || !hazards.some((h) => h.hazard.trim() && h.activity.trim())) {
       missing.push("At least one fully entered hazard (Hazard or substance + Activity)");
     }
-    // Hazard entries must have all 3 required fields each
+    // Hazard entries must have all required fields each
     const incompleteHazard = hazards.find((h) =>
       !h.exposureRoute || !h.hazard.trim() || !h.activity.trim()
     );
-    if (incompleteHazard) missing.push("Every hazard must have Exposure route + Hazard + Activity");
+    if (incompleteHazard) missing.push("Every hazard must have How Could Someone Be Harmed + Hazard + Task or Activity");
+
+    // If a hazard uses the "Other" route it must have the free-text description filled.
+    const otherWithoutDetail = hazards.find((h) =>
+      h.exposureRoute === "Other" && !(h.exposureRouteOther || "").trim()
+    );
+    if (otherWithoutDetail) missing.push("Every hazard set to 'Other' must describe how someone could be harmed");
 
     // Hazards must not be a single word per requirement
     const oneWordHazard = hazards.find((h) =>
@@ -601,21 +640,64 @@ export default function Rams() {
                   <div className="text-xs uppercase tracking-widest text-[#E8A020] font-mono">Hazard {idx + 1}</div>
                   <button onClick={() => removeHazard(h.id)} className="text-[#706D66] hover:text-red-400 flex items-center gap-1 text-xs" data-testid={`rams-hazard-${idx}-remove`}><Trash2 size={14}/> Remove</button>
                 </div>
+
+                {/* 1 — IDENTIFY THE RISK */}
+                <StepHeader label="1 — Identify the Risk" />
                 <Grid>
-                  <Drop label="Exposure route / mechanism" value={h.exposureRoute} onChange={(v) => updateHazard(h.id, "exposureRoute", v)} options={EXPOSURE_ROUTES} testId={`rams-hazard-${idx}-route`} />
-                  <Inp label="Hazard or substance name" value={h.hazard} onChange={(v) => updateHazard(h.id, "hazard", v)} placeholder='e.g. "MDF dust"' testId={`rams-hazard-${idx}-hazard`} />
-                  <Inp label="Activity that causes the exposure" value={h.activity} onChange={(v) => updateHazard(h.id, "activity", v)} placeholder='e.g. "cutting MDF with a circular saw"' testId={`rams-hazard-${idx}-activity`} />
+                  <div className="sm:col-span-2 lg:col-span-3">
+                    <Inp
+                      label="Hazard"
+                      value={h.hazard}
+                      onChange={(v) => updateHazard(h.id, "hazard", v)}
+                      placeholder="e.g. Construction dust, exposed cables, moving machinery"
+                      testId={`rams-hazard-${idx}-hazard`}
+                    />
+                  </div>
+                  <div className="sm:col-span-2 lg:col-span-3">
+                    <Inp
+                      label="Task or Activity Creating the Risk"
+                      value={h.activity}
+                      onChange={(v) => updateHazard(h.id, "activity", v)}
+                      placeholder="e.g. Drilling into concrete to install ductwork supports"
+                      testId={`rams-hazard-${idx}-activity`}
+                    />
+                  </div>
+                  <div className="sm:col-span-2 lg:col-span-3">
+                    <label className="block">
+                      <div className="text-xs uppercase tracking-widest text-[#A19D94] mb-1">How Could Someone Be Harmed?</div>
+                      <select
+                        value={h.exposureRoute || ""}
+                        onChange={(e) => updateHazard(h.id, "exposureRoute", e.target.value)}
+                        className="input-base"
+                        data-testid={`rams-hazard-${idx}-route`}
+                      >
+                        <option value="">Select an option…</option>
+                        {EXPOSURE_ROUTES.map((o) => <option key={o} value={o}>{o}</option>)}
+                      </select>
+                    </label>
+                    {h.exposureRoute === "Other" && (
+                      <div className="mt-3">
+                        <Inp
+                          label="Please Describe How Someone Could Be Harmed"
+                          value={h.exposureRouteOther || ""}
+                          onChange={(v) => updateHazard(h.id, "exposureRouteOther", v)}
+                          placeholder="e.g. Exposure to extreme temperatures"
+                          testId={`rams-hazard-${idx}-route-other`}
+                        />
+                      </div>
+                    )}
+                  </div>
                 </Grid>
 
                 {(h.hazard || h.activity) && (
                   <div className="mt-3 text-xs text-[#A19D94]">
-                    <span className="uppercase tracking-widest text-[10px] text-[#706D66] mr-2">Plain-language line:</span>
+                    <span className="uppercase tracking-widest text-[10px] text-[#706D66] mr-2">Risk register title:</span>
                     <span className="text-[#F0EDE8]" data-testid={`rams-hazard-${idx}-composed`}>{composed}</span>
                   </div>
                 )}
 
                 <div className="mt-4">
-                  <div className="text-xs uppercase tracking-widest text-[#A19D94] mb-1">Persons affected</div>
+                  <div className="text-xs uppercase tracking-widest text-[#A19D94] mb-1">Who Could Be Harmed?</div>
                   <div className="flex flex-wrap gap-2" data-testid={`rams-hazard-${idx}-persons`}>
                     {PERSONS_OPTIONS.map((opt) => {
                       const active = (h.personsAffected || []).includes(opt);
@@ -629,18 +711,28 @@ export default function Rams() {
                   </div>
                 </div>
 
-                <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
-                  <Inp label="Likelihood (1–5) before" type="number" value={h.likelihoodBefore} onChange={(v) => updateHazard(h.id, "likelihoodBefore", clamp(v))} testId={`rams-hazard-${idx}-lb`} />
-                  <Inp label="Severity (1–5) before" type="number" value={h.severityBefore} onChange={(v) => updateHazard(h.id, "severityBefore", clamp(v))} testId={`rams-hazard-${idx}-sb`} />
-                  <RatingBadge label="Risk before" score={init} testId={`rams-hazard-${idx}-init`} />
-                  <div />
-                  <Inp label="Likelihood (1–5) after controls" type="number" value={h.likelihoodAfter} onChange={(v) => updateHazard(h.id, "likelihoodAfter", clamp(v))} testId={`rams-hazard-${idx}-la`} />
-                  <Inp label="Severity (1–5) after controls" type="number" value={h.severityAfter ?? h.severityBefore} onChange={(v) => updateHazardSeverityAfter(h.id, clamp(v))} testId={`rams-hazard-${idx}-sa`} />
-                  <RatingBadge label="Residual" score={resid} testId={`rams-hazard-${idx}-resid`} />
+                {/* 2 — ASSESS THE INITIAL RISK */}
+                <StepHeader label="2 — Assess the Initial Risk" />
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <Inp label="Likelihood Before Controls (1–5)" type="number" value={h.likelihoodBefore} onChange={(v) => updateHazard(h.id, "likelihoodBefore", clamp(v))} testId={`rams-hazard-${idx}-lb`} />
+                  <Inp label="Severity Before Controls (1–5)" type="number" value={h.severityBefore} onChange={(v) => updateHazard(h.id, "severityBefore", clamp(v))} testId={`rams-hazard-${idx}-sb`} />
+                  <RatingBadge label="Initial Risk Score and Rating" score={init} testId={`rams-hazard-${idx}-init`} />
                 </div>
 
-                <div className="mt-4">
-                  <Area label="Control measures (one per line)" value={h.controls} onChange={(v) => updateHazard(h.id, "controls", v)} rows={3} placeholder="One control per line. Plain words. e.g. 'Use M-class extraction on the saw.'" testId={`rams-hazard-${idx}-controls`} />
+                {/* 3 — CONTROL THE RISK */}
+                <StepHeader label="3 — Control the Risk" />
+                <Area
+                  label="Control Measures (one per line)"
+                  value={h.controls}
+                  onChange={(v) => updateHazard(h.id, "controls", v)}
+                  rows={3}
+                  placeholder="One control per line. Plain words. e.g. 'Use M-class extraction on the saw.'"
+                  testId={`rams-hazard-${idx}-controls`}
+                />
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+                  <Inp label="Likelihood After Controls (1–5)" type="number" value={h.likelihoodAfter} onChange={(v) => updateHazard(h.id, "likelihoodAfter", clamp(v))} testId={`rams-hazard-${idx}-la`} />
+                  <Inp label="Severity After Controls (1–5)" type="number" value={h.severityAfter ?? h.severityBefore} onChange={(v) => updateHazardSeverityAfter(h.id, clamp(v))} testId={`rams-hazard-${idx}-sa`} />
+                  <RatingBadge label="Residual Risk Score and Rating" score={resid} testId={`rams-hazard-${idx}-resid`} />
                 </div>
               </div>
             );
@@ -922,6 +1014,13 @@ function Section({ title, children, testId, icon }) {
   );
 }
 function Grid({ children }) { return <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">{children}</div>; }
+function StepHeader({ label }) {
+  return (
+    <div className="mt-5 mb-3 text-[10px] uppercase tracking-[0.25em] text-[#E8A020] first:mt-0">
+      {label}
+    </div>
+  );
+}
 function Inp({ label, value, onChange, type = "text", testId, helper, placeholder }) {
   return (
     <label className="block">

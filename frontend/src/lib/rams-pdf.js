@@ -169,16 +169,16 @@ export function generateRamsPdf({ data, user, today }) {
     const init     = (Number(h.likelihoodBefore) || 0) * (Number(h.severityBefore) || 0);
     const resid    = (Number(h.likelihoodAfter)  || 0) * (Number(sevAfter) || 0);
     kvTable(state, [
-      ["Exposure route",            h.exposureRoute || "—"],
-      ["Hazard or substance",        h.hazard || "—"],
-      ["Activity that causes exposure", h.activity || "—"],
-      ["Persons affected",           (h.personsAffected || []).join(", ") || "—"],
-      ["Likelihood before controls", String(h.likelihoodBefore || "—")],
-      ["Severity before controls",   String(h.severityBefore || "—")],
-      ["Risk score / rating before", init ? `${init} — ${ratingFromScore(init)}` : "—"],
-      ["Likelihood after controls",  String(h.likelihoodAfter || "—")],
-      ["Severity after controls",    String(sevAfter || "—")],
-      ["Risk score / rating after",  resid ? `${resid} — ${ratingFromScore(resid)}` : "—"],
+      ["Hazard",                                h.hazard || "—"],
+      ["Task or Activity Creating the Risk",    h.activity || "—"],
+      ["How Someone Could Be Harmed",           routeLabelFor(h)],
+      ["Who Could Be Harmed",                   (h.personsAffected || []).join(", ") || "—"],
+      ["Likelihood Before Controls",            String(h.likelihoodBefore || "—")],
+      ["Severity Before Controls",              String(h.severityBefore || "—")],
+      ["Initial Risk Score / Rating",           init ? `${init} — ${ratingFromScore(init)}` : "—"],
+      ["Likelihood After Controls",             String(h.likelihoodAfter || "—")],
+      ["Severity After Controls",               String(sevAfter || "—")],
+      ["Residual Risk Score / Rating",          resid ? `${resid} — ${ratingFromScore(resid)}` : "—"],
     ]);
     spacer(state, 4);
     para(state, "Control measures:");
@@ -224,8 +224,8 @@ export function generateRamsPdf({ data, user, today }) {
   if (coshhStd.length === 0) {
     para(state, "No hazardous substances in standard use on this task.");
   } else {
-    table(state, ["Substance", "Exposure", "Activity", "Controls"],
-      coshhStd.map((c) => [c.substance || "", c.exposureRoute || "", c.activity || "", c.controls || ""])
+    table(state, ["Substance", "How Someone Could Be Harmed", "Task or Activity", "Controls"],
+      coshhStd.map((c) => [c.substance || "", routeLabelFor({ exposureRoute: c.exposureRoute, exposureRouteOther: c.exposureRouteOther }), c.activity || "", c.controls || ""])
     );
   }
 
@@ -417,46 +417,47 @@ function extractRating(cell) {
 }
 
 // ===== Compose plain-language lines =====
-const ROUTE_VERBS = {
-  "Inhalation":   "Breathing in",
-  "Skin Contact": "Skin contact with",
-  "Eye Contact":  "Getting",
-  "Ingestion":    "Swallowing",
-  "Impact/Strike":"Being struck by",
-  "Fall":         "Falling from",
-  "Manual Strain":"Strain from handling",
-  "Noise":        "Loud noise from",
-  "Other":        "Exposure to",
-};
+// The RAMS spec is explicit: we must NOT blindly concatenate database fields
+// with a fixed formula like "Exposure to X while Y" (that produced awkward
+// sentences like "Falling from Slips and trips while..."). Instead the Risk
+// Register title uses the user's own words and only glues hazard + activity
+// together with the natural connective "from" when both are present.
+function lowerFirst(s) {
+  const t = (s || "").trim();
+  if (!t) return "";
+  return t.charAt(0).toLowerCase() + t.slice(1);
+}
 
+// Human label for the "How Could Someone Be Harmed?" field. If the user picked
+// "Other" and supplied a custom description, render THAT — never the raw word
+// "Other" — on the PDF.
+export function routeLabelFor(h) {
+  if (!h) return "—";
+  if (h.exposureRoute === "Other") {
+    const custom = (h.exposureRouteOther || "").trim();
+    return custom || "Other";
+  }
+  return h.exposureRoute || "—";
+}
+
+// Build the risk-register title for a hazard.
+// - If both hazard + activity: "<Hazard> from <activity>"
+// - If only hazard: "<Hazard>"
+// - If only activity: "<Activity>"
+// - Otherwise: "(Unnamed hazard)"
 export function composeHazardLine(h) {
-  if (!h) return "";
-  const route = h.exposureRoute || "Other";
+  if (!h) return "(Unnamed hazard)";
   const hazard = (h.hazard || "").trim();
   const activity = (h.activity || "").trim();
-  const verb = ROUTE_VERBS[route] || ROUTE_VERBS.Other;
-  if (route === "Eye Contact") {
-    return [
-      `${hazard || "Substance"} getting in eyes`,
-      activity ? `while ${activity.toLowerCase()}` : "",
-    ].filter(Boolean).join(" ") + ".";
-  }
-  if (route === "Fall") {
-    return [
-      `Falling from ${hazard || "height"}`,
-      activity ? `while ${activity.toLowerCase()}` : "",
-    ].filter(Boolean).join(" ") + ".";
-  }
-  return [
-    `${verb} ${hazard || "the hazard"}`.trim(),
-    activity ? `while ${activity.toLowerCase()}` : "",
-  ].filter(Boolean).join(" ") + ".";
+  if (hazard && activity) return `${hazard} from ${lowerFirst(activity)}`;
+  if (hazard) return hazard;
+  if (activity) return activity;
+  return "(Unnamed hazard)";
 }
 
 export function composeCoshhLine(c) {
-  if (!c) return "";
+  if (!c) return "(Unnamed substance)";
   return composeHazardLine({
-    exposureRoute: c.exposureRoute,
     hazard: c.substance,
     activity: c.activity,
   });
@@ -525,7 +526,11 @@ function bullets(state, items) {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   doc.setTextColor(...INK);
-  items.forEach((it) => {
+  items.forEach((raw) => {
+    // Strip any leading bullet-ish characters the user typed (•, -, *, ·, ‣, →)
+    // so the renderer never produces "•  •  My control".
+    const it = String(raw ?? "").replace(/^[\s]*[•·‣→\-*]+[\s]*/, "");
+    if (!it) return;
     const lines = doc.splitTextToSize(`•  ${it}`, USABLE - 12);
     lines.forEach((ln, idx) => {
       ensureRoom(state, 14);

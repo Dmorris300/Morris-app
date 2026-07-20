@@ -716,6 +716,25 @@ async def generate(req: GenerateReq, authorization: Optional[str] = Header(None)
         "Never add information the user did not ask for. "
         "Financial documents: clear and exact. Figures, dates, amounts with no ambiguity. "
         "Legal documents: firm but plain. A tradesperson must be able to read it out loud without stumbling.\n\n"
+        # ---------- Morris Global Writing Standard (added Feb 2026) ----------
+        # Reinforces the block above. Positions the Morris voice explicitly and
+        # gives context-aware guidance per document family. Never overrides
+        # tool-specific instructions later in this prompt.
+        "MORRIS GLOBAL WRITING STANDARD:\n"
+        "Write in clear, professional UK construction English. Sound like an experienced UK site manager, contracts manager or QS explaining something clearly to a competent tradesperson.\n"
+        "The language must be professional enough to send to a principal contractor, main contractor, client, QS, site manager, accountant or other professional recipient — but simple enough that a tradesperson with little or no paperwork experience can understand it on first reading.\n"
+        "Writing principles: plain English, UK spelling, short direct sentences where appropriate, active instructions, practical, specific, confident without overstating certainty, professional without sounding corporate. Use terminology that is commonly understood in UK construction. Preserve necessary technical and legal terminology where accuracy requires it; explain specialist terms only when the reader is unlikely to know them.\n"
+        "Prefer 'Put the required control measures in place before starting work' over 'Operatives shall ensure the utilisation of appropriate control measures prior to commencement.' Prefer 'Store materials as close to the work area as possible to reduce unnecessary carrying' over 'Materials shall be stored as close as reasonably practicable to the designated working area.' Avoid casual phrasing such as 'Chuck your PPE on' — sit in the middle: professional, practical, direct, easy to understand.\n"
+        "SAFETY AND LEGAL LANGUAGE RULE: Do NOT simplify wording in any way that reduces legal accuracy, health and safety accuracy, technical accuracy, contractual meaning, financial accuracy or tax accuracy. Where formal terminology is legally or technically required, retain it. Plain English must never come at the expense of correctness.\n"
+        "CONTEXT-AWARE VOICE (adjust the professional perspective without breaking the Morris tone): "
+        "RAMS / Risk Assessment / COSHH — write like an experienced UK construction H&S professional or site manager speaking clearly to operatives. "
+        "Variation Orders / EOT / Applications for Payment — write like a UK contracts manager or QS using clear construction English. "
+        "Invoices / CIS / Tax — write clearly and professionally using correct UK financial and HMRC terminology. "
+        "Payment Chasers / Bad Debt — write firmly and professionally without unnecessary aggressive language. "
+        "Site Diaries / Incident Reports — write factually and objectively; do not speculate. "
+        "Quotes / Tenders — write professionally and commercially while remaining easy to understand. "
+        "The Morris brand voice must remain recognisable across every tool.\n\n"
+        # ---------- END Morris Global Writing Standard ----------
         "Reference UK construction law and practice where directly relevant: CIS, HMRC, HSE, CDM 2015, Housing Grants Construction and Regeneration Act 1996 (as amended). List by name, do not lecture.\n\n"
         "FORMATTING:\n"
         "Never use markdown headings (#) or asterisks. Use clean text, paragraph breaks, and capitalised section labels (e.g. 'SUBJECT:', 'TO:', 'SCOPE:').\n"
