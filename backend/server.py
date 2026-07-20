@@ -785,6 +785,18 @@ async def generate(req: GenerateReq, authorization: Optional[str] = Header(None)
             "8. The reason for variation must be printed exactly as supplied ('Client Request', 'Unforeseen Site Condition', 'Design Error', 'Scope Change', 'Material Substitution', 'Other'). Do not paraphrase.\n\n"
             if req.toolId in {"variation-letter", "verbal-to-variation"} else ""
         )
+        + (
+            # ---------- Quote Builder — tool-specific tightening ----------
+            "QUOTE BUILDER — TOOL-SPECIFIC RULES:\n"
+            "1. Section discipline: 'Exclusions', 'Assumptions', 'Provisional Sums' and 'Payment Terms / Payment Schedule' are FOUR distinct sections. Never merge them, never let payment content leak into an Exclusions or Assumptions heading, and never let exclusions/assumptions text leak into the payment section.\n"
+            "2. Deposit non-contradiction: The Payment Summary on Page 1 must NOT contradict the Detailed Payment Terms on later pages. If 'depositRequirement' is 'No deposit required', do NOT print any deposit line ANYWHERE in the document. If the selected paymentStructure already contains a deposit (e.g. '50% deposit / 50% on completion') and 'depositRequirement' is ALSO set to a percentage, treat depositRequirement as a STANDALONE deposit in ADDITION to the structure and label it clearly as such — never fold the two together silently.\n"
+            "3. Custom deposit %: If depositRequirement is 'Custom %', use the value in 'depositCustomPercent'. If depositCustomPercent is blank or 0, omit the standalone deposit line completely.\n"
+            "4. Custom payment schedule 100% validation: If paymentStructure is 'Custom payment schedule', parse each non-blank line of 'paymentSchedule' looking for a percentage. Sum them. If the sum is not exactly 100, output the block heading 'PAYMENT SCHEDULE VALIDATION' followed by 'Custom stage percentages sum to <sum>%, not 100%. Please correct before issuing this quote.' — and then print the raw user text without computing any £ amounts. If the sum is 100, compute and print the £ amount alongside every stage.\n"
+            "5. GRAND TOTAL prominence: the GRAND TOTAL line on Page 1 must appear on its own line, in ALL-CAPS, prefixed with the £ symbol and to 2 decimal places. Do not surround it with additional prose on the same line.\n"
+            "6. VAT rate handling: honour whichever of 'Zero Rate 0%', 'Reduced Rate 5%', 'Standard Rate 20%' the user selected per section. The VAT breakdown summary must list rates in ascending order (0% first, 20% last).\n"
+            "7. Never invent Preliminaries. If subtotalPrelims is blank or 0, omit the Preliminaries row from every table and omit the section on Page 2.\n\n"
+            if req.toolId == "quote-builder" else ""
+        )
         + _signoff_instructions(req.toolId, user, bool(user.get("signature")))
     )
 

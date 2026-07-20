@@ -176,38 +176,61 @@ End with a COMPLETED BY block auto-populated from the user profile (full name, c
     [
       f("client", "Client full name and address"),
       fp("validUntil", "Quote valid until", "today+30d", "date"),
-      sel("paymentTerms", "Payment terms", ["30 days", "14 days", "On completion", "50% deposit, 50% on completion"]),
+      sel("paymentStructure", "Payment structure",
+        [
+          "Full payment on completion",
+          "50% deposit / 50% on completion",
+          "25% deposit / 50% on commencement or agreed stage / 25% on completion",
+          "Custom payment schedule",
+        ]),
+      tao("paymentSchedule", "Custom payment schedule — only if 'Custom' selected above. One stage per line, format 'Stage description: NN%' (must total 100%). e.g. 'Deposit on order: 25%'"),
       ta("labourBreakdown", "Labour breakdown — one item per line: description, hours, rate"),
-      sel("labourVatRate", "VAT rate applied to labour", ["Standard Rate 20%", "Reduced Rate 5%", "Zero Rated 0%"]),
+      sel("labourVatRate", "VAT rate applied to labour", ["Zero Rate 0%", "Reduced Rate 5%", "Standard Rate 20%"]),
       ta("materialsBreakdown", "Materials breakdown — one item per line: description, quantity, cost"),
-      sel("materialsVatRate", "VAT rate applied to materials", ["Standard Rate 20%", "Reduced Rate 5%", "Zero Rated 0%"]),
+      sel("materialsVatRate", "VAT rate applied to materials", ["Zero Rate 0%", "Reduced Rate 5%", "Standard Rate 20%"]),
       tao("preliminaries", "Preliminaries (travel, parking, waste disposal)"),
-      sel("prelimsVatRate", "VAT rate applied to preliminaries", ["Standard Rate 20%", "Reduced Rate 5%", "Zero Rated 0%"]),
+      sel("prelimsVatRate", "VAT rate applied to preliminaries", ["Zero Rate 0%", "Reduced Rate 5%", "Standard Rate 20%"]),
       tao("provisionalSums", "Provisional Sums — items priced provisionally and subject to adjustment"),
-      tao("paymentSchedule", "Payment schedule (e.g. 25% on order, 50% on first fix, 25% on completion)"),
-      sel("depositRequirement", "Deposit requirement", ["No deposit required", "25%", "33%", "50%"]),
+      sel("depositRequirement", "Standalone deposit requirement (in addition to any deposit inside the payment structure)",
+        ["No deposit required", "10%", "20%", "25%", "30%", "50%", "Custom %"]),
+      fo("depositCustomPercent", "Custom deposit percentage (%) — only if 'Custom %' selected above", "number"),
       f("subtotalLabour", "Subtotal labour (£)", "number"),
       f("subtotalMaterials", "Subtotal materials (£)", "number"),
       fo("subtotalPrelims", "Subtotal preliminaries (£)", "number"),
       sel("cisApplicable", "CIS applicable", ["No", "Yes"]),
-      tao("exclusions", "Exclusions — what is not included"),
+      tao("exclusions", "Exclusions — what is NOT included in this quote"),
       tao("assumptions", "Assumptions the quote is based on"),
     ],
-    `Produce a professional UK trade Quote. Use the user's profile for company name, address, contact number, email and UTR (auto-populated). Format the document as follows:
-1. HEADER — Quote reference (use the provided document reference, format QB-YYYY-NNN). Today's date. Valid until date.
-2. CLIENT DETAILS — full name and address supplied.
-3. ITEMISED BREAKDOWN — produce a table with these columns: Item / Description / Qty or hours / Rate / Net / VAT rate / VAT £ / Line total inc VAT. Use the supplied labour, materials and preliminaries breakdown. For EACH line item apply the VAT rate the user selected for that section (Labour, Materials, Preliminaries) — Standard Rate 20%, Reduced Rate 5% or Zero Rated 0%.
-4. VAT BREAKDOWN SUMMARY — show a small summary table at the bottom of the items with columns: Rate / Net subtotal / VAT amount, with rows for each rate applied (20%, 5%, 0%).
-5. PROVISIONAL SUMS — if any were supplied, list them clearly under a 'Provisional Sums' heading and state: 'These items are priced provisionally and are subject to a variation upon final selection or measurement.' If none, omit this section.
-6. GRAND TOTAL — auto-calculate and clearly state: Subtotal (sum of all line nets), Total VAT (sum of all VAT amounts across rates), GRAND TOTAL (Subtotal + Total VAT). All values shown in £ to two decimal places.
-7. DEPOSIT — if a deposit percentage was selected, calculate and display: 'Deposit required: {percentage} of GRAND TOTAL = £{amount}. Balance of £{remainder} due as per payment schedule.' If 'No deposit required', omit.
-8. PAYMENT SCHEDULE — produce the supplied payment schedule as a numbered list under a 'Payment Schedule' heading. If blank, state 'Payment terms: {paymentTerms}'.
-9. EXCLUSIONS — bullet the supplied exclusions.
-10. ASSUMPTIONS — bullet the supplied assumptions.
-11. VARIATIONS CLAUSE — always append the following statement: 'Any variations to the scope of works set out above will be priced and agreed in writing before being carried out. The client is responsible for paying for any agreed variations in addition to the quoted price.'
-12. ACCESS CLAUSE — always append: 'The client is responsible for providing safe and reasonable access to the working area, including parking where applicable, power and welfare facilities. Any delay caused by lack of access may incur additional charges.'
-13. TERMS OF ACCEPTANCE — always append: 'Acceptance of this quote constitutes a binding agreement between the parties on the terms, exclusions and assumptions stated. This quote is valid until the date shown above. After this date the quote may be subject to a revision.'
-14. CIS — if applicable, state 'CIS deductions will be made from the labour element of the final invoice as per HMRC rules.'
+    `Produce a professional UK trade Quote structured as a clear hierarchy across multiple pages. Use the user's profile for company name, address, contact number, email and UTR (auto-populated). Use the provided document reference (format QB-YYYY-NNN).
+
+PAGE 1 — CUSTOMER-FACING QUOTE SUMMARY (must fit on the first page as much as reasonable):
+1. HEADER — Quote reference, today's date, valid until date.
+2. TO — client full name and address supplied.
+3. SCOPE OF WORK — a short, plain-English paragraph summarising what is being quoted (derive from the labour and materials breakdowns; do not just paste the raw lines here).
+4. ITEMISED PRICING SUMMARY — a compact table with columns: Section (Labour / Materials / Preliminaries) / Net (£) / VAT Rate / VAT (£) / Line total inc VAT (£). Use the supplied subtotals and the VAT rate the user selected for each section. Only include Preliminaries if a value was supplied.
+5. VAT BREAKDOWN — a small summary table with columns Rate / Net subtotal / VAT amount, with one row per applied rate (0%, 5%, 20%).
+6. TOTALS — show three clean lines: 'Subtotal: £X', 'Total VAT: £X', then a visually prominent 'GRAND TOTAL: £X' rendered on its own line in all-capitals as the final line of Page 1. Every value shown in £ to 2 decimal places.
+7. QUOTE VALIDITY — one short line: 'This quote is valid until <validUntil>.'
+8. PAYMENT SUMMARY — ONE clean paragraph derived STRICTLY from the selected paymentStructure:
+   - 'Full payment on completion' -> 'Payment is due in full within 14 days of practical completion.'
+   - '50% deposit / 50% on completion' -> compute deposit = 50% of GRAND TOTAL. Print exact £ figures. Example: 'A 50% deposit of £<amount> is required to secure the booking. The balance of £<remainder> is due on practical completion.'
+   - '25% deposit / 50% on commencement or agreed stage / 25% on completion' -> compute each stage in £ from the GRAND TOTAL and print all three lines with £ amounts.
+   - 'Custom payment schedule' -> print the user-supplied custom stages as a numbered list with £ amounts computed from GRAND TOTAL. If the percentages the user supplied do NOT sum to 100%, DO NOT compute amounts — instead print a bold notice reading exactly: 'PAYMENT SCHEDULE VALIDATION: Custom stage percentages sum to <sum>%, not 100%. Please correct before issuing this quote.' followed by the raw user text.
+   IMPORTANT: The PAYMENT SUMMARY on Page 1 must NOT contradict the DETAILED PAYMENT TERMS on page 2, and must NOT be duplicated in any Exclusions/Assumptions section.
+
+PAGE 2 ONWARDS — DETAIL:
+9. LABOUR BREAKDOWN — table with columns Description / Hours / Rate / Line net. Use the raw supplied lines.
+10. MATERIALS BREAKDOWN — table with columns Description / Qty / Unit cost / Line net. Use the raw supplied lines.
+11. PRELIMINARIES — only if supplied. Bullet the items.
+12. PROVISIONAL SUMS — only if supplied. List under a 'Provisional Sums' heading and finish with the sentence: 'These items are priced provisionally and are subject to a variation upon final selection or measurement.' Never merge this into Exclusions or Assumptions.
+13. DETAILED PAYMENT TERMS — restate the selected paymentStructure in full with the same £ amounts as Page 1. If a Standalone Deposit was ALSO chosen (depositRequirement), compute deposit = <percent> of GRAND TOTAL and add a line: 'Standalone deposit: <percent>% = £<amount>. Balance of £<remainder> due as per the payment structure above.' If 'Custom %' was selected use depositCustomPercent. If depositRequirement is 'No deposit required', do NOT print anything about a standalone deposit — it must not appear anywhere in the document.
+14. EXCLUSIONS — only if supplied. Bullet the exclusions under a heading 'Exclusions — what is not included'. Never mix payment or deposit content into this section.
+15. ASSUMPTIONS — only if supplied. Bullet the assumptions under a heading 'Assumptions this quote is based on'. Never mix payment or deposit content into this section.
+16. VARIATIONS CLAUSE — always append: 'Any variations to the scope of works set out above will be priced and agreed in writing before being carried out. The client is responsible for paying for any agreed variations in addition to the quoted price.'
+17. ACCESS CLAUSE — always append: 'The client is responsible for providing safe and reasonable access to the working area, including parking where applicable, power and welfare facilities. Any delay caused by lack of access may incur additional charges.'
+18. TERMS OF ACCEPTANCE — always append: 'Acceptance of this quote constitutes a binding agreement between the parties on the terms, exclusions and assumptions stated. This quote is valid until the date shown above. After this date the quote may be subject to a revision.'
+19. CIS — only if the user selected Yes: 'CIS deductions will be made from the labour element of the final invoice as per HMRC rules.'
+
 End with a PREPARED BY block auto-populated from the user profile (full name, company, today's date) and a CLIENT ACCEPTANCE block (client full name printed, company, signature line, date).`
   ),
   t("cis-invoice", "CIS Invoice", "documents",

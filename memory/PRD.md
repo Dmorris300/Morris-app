@@ -27,6 +27,17 @@ Dark-themed construction administration SaaS web application for UK tradespeople
 
 ## What's been implemented
 
+- ✅ **[FEATURE] Quote Builder — 8-point improvement pack** (Feb 20, 2026)
+  - **(1) Payment structure**: replaced free-text "Payment terms" with a 4-option canonical select — Full payment on completion / 50% deposit / 25%-50%-25% / Custom. Backend auto-computes £ amounts from the Grand Total per stage. Custom schedule is validated for a 100% sum — if not, the PDF prints a bold `PAYMENT SCHEDULE VALIDATION` block instead of the amounts, forcing the user to correct.
+  - **(2) Deposit dropdown**: removed the odd 33% option; new list is No deposit required / 10% / 20% / 25% / 30% / 50% / Custom % — ordered lowest to highest. Added `depositCustomPercent` field that only takes effect when Custom % is picked.
+  - **(3) VAT ordering**: every VAT select (labour, materials, preliminaries) now ordered Zero Rate 0% → Reduced Rate 5% → Standard Rate 20%. VAT summary table on the PDF also ordered ascending.
+  - **(4) PDF presentation**: Page 1 is a clean customer-facing summary (client, scope, itemised pricing summary, VAT breakdown, three-line totals with GRAND TOTAL in all-caps on its own line, quote validity, payment summary). Detail (labour/materials breakdowns, provisional sums, detailed payment terms, exclusions, assumptions, clauses, CIS) sits on subsequent pages.
+  - **(5–6) Section discipline**: Exclusions, Assumptions, Provisional Sums and Payment Terms are now hard-guarded as four distinct sections — the backend prompt explicitly forbids the LLM from letting payment content bleed into Exclusions/Assumptions or vice-versa.
+  - **(7) Acceptance preserved**: existing acceptance/signature functionality untouched. No send-for-approval or external e-sign workflow (out of scope per spec).
+  - **(8) Writing standard**: Quote Builder now benefits from the Global Morris Writing Standard (added Feb 2026) — plain UK construction English, no consultant filler, legal/tax accuracy preserved.
+  - ✅ Verified live via TWO `POST /api/generate` runs: (Run 1) 25/50/25 structure with no standalone deposit → £570 / £1,140 / £570 stages computed correctly, GRAND TOTAL £2,280.00 on its own line, all sections cleanly separated, no REVIEW DATE. (Run 2) Custom schedule 40+40+40=120% + Custom 15% standalone deposit → validation warning triggered ("sum to 120%, not 100%"), standalone deposit £181.50 computed, VAT ordered 0% before 5%. Frontend smoke test confirms all new field labels, hints and dropdown options visible; no unrelated Morris functionality changed.
+
+
 - ✅ **[FEATURE] Variation Order — 6 fixes from real-output review** (Feb 20, 2026)
   - **(a) No REVIEW DATE on Variation Orders**: extended `NO_AUTO_REVIEW_DATE_TOOLS` in `server.py` to include `variation-letter`, `verbal-to-variation`, and every other commercial/one-off contractual instrument (quotes, tenders, invoices, applications for payment, chasers, dispute letters, HMRC correspondence, delivery records, purchase orders, timesheets, permits, incident reports).
   - **(b) Whole-number "additional days"**: added a tool-specific rule to the backend prompt — Time Impact must be printed as whole working days ("2 working days"), never `2000.00` or `2.00`. If blank/0, print the "no additional programme impact identified" fallback instead. Front-end label updated to "Additional days required (whole days, 0 if none)".
