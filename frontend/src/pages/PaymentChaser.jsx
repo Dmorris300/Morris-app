@@ -1,11 +1,50 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../lib/auth";
 import api from "../lib/api";
 import { toast } from "sonner";
-import { ChevronLeft, FileText, Mail, MessageSquare, Phone, Download, Copy, Info, Star, X } from "lucide-react";
+import { ChevronLeft, FileText, Mail, MessageSquare, Phone, Download, Copy, Info, Star, X, Link2 } from "lucide-react";
 import { downloadPdf } from "../lib/pdf";
 import LiveSignatureBlock from "../components/LiveSignatureBlock";
 import { Link } from "react-router-dom";
+import { listDrafts, fetchDraft } from "../lib/drafts";
+
+// Chase history — local, per-browser. Records every generated chase against
+// the invoice being chased so Stage 2/3 letters can reference real previous
+// chase dates without the LLM inventing them.
+const CHASE_HISTORY_KEY = "morris_chase_history_v1";
+function readChaseHistory() {
+  try {
+    const raw = localStorage.getItem(CHASE_HISTORY_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return (parsed && typeof parsed === "object") ? parsed : {};
+  } catch { return {}; }
+}
+function writeChaseHistory(map) {
+  try { localStorage.setItem(CHASE_HISTORY_KEY, JSON.stringify(map)); } catch { /* quota */ }
+}
+function historyKey(invNo) {
+  return (invNo || "").trim().toLowerCase();
+}
+function recordChase(invNo, stage) {
+  const k = historyKey(invNo);
+  if (!k) return;
+  const map = readChaseHistory();
+  const arr = Array.isArray(map[k]) ? map[k] : [];
+  arr.push({ stage, date: new Date().toISOString() });
+  map[k] = arr.slice(-10); // cap history depth
+  writeChaseHistory(map);
+}
+function historyFor(invNo) {
+  const k = historyKey(invNo);
+  return readChaseHistory()[k] || [];
+}
+function ukDate(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("en-GB");
+}
 
 // Bank of England base rate at the time of writing — manually maintained.
 // To update: change this single constant when the BoE changes the base rate.
@@ -33,7 +72,7 @@ function daysBetween(isoFrom, isoTo) {
 const STAGES = [
   { id: 1, label: "Stage 1 — First Reminder", sub: "Polite, assumes oversight" },
   { id: 2, label: "Stage 2 — Second Reminder", sub: "Firm, references previous chase" },
-  { id: 3, label: "Stage 3 — Final Notice", sub: "Letter Before Action (legal)" },
+  { id: 3, label: "Stage 3 — Final Notice", sub: "Letter Before Action-style — seek legal advice" },
 ];
 
 const fGBP = (n) => `£${(Number(n) || 0).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -60,7 +99,18 @@ export default function PaymentChaser() {
     bankNameEdit: user?.bankName || "",
     sortCodeEdit: user?.sortCode || "",
     accountNumberEdit: user?.accountNumber || "",
+    // Optional construction payment context — only surface in the letter
+    // when the user supplies a value.
+    projectName: "",
+    contractRef: "",
+    paymentAppRef: "",
+    finalDateForPayment: "",
+    payNoticeInfo: "",
   });
+  const [linkedTrackerInvoice, setLinkedTrackerInvoice] = useState(null); // { draftId, rowId } when a tracker row is linked
+  const [trackerRows, setTrackerRows] = useState([]); // outstanding rows loaded from Payment Tracker draft
+  const [trackerLoading, setTrackerLoading] = useState(false);
+  const [trackerModalOpen, setTrackerModalOpen] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState("");
   const [refNumber, setRefNumber] = useState("");
@@ -76,6 +126,72 @@ export default function PaymentChaser() {
     catch { toast.error("Could not update favourites"); }
   };
 
+  // ---------- Payment Tracker import ----------
+  // Loads the user's Payment Tracker draft(s) and offers any row that still
+  // has an outstanding balance. Purely additive — the user can still fill
+  // the form manually without ever opening this modal.
+  const openTrackerImport = async () => {
+    setTrackerLoading(true); setTrackerModalOpen(true);
+    try {
+      const drafts = await listDrafts();
+      const ptDrafts = (Array.isArray(drafts) ? drafts : []).filter((d) => d.toolId === "payment-tracker");
+      if (ptDrafts.length === 0) {
+        setTrackerRows([]);
+        return;
+      }
+      // Pull the newest draft's full data
+      const latest = ptDrafts.sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""))[0];
+      const full = await fetchDraft(latest.id);
+      const rows = Array.isArray(full?.data?.rows) ? full.data.rows : [];
+      const outstanding = rows
+        .map((r) => {
+          const inv = Number(r.invoiceAmount) || 0;
+          const cisPct = Number(String(r.cisRate || "0").replace("%", "")) / 100;
+          const cis = +(inv * cisPct).toFixed(2);
+          const net = +(inv - cis).toFixed(2);
+          const received = Number(r.amountReceived) || 0;
+          const outstandingAmt = +(net - received).toFixed(2);
+          return { ...r, draftId: latest.id, outstandingAmt };
+        })
+        .filter((r) => (r.invoiceNumber || "").trim() && r.outstandingAmt > 0 && r.status !== "Paid in full" && r.status !== "Written off");
+      setTrackerRows(outstanding);
+    } catch {
+      toast.error("Could not load Payment Tracker");
+      setTrackerRows([]);
+    } finally { setTrackerLoading(false); }
+  };
+
+  const importTrackerRow = (row) => {
+    setForm((f) => ({
+      ...f,
+      clientName: row.contractor || f.clientName,
+      projectName: row.project || f.projectName,
+      invNo: row.invoiceNumber || f.invNo,
+      invDate: row.invoiceDate || f.invDate,
+      invAmount: String(row.invoiceAmount ?? f.invAmount ?? ""),
+      outstanding: String(row.outstandingAmt ?? f.outstanding ?? ""),
+      description: row.notes || f.description,
+      paymentDeadline: row.paymentDueDate || f.paymentDeadline,
+    }));
+    setLinkedTrackerInvoice({ draftId: row.draftId, rowId: row.id });
+    setTrackerModalOpen(false);
+    toast.success(`Linked to Payment Tracker · ${row.invoiceNumber}`);
+  };
+
+  // ---------- Auto-fill previous chases from local history ----------
+  // Runs whenever the invoice number is changed. Only fills the field when
+  // it's currently empty so we don't overwrite anything the user typed.
+  useEffect(() => {
+    if (!form.invNo || form.previousChases) return;
+    const hist = historyFor(form.invNo);
+    if (hist.length === 0) return;
+    const lines = hist.map((h) => {
+      const stageLabel = h.stage === 3 ? "Final notice" : h.stage === 2 ? "Second reminder" : "First reminder";
+      return `${stageLabel} sent ${ukDate(h.date)}`;
+    });
+    setForm((f) => ({ ...f, previousChases: lines.join("\n") }));
+  }, [form.invNo]);
+
   // Live calcs
   const outstandingN = parseFloat(form.outstanding) || 0;
   const daysOverdue = useMemo(() => daysBetween(form.invDate, isoToday()), [form.invDate]);
@@ -90,19 +206,20 @@ export default function PaymentChaser() {
     setGenerating(true); setResult(""); setRefNumber("");
     try {
       // Build a stage-aware prompt template inline so the AI gets the right tone.
+      const prevHistory = historyFor(form.invNo);
       const promptTemplate = `Produce a UK Payment Chaser letter. Plain direct English. No padding. No banned consultant words.
 
 STAGE: ${stage} of 3.
 ${stage === 1 ? "STAGE 1 — FIRST REMINDER (polite, assumes oversight). Tone: professional but friendly. Do not threaten legal action. Do not include statutory interest or compensation lines." : ""}
-${stage === 2 ? "STAGE 2 — SECOND REMINDER (firm, references previous chase). Tone: firm, courteous, signals next steps. Reference any previous chase dates supplied. Mention that statutory interest is now being applied if {interestAccrued} is greater than zero. Quote the Late Payment of Commercial Debts (Interest) Act 1998 by name. Do not include compensation yet." : ""}
-${stage === 3 ? "STAGE 3 — LETTER BEFORE ACTION. Heading exactly: 'NOTICE OF INTENTION TO PURSUE LEGAL ACTION'. Tone: formal, firm, no apology. Reference all previous correspondence (previousChases). Quote the Late Payment of Commercial Debts (Interest) Act 1998 by name. Include statutory interest AND statutory compensation. Give a FINAL 7-day deadline. State plainly: 'Failure to pay the total amount due within 7 days will result in this matter being referred to debt recovery and/or county court proceedings without further notice.' Reserve the right to claim reasonable recovery costs." : ""}
+${stage === 2 ? "STAGE 2 — SECOND REMINDER (firm, references previous chase). Tone: firm, courteous, signals next steps. If real previous chase dates are supplied in {previousChases}, open with: 'Further to our previous payment reminder dated <that date>…'. NEVER invent a previous chase date — if none are supplied, open with a generic 'Further to our previous reminder…' and DO NOT quote a date. Mention that statutory interest is being applied ONLY if {interestAccrued} is greater than zero. Quote the Late Payment of Commercial Debts (Interest) Act 1998 by name. Do not include compensation yet." : ""}
+${stage === 3 ? "STAGE 3 — FINAL NOTICE / LETTER BEFORE ACTION-style wording. Heading exactly: 'FINAL NOTICE FOR PAYMENT'. Tone: formal, firm, no apology. Reference all previous correspondence supplied in {previousChases} — NEVER invent a previous chase date. Quote the Late Payment of Commercial Debts (Interest) Act 1998 by name. Include statutory interest AND statutory compensation. Give a FINAL 7-day deadline. State plainly: 'Failure to pay the total amount due within 7 days may result in this matter being referred to debt recovery and/or county court proceedings.' Reserve the right to claim reasonable recovery costs. IMPORTANT: append this sentence verbatim as a separate paragraph before the sign-off: 'This document is provided as a formal final demand. It does not automatically satisfy every pre-action requirement for a court claim. If the matter proceeds to litigation, the sender is advised to seek independent legal advice.'" : ""}
 
 Structure:
 1. HEADER — DOCUMENT REFERENCE, DATE.
 2. TO — ${form.clientName} at the address supplied.
 3. FROM — Issued-by block from profile (auto).
-4. SUBJECT line — Stage 1: 'Payment reminder — invoice {invNo}'. Stage 2: 'Second reminder — invoice {invNo} overdue {daysOverdue} days'. Stage 3: 'NOTICE OF INTENTION TO PURSUE LEGAL ACTION — invoice {invNo}'.
-5. OPENING paragraph — appropriate to the stage.
+4. SUBJECT line — Stage 1: 'Payment reminder — invoice {invNo}'. Stage 2: 'Second reminder — invoice {invNo} overdue {daysOverdue} days'. Stage 3: 'FINAL NOTICE FOR PAYMENT — invoice {invNo}'.
+5. OPENING paragraph — appropriate to the stage. Stage 2/3: open by referencing the earliest real previous chase date from {previousChases} where supplied.
 6. INVOICE DETAILS — lines:
    Invoice number: {invNo}
    Invoice date: {invDate}
@@ -111,16 +228,17 @@ Structure:
    Amount outstanding: £{outstanding}
    Days overdue: {daysOverdue}
 ${stage >= 2 ? "   Statutory interest accrued: £{interestAccrued}\n" : ""}${stage === 3 ? "   Statutory compensation: £{compensation}\n   TOTAL NOW DUE: £{totalDue}\n" : ""}
-${stage === 2 ? "7. PREVIOUS CORRESPONDENCE — list {previousChases} verbatim with dates. If blank, write 'A first reminder was issued previously.'\n" : ""}${stage === 3 ? "7. PREVIOUS CORRESPONDENCE — list all {previousChases} verbatim with dates. Reference both prior reminders.\n" : ""}
+${stage === 2 ? "7. PREVIOUS CORRESPONDENCE — list {previousChases} verbatim with the dates the user supplied. If blank, write 'A first reminder was issued previously.' — do NOT quote a specific date.\n" : ""}${stage === 3 ? "7. PREVIOUS CORRESPONDENCE — list all {previousChases} verbatim with the dates the user supplied. If blank, write 'Previous reminders have been issued.' — do NOT quote a specific date.\n" : ""}
 ${stage >= 2 ? "8. STATUTORY POSITION — one short paragraph naming the Late Payment of Commercial Debts (Interest) Act 1998 and stating interest accrues at 8% above the Bank of England base rate.\n" : ""}
-9. PAYMENT DETAILS — print the bank details supplied:
+9. PAYMENT DETAILS — print the bank details supplied. Format sort codes as NN-NN-NN:
    {paymentDetails}
-10. DEADLINE — one bold line. Stage 1 / Stage 2: 'Please settle this invoice by {paymentDeadline}.' Stage 3: 'Payment in full of £{totalDue} is required within 7 days of the date of this notice.'
-${stage === 3 ? "11. CONSEQUENCES OF NON-PAYMENT — one short paragraph as set out above.\n" : ""}
-${stage === 1 ? "11. CLOSE — polite single-line close.\n" : "12. CLOSE — formal close.\n"}
-${stage === 3 ? "13. SIGN-OFF — global dual sign-off block (yours signed; recipient SIGN HERE box for acknowledgement of receipt).\n" : "SIGN-OFF — single contractor sign-off block from profile.\n"}
+${form.projectName || form.contractRef || form.paymentAppRef || form.finalDateForPayment || form.payNoticeInfo ? `10. CONSTRUCTION PAYMENT CONTEXT — include ONLY the fields the user supplied:${form.projectName ? " Project: {projectName}." : ""}${form.contractRef ? " Contract reference: {contractRef}." : ""}${form.paymentAppRef ? " Payment application / certificate reference: {paymentAppRef}." : ""}${form.finalDateForPayment ? " Final date for payment: {finalDateForPayment}." : ""}${form.payNoticeInfo ? " Payment notice / Pay Less Notice status: {payNoticeInfo}." : ""}\n` : ""}
+11. DEADLINE — one bold line. Stage 1 / Stage 2: 'Please settle this invoice by {paymentDeadline}.' Stage 3: 'Payment in full of £{totalDue} is required within 7 days of the date of this notice.'
+${stage === 3 ? "12. CONSEQUENCES OF NON-PAYMENT — one short paragraph as set out above, followed by the professional-review disclaimer paragraph verbatim.\n" : ""}
+${stage === 1 ? "13. CLOSE — polite single-line close.\n" : "13. CLOSE — formal close.\n"}
+${stage === 3 ? "14. SIGN-OFF — dual sign-off block (yours signed; recipient signature is for acknowledgement of receipt only — it does NOT indicate agreement to the claim).\n" : "SIGN-OFF — single contractor sign-off block from profile.\n"}
 
-Rules: never invent. If a field is blank, drop the line cleanly. No 'kinetic', 'utilise', 'endeavour', 'facilitate', 'prior to', 'operatives are advised'. Short sentences. Firm but plain.`;
+Rules: never invent dates, contractual clauses, notices, amounts or legal rights. Use ONLY the information supplied. Maintain a clear distinction between an ordinary payment reminder (Stage 1), a firm reminder with statutory interest (Stage 2), and a final demand with disclaimer (Stage 3). If a field is blank, drop the line cleanly. No 'kinetic', 'utilise', 'endeavour', 'facilitate', 'prior to', 'operatives are advised'. Short sentences. Firm but plain.`;
 
       const paymentDetailsBlock = (form.paymentDetails || "").trim() || [
         form.bankNameEdit && `Bank: ${form.bankNameEdit}`,
@@ -149,6 +267,14 @@ Rules: never invent. If a field is blank, drop the line cleanly. No 'kinetic', '
           compensation,
           totalDue: totalDue.toFixed(2),
           paymentDetails: paymentDetailsBlock,
+          // Optional construction context — only surface in output when supplied
+          projectName: form.projectName,
+          contractRef: form.contractRef,
+          paymentAppRef: form.paymentAppRef,
+          finalDateForPayment: form.finalDateForPayment,
+          payNoticeInfo: form.payNoticeInfo,
+          linkedFromPaymentTracker: !!linkedTrackerInvoice,
+          chaseHistorySnapshot: prevHistory,
         },
         trade: user?.trade,
         companyName: user?.companyName,
@@ -156,6 +282,8 @@ Rules: never invent. If a field is blank, drop the line cleanly. No 'kinetic', '
       });
       setResult(r.data.content);
       setRefNumber(r.data.refNumber || "");
+      // Record this chase in local history so the NEXT stage picks up the date.
+      recordChase(form.invNo, stage);
       toast.success("Letter generated");
     } catch (err) {
       const d = err?.response?.data?.detail;
@@ -199,12 +327,90 @@ Rules: never invent. If a field is blank, drop the line cleanly. No 'kinetic', '
         </div>
       )}
 
+      {/* ---------- Payment Tracker import modal ---------- */}
+      {trackerModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)" }}
+          onClick={() => setTrackerModalOpen(false)}
+          data-testid="pc-tracker-modal">
+          <div onClick={(e) => e.stopPropagation()} className="card-dark max-w-2xl w-full p-6" style={{ borderColor: "#E8A020" }}>
+            <div className="flex justify-between items-start mb-3">
+              <div>
+                <h3 className="font-display text-2xl text-[#F0EDE8]">Import from Payment Tracker</h3>
+                <div className="text-[11px] text-[#706D66] mt-1">Pick an outstanding invoice from your latest saved Payment Tracker draft. You can still edit every field before generating the letter.</div>
+              </div>
+              <button onClick={() => setTrackerModalOpen(false)} className="text-[#A19D94]"><X size={18}/></button>
+            </div>
+            {trackerLoading ? (
+              <div className="text-sm text-[#A19D94] py-8 text-center">Loading Payment Tracker…</div>
+            ) : trackerRows.length === 0 ? (
+              <div className="text-sm text-[#A19D94] py-6 text-center" data-testid="pc-tracker-empty">
+                No outstanding invoices found in Payment Tracker. Save a Payment Tracker draft with at least one outstanding row, then try again.
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-[50vh] overflow-y-auto" data-testid="pc-tracker-rows">
+                {trackerRows.map((row, i) => (
+                  <button
+                    key={row.id || i}
+                    onClick={() => importTrackerRow(row)}
+                    className="w-full text-left p-3 rounded transition hover:border-[#E8A020]"
+                    style={{ background: "rgba(15,15,15,0.5)", border: "1px solid rgba(160,157,148,0.2)" }}
+                    data-testid={`pc-tracker-row-${i}`}
+                  >
+                    <div className="flex justify-between items-start gap-3">
+                      <div>
+                        <div className="text-sm text-[#F0EDE8] font-semibold">{row.invoiceNumber || "(no invoice number)"}</div>
+                        <div className="text-[11px] text-[#A19D94] mt-1">{row.contractor || "—"} · {row.project || "—"}</div>
+                        {row.paymentDueDate && (
+                          <div className="text-[10px] text-[#706D66] mt-0.5">Due {ukDate(row.paymentDueDate)}</div>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <div className="text-[10px] uppercase tracking-widest text-[#706D66]">Outstanding</div>
+                        <div className="font-display text-lg text-[#E8A020]">{fGBP(row.outstandingAmt)}</div>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="grid lg:grid-cols-2 gap-6">
         {/* ---------- FORM ---------- */}
         <div className="card-dark p-6 space-y-4">
           {/* STAGE SELECTOR — at the very top */}
           <div data-testid="pc-stage-selector">
-            <div className="text-xs uppercase tracking-widest text-[#E8A020] mb-3">Chase stage</div>
+            <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
+              <div className="text-xs uppercase tracking-widest text-[#E8A020]">Chase stage</div>
+              <button
+                type="button"
+                onClick={openTrackerImport}
+                className="btn-secondary flex items-center gap-2 text-[11px]"
+                data-testid="pc-import-tracker"
+              >
+                <Link2 size={12} /> Import from Payment Tracker
+              </button>
+            </div>
+            {linkedTrackerInvoice && (
+              <div
+                className="mb-3 px-3 py-2 rounded text-[11px] flex items-center gap-2"
+                style={{ background: "rgba(232,160,32,0.10)", border: "1px solid rgba(232,160,32,0.4)", color: "#E8A020" }}
+                data-testid="pc-linked-badge"
+              >
+                <Link2 size={12} /> Linked to Payment Tracker · Invoice {form.invNo}
+                <button
+                  onClick={() => setLinkedTrackerInvoice(null)}
+                  className="ml-auto text-[#A19D94] hover:text-[#F0EDE8]"
+                  data-testid="pc-unlink"
+                  title="Unlink"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            )}
             <div className="grid sm:grid-cols-3 gap-2">
               {STAGES.map((s) => {
                 const active = stage === s.id;
@@ -296,9 +502,22 @@ Rules: never invent. If a field is blank, drop the line cleanly. No 'kinetic', '
           )}
           {stage === 3 && (
             <div className="p-3 rounded text-xs" style={{ background: "rgba(229,99,90,0.06)", border: "1px solid rgba(229,99,90,0.3)", color: "#E5635A" }} data-testid="pc-stage3-notice">
-              Final 7-day deadline auto-applied. Letter Before Action is the last step before court proceedings.
+              Stage 3 generates a formal final demand with Letter Before Action-style wording. A 7-day final deadline is applied. This document does not automatically satisfy every pre-action requirement for a court claim — if the matter proceeds to litigation, seek independent legal advice.
             </div>
           )}
+
+          <Section title="Construction payment context (optional)">
+            <div className="text-[10px] text-[#706D66] -mt-1">
+              Only fill the fields that apply to your invoice. Empty fields will not appear in the generated letter.
+            </div>
+            <Inp label="Project / site name" value={form.projectName} onChange={(v) => setForm({ ...form, projectName: v })} placeholder="e.g. Riverside Commercial Phase 2" testId="pc-project-name" />
+            <div className="grid grid-cols-2 gap-3">
+              <Inp label="Contract reference" value={form.contractRef} onChange={(v) => setForm({ ...form, contractRef: v })} testId="pc-contract-ref" />
+              <Inp label="Payment application / certificate ref" value={form.paymentAppRef} onChange={(v) => setForm({ ...form, paymentAppRef: v })} testId="pc-payment-app-ref" />
+            </div>
+            <Inp label="Final date for payment (if known)" type="date" value={form.finalDateForPayment} onChange={(v) => setForm({ ...form, finalDateForPayment: v })} testId="pc-final-date" />
+            <Inp label="Payment notice / Pay Less Notice status (if any)" value={form.payNoticeInfo} onChange={(v) => setForm({ ...form, payNoticeInfo: v })} placeholder="e.g. Payment Notice PN-04 issued 12 Jun 2026, no Pay Less Notice served." testId="pc-pay-notice-info" />
+          </Section>
 
           {/* ---------- TOTALS PANEL ---------- */}
           <div className="p-4 rounded space-y-2 text-sm" style={{ background: "rgba(232,160,32,0.06)", border: "1px solid rgba(232,160,32,0.3)" }} data-testid="pc-totals">
