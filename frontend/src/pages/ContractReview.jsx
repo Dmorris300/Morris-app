@@ -21,13 +21,15 @@ function ukDate(iso) {
   return `${m[3]}/${m[2]}/${m[1]}`;
 }
 
+// Alphabetical order with "Other" always last (per Morris global dropdown
+// rule for simple categorical dropdowns with no natural workflow order).
 const CONTRACT_TYPES = [
-  "Subcontract agreement",
-  "Purchase order / order confirmation",
-  "Letter of intent",
-  "Labour only contract",
-  "Supply and fix contract",
   "Framework agreement",
+  "Labour only contract",
+  "Letter of intent",
+  "Purchase order / order confirmation",
+  "Subcontract agreement",
+  "Supply and fix contract",
   "Other",
 ];
 
