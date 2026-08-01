@@ -6,6 +6,7 @@ import { useAuth } from "../lib/auth";
 import api from "../lib/api";
 import { downloadPdf } from "../lib/pdf";
 import LiveSignatureBlock from "../components/LiveSignatureBlock";
+import AttachMedia, { recordDocMediaUsage } from "../components/AttachMedia";
 
 const TOOL_ID   = "contract-review";
 const TOOL_NAME = "Contract Review";
@@ -46,6 +47,9 @@ export default function ContractReview() {
   // SECTION 2 — Contract Text
   const [contractText, setContractText]       = useState("");
   const [specificConcerns, setSpecificConcerns] = useState("");
+
+  // Photo Vault attachments
+  const [attachedMedia, setAttachedMedia] = useState([]);
 
   // Output / sign-off
   const reviewDate = isoToday();
@@ -316,6 +320,7 @@ Rules:
 
       {/* SIGN OFF */}
       <Section title="Sign Off" testId="cr-section-signoff">
+        <AttachMedia toolId="contract-review" toolLabel="Contract Review" value={attachedMedia} onChange={setAttachedMedia} testIdPrefix="cr-media" />
         <LiveSignatureBlock
           label="Reviewed by"
           subtitle="Your signature is stamped on the generated PDF"

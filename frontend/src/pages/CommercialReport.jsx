@@ -6,6 +6,7 @@ import { useAuth } from "../lib/auth";
 import api from "../lib/api";
 import { downloadPdf } from "../lib/pdf";
 import LiveSignatureBlock from "../components/LiveSignatureBlock";
+import AttachMedia, { recordDocMediaUsage } from "../components/AttachMedia";
 import DraftSaveButton from "../components/DraftSaveButton";
 import useToolDraft from "../hooks/useToolDraft";
 
@@ -55,6 +56,9 @@ export default function CommercialReport() {
   const [periodFrom, setPeriodFrom]     = useState(isoMinusDays(30));
   const [periodTo, setPeriodTo]         = useState(isoToday());
   const [reportDate, setReportDate]     = useState(isoToday());
+
+  // Photo Vault attachments
+  const [attachedMedia, setAttachedMedia] = useState([]);
 
   // SECTION 2 — FINANCIALS
   const [earnedValue, setEarnedValue]   = useState("");
@@ -361,6 +365,7 @@ Rules:
 
       {/* SECTION 5 — SIGN OFF */}
       <Section title="Report prepared by — Sign Off" testId="cr-section-5">
+        <AttachMedia toolId="commercial-report" toolLabel="Commercial Report" value={attachedMedia} onChange={setAttachedMedia} testIdPrefix="cr-media" />
         <LiveSignatureBlock
           label="Report prepared by"
           subtitle="Your signature is stamped on the generated PDF"

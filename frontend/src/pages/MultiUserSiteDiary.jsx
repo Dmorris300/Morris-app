@@ -6,6 +6,7 @@ import { useAuth } from "../lib/auth";
 import api from "../lib/api";
 import { downloadPdf } from "../lib/pdf";
 import LiveSignatureBlock from "../components/LiveSignatureBlock";
+import AttachMedia, { recordDocMediaUsage } from "../components/AttachMedia";
 import DraftSaveButton from "../components/DraftSaveButton";
 import useToolDraft from "../hooks/useToolDraft";
 
@@ -78,6 +79,9 @@ export default function MultiUserSiteDiary() {
   const [diaryDate, setDiaryDate]     = useState(isoToday());
   const [weather, setWeather]         = useState("Fine");
   const [siteStatus, setSiteStatus]   = useState("Full operation");
+
+  // Photo Vault attachments
+  const [attachedMedia, setAttachedMedia] = useState([]);
 
   // SECTION 2 — GANGS
   const [gangs, setGangs] = useState([makeGang()]);
@@ -418,6 +422,7 @@ Rules:
 
       {/* SIGN OFF */}
       <Section title="Diary completed by — Sign Off" testId="msd-section-5">
+        <AttachMedia toolId="multiuser-site-diary" toolLabel="Site Diary" category="Progress" value={attachedMedia} onChange={setAttachedMedia} testIdPrefix="msd-media" />
         <LiveSignatureBlock
           label="Diary completed by"
           subtitle="Your signature is stamped on the generated PDF"

@@ -6,6 +6,7 @@ import { useAuth } from "../lib/auth";
 import api from "../lib/api";
 import { downloadPdf } from "../lib/pdf";
 import LiveSignatureBlock from "../components/LiveSignatureBlock";
+import AttachMedia, { recordDocMediaUsage } from "../components/AttachMedia";
 import DraftSaveButton from "../components/DraftSaveButton";
 import useToolDraft from "../hooks/useToolDraft";
 
@@ -91,6 +92,9 @@ export default function SiteAccessPermit() {
   const [issueDate, setIssueDate]     = useState(isoToday());
   const [permitType, setPermitType]   = useState("General site access");
   const [permitTypeOther, setPermitTypeOther] = useState("");
+
+  // Photo Vault attachments
+  const [attachedMedia, setAttachedMedia] = useState([]);
 
   // SECTION 2 — ACCESS DETAILS
   const [location, setLocation]       = useState("");
@@ -497,6 +501,8 @@ Rules:
           <ReadOnly label="Position" value={user?.signatureRole || "Director"} testId="sap-issuer-role" />
           <ReadOnly label="Date and Time of Sign Off" value={ukDateTime(signOffAt)} testId="sap-signoff-at" />
         </div>
+
+        <AttachMedia toolId="site-access-permit" toolLabel="Site Instruction / Access Permit" value={attachedMedia} onChange={setAttachedMedia} testIdPrefix="sap-media" />
 
         <div className="mb-5">
           <div className="text-xs uppercase tracking-widest text-[#E8A020] mb-2">Permit Issuing Authority</div>

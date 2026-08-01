@@ -6,6 +6,7 @@ import { useAuth } from "../lib/auth";
 import api from "../lib/api";
 import { downloadPdf } from "../lib/pdf";
 import LiveSignatureBlock from "../components/LiveSignatureBlock";
+import AttachMedia, { recordDocMediaUsage } from "../components/AttachMedia";
 
 const TOOL_ID   = "snagging-list";
 const TOOL_NAME = "Snagging List";
@@ -82,6 +83,9 @@ export default function SnaggingList() {
 
   // NEW — dynamic snags table (replaces the old textarea)
   const [snags, setSnags] = useState([makeSnag()]);
+
+  // Photo Vault attachments
+  const [attachedMedia, setAttachedMedia] = useState([]);
 
   // Output / sign-off
   const [infoOpen, setInfoOpen]           = useState(false);
@@ -380,6 +384,7 @@ Rules:
 
       {/* SIGN OFF */}
       <Section title="Sign Off" testId="snag-section-signoff">
+        <AttachMedia toolId="snagging-list" toolLabel="Snagging List" category="Snagging" value={attachedMedia} onChange={setAttachedMedia} testIdPrefix="snag-media" />
         <LiveSignatureBlock
           label="Inspector signature"
           subtitle="Your signature is stamped on the generated PDF"

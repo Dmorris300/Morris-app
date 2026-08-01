@@ -19,6 +19,7 @@ from email_helper import (
     send_admin_signup, send_refund_summary,
 )
 from billing import build_router as build_billing_router, build_webhook_router, check_can_generate, record_usage, effective_plan
+from photo_vault import build_router as build_photo_vault_router, try_init_storage as try_init_photo_vault_storage
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -1546,6 +1547,9 @@ app.include_router(api_router)
 app.include_router(build_billing_router(db, get_user, send_subscription_receipt))
 app.include_router(build_webhook_router(db, send_subscription_receipt))
 
+# Photo Vault (Emergent Object Storage backed media library)
+app.include_router(build_photo_vault_router(db, get_user))
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
@@ -1562,8 +1566,15 @@ async def on_startup():
         await db.password_reset_tokens.create_index("token", unique=True)
         # TTL index — MongoDB auto-purges reset tokens at expiresAt
         await db.password_reset_tokens.create_index("expiresAt", expireAfterSeconds=0)
+        # Photo Vault indexes
+        await db.media_items.create_index([("userId", 1), ("createdAt", -1)])
+        await db.media_items.create_index([("userId", 1), ("jobId", 1)])
+        await db.media_items.create_index([("userId", 1), ("category", 1)])
+        await db.media_items.create_index([("userId", 1), ("favourite", 1)])
     except Exception as e:
         logger.warning(f"Index creation: {e}")
+    # Initialise Emergent Object Storage session (non-fatal on failure)
+    try_init_photo_vault_storage()
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

@@ -1,0 +1,40 @@
+{
+  "summary": "Photo Vault feature tested end-to-end. Backend: 20/20 pytest cases pass across categories, auth-protection, upload, list+filters (recent/unassigned/favourites/category/q), PATCH persistence, file streaming via ?auth= query param, usage add/remove, delete-protection (requiresConfirm + ?force=true soft delete), and stats. Frontend: Photo Vault page renders with all 5 section rails + 3 upload buttons; legacy /app/site-photo-library correctly redirects to /app/photo-vault; AttachMedia widgets present on all 7 dedicated tool pages (rams-media-root, snag-media-root, cr-media-root, ir-media-root, sap-media-root, msd-media-root, pc-media-root) and all 10 GenericToolPage-driven tools; timesheet and daywork-sheet correctly DO NOT show the widget. Emergent Object Storage integration working (image bytes stream back with correct content-type).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/media, PATCH /api/media/{id}", "issue": "Unauthenticated requests without a valid body return 422 (validation) before the 401 (auth) check. Once a valid payload is provided, 401 is returned correctly. Cosmetic ordering issue; not a security problem because auth is still enforced for any real request."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_photo_vault.py",
+    "/app/test_reports/pytest/photo_vault.xml"
+  ],
+  "action_items": [
+    "Spec-only clarification (no code change needed): Multi-User Site Diary route is /app/multiuser-site-diary — NOT /app/tool/multi-user-site-diary as listed in the review request. Widget msd-media-root renders correctly at the real route. Please update any external test spec/docs that reference /app/tool/multi-user-site-diary."
+  ],
+  "critical_code_review_comments": [
+    "photo_vault.py cleanly excludes MongoDB _id via _shape() before returning documents — good.",
+    "Storage key is initialised lazily and re-initialised on 403 with one retry — good resilience.",
+    "add_usage uses `usage.docId: {$ne: ...}` in the filter to guarantee idempotency — good, but the 200 response when the doc already had that usage entry is indistinguishable from a fresh insert; consider returning {alreadyExists:true} for observability.",
+    "stream_file accepts ?auth=<token> query param as a fallback for <img> tags — necessary for browser compatibility but tokens will appear in server access logs; consider a short-lived signed URL pattern in future.",
+    "delete_media returns HTTP 200 with {requiresConfirm:true} rather than a 409 Conflict — frontend must inspect body, not status. Works but non-standard; a 409 would be more RESTful.",
+    "No pagination on list_media beyond `limit=500` cap — fine for MVP; add cursor pagination once users accumulate >2k items.",
+    "photo_vault.py is 454 lines — still within the 700-line guideline, OK."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_photo_vault.py"
+  ],
+  "success_rate": {"backend": "100% (20/20)", "frontend": "100% (all data-testids present at correct routes)"},
+  "test_credentials": "darrenhustle300 / hustle1234 (admin) — worked as expected.",
+  "seed_data_creation": "Test uploads created with TEST_ prefix and force-deleted at end of module.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Photo Vault backend covered by /app/backend/tests/test_photo_vault.py. Key spec correction: Multi-User Site Diary lives at /app/multiuser-site-diary (route slug in App.js is 'multiuser-site-diary'), NOT /app/tool/multi-user-site-diary. AttachMedia widget testId is built from a testIdPrefix prop (e.g. 'msd-media' → 'msd-media-root'); on GenericToolPage-rendered tools the wrapper testId is 'attach-media-wrapper'. Media streaming uses ?auth=<token> query param.",
+  "rca of the issue": "N/A — no functional bugs found. The only spec deviation was an incorrect URL in the review request (multi-user-site-diary), which was reconciled with the actual App.js route."
+}

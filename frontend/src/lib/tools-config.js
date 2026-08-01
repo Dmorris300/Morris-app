@@ -2110,8 +2110,6 @@ export const WOW_TOOLS = [
     info: "Record yourself describing a verbal instruction you received on site. Morris converts it instantly into a formal variation letter. ready to send." },
   { id: "photo-to-document", name: "Photo to Document", section: "documents", route: "/app/wow/photo-to-document",
     info: "Snap a photo of a scribbled note, drawing or scrap of paper. Morris turns it into a clean professional document." },
-  { id: "site-photo-library", name: "Site Photo Library", section: "documents", route: "/app/site-photo-library",
-    info: "Every photo you take through Photo to Document is automatically saved here, stamped with date, time and location. Search, filter and reuse your site evidence." },
   { id: "drafts", name: "Drafts", section: "documents", route: "/app/drafts",
     info: "Saved progress for any tool you started but didn't finish. Drafts never expire. Resume picks up exactly where you left off." },
   { id: "tax-pot", name: "Tax Pot", section: "finance", route: "/app/taxpot",
@@ -2153,7 +2151,7 @@ export const TOOL_EMOJI = {
   "commercial-report": "📊", "defects-tracker": "🔧", "new-starter-pack": "🆕", "hire-agreement": "🏗️",
   "tender-letter": "📨",
   // Wow
-  "verbal-to-variation": "🎙️", "photo-to-document": "📸", "site-photo-library": "🖼️", "drafts": "📝",
+  "verbal-to-variation": "🎙️", "photo-to-document": "📸", "photo-vault": "🖼️", "drafts": "📝",
   "tax-pot": "🐖", "company-checker": "🏢",
   // Account
 "favourites": "⭐", "history": "🗃️", "billing": "💳", "team": "👥", "profile": "👤", "privacy": "🛡️", "terms": "⚖️", "complaints": "📣", "refund": "💷", "offline-mode": "📴",
@@ -2239,6 +2237,7 @@ export function isDualSignoff(toolId) {
 export const ACCOUNT_TOOLS = [
   { id: "favourites", name: "Favourites", section: "account", route: "/app/favourites", info: "Your starred tools, one click away." },
   { id: "history", name: "Document History", section: "account", route: "/app/history", info: "Every document you've generated, saved and ready to re-download." },
+  { id: "photo-vault", name: "Photo Vault", section: "account", route: "/app/photo-vault", info: "Central library for every site photo and video. Upload once, reuse across every Morris tool." },
   { id: "billing", name: "Plan & Billing", section: "account", route: "/app/billing", info: "Your current plan, usage and upgrades." },
   { id: "team", name: "Team Management", section: "account", route: "/app/team", info: "Invite your crew, assign roles, see who's active." },
   { id: "profile", name: "My Profile", section: "account", route: "/app/profile", info: "Your company details. Used to personalise every document Morris generates." },

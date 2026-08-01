@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { useAuth } from "../lib/auth";
 import api from "../lib/api";
 import LiveSignatureBlock from "../components/LiveSignatureBlock";
+import AttachMedia, { recordDocMediaUsage } from "../components/AttachMedia";
 import DraftSaveButton from "../components/DraftSaveButton";
 import { draftIdFromQuery, clearDraftQueryParam, fetchDraft } from "../lib/drafts";
 import {
@@ -196,6 +197,9 @@ export default function Rams() {
 
   // SECTION 11 — EQUIPMENT
   const [equipment, setEquipment] = useState([]);
+
+  // Photo Vault attachments
+  const [attachedMedia, setAttachedMedia] = useState([]);
 
   // SECTION 12 — COSHH
   const [coshh, setCoshh] = useState([]);
@@ -975,6 +979,7 @@ export default function Rams() {
 
       {/* 19. Sign Off */}
       <Section title={`${sn()}. Prepared by — Sign Off`} testId="rams-section-19">
+        <AttachMedia toolId="rams" toolLabel="RAMS" category="Health & Safety" value={attachedMedia} onChange={setAttachedMedia} testIdPrefix="rams-media" />
         <LiveSignatureBlock
           label="Prepared by"
           subtitle="Your signature is stamped on the PDF. If neither this signature nor a profile signature is set, export is blocked."

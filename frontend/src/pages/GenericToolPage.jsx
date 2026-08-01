@@ -5,6 +5,8 @@ import ToolHeader, { ResultActions } from "../components/ToolHeader";
 import DraftSaveButton from "../components/DraftSaveButton";
 import { draftIdFromQuery, clearDraftQueryParam, fetchDraft } from "../lib/drafts";
 import LiveSignatureBlock from "../components/LiveSignatureBlock";
+import AttachMedia, { recordDocMediaUsage } from "../components/AttachMedia";
+import { isMediaSupportedTool, MEDIA_SUPPORTED_TOOLS } from "../lib/media";
 import api from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { toast } from "sonner";
@@ -71,6 +73,7 @@ export default function GenericToolPage() {
   const [clientSignature, setClientSignature] = useState("");
   const [attachedPhoto, setAttachedPhoto] = useState(null);
   const [attachedPhotos, setAttachedPhotos] = useState([]);
+  const [attachedMedia, setAttachedMedia] = useState([]);
   // Guard: photo intent in localStorage is single-use. React.StrictMode runs
   // useEffect twice in dev which would otherwise consume and then clear the
   // intent on the second pass. The ref persists across StrictMode re-invocations.
@@ -223,6 +226,15 @@ export default function GenericToolPage() {
       });
       setResult(r.data.content);
       setRefNumber(r.data.refNumber || "");
+      // Record which Photo Vault items were used in this document so the Vault
+      // can surface "Referenced by" back to the user.
+      if (attachedMedia.length > 0 && r.data.refNumber) {
+        recordDocMediaUsage(attachedMedia, {
+          docId: r.data.refNumber,
+          docType: tool.id,
+          docTitle: `${tool.name} — ${r.data.refNumber}`,
+        }).catch(() => {});
+      }
       // update recently used
       const recent = [tool.id, ...(user?.recentlyUsed || []).filter(x => x !== tool.id)].slice(0, 5);
       await api.post("/profile/update", { recentlyUsed: recent });
@@ -415,6 +427,19 @@ export default function GenericToolPage() {
             {missing.length > 0 && (
               <div className="text-xs text-red-400" data-testid="missing-fields">
                 Please complete: {missing.join(", ")}
+              </div>
+            )}
+
+            {/* Photo Vault — Attach Media (only for supported tools) */}
+            {isMediaSupportedTool(tool.id) && (
+              <div className="pt-2" data-testid="attach-media-wrapper">
+                <AttachMedia
+                  toolId={tool.id}
+                  toolLabel={tool.name}
+                  category={MEDIA_SUPPORTED_TOOLS.find((t) => t.id === tool.id)?.suggestedCategory}
+                  value={attachedMedia}
+                  onChange={setAttachedMedia}
+                />
               </div>
             )}
 

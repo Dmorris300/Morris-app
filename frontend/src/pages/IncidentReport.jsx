@@ -6,6 +6,7 @@ import { useAuth } from "../lib/auth";
 import api from "../lib/api";
 import { downloadPdf } from "../lib/pdf";
 import LiveSignatureBlock from "../components/LiveSignatureBlock";
+import AttachMedia, { recordDocMediaUsage } from "../components/AttachMedia";
 import DraftSaveButton from "../components/DraftSaveButton";
 import useToolDraft from "../hooks/useToolDraft";
 
@@ -78,6 +79,9 @@ export default function IncidentReport() {
   const [siteAddress, setSiteAddress]   = useState("");
   const [exactLocation, setExactLocation] = useState("");
   const [incidentType, setIncidentType] = useState("Injury to worker");
+
+  // Photo Vault attachments
+  const [attachedMedia, setAttachedMedia] = useState([]);
 
   // SECTION 2 — PERSON
   const [personName, setPersonName]     = useState("");
@@ -526,6 +530,7 @@ Rules:
           <ReadOnly label="Role" value={user?.signatureRole || "Director"} testId="ir-completed-role" />
           <ReadOnly label="Date of Report" value={ukDate(reportDate)} testId="ir-report-date" />
         </div>
+        <AttachMedia toolId="incident-report" toolLabel="Incident Report" category="Health & Safety" value={attachedMedia} onChange={setAttachedMedia} testIdPrefix="ir-media" />
         <LiveSignatureBlock
           label="Signature"
           subtitle="Your signature is stamped on the generated PDF"

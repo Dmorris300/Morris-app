@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { ChevronLeft, FileText, Mail, MessageSquare, Phone, Download, Copy, Info, Star, X, Link2 } from "lucide-react";
 import { downloadPdf } from "../lib/pdf";
 import LiveSignatureBlock from "../components/LiveSignatureBlock";
+import AttachMedia, { recordDocMediaUsage } from "../components/AttachMedia";
 import { Link } from "react-router-dom";
 import { listDrafts, fetchDraft, saveDraft } from "../lib/drafts";
 
@@ -122,6 +123,7 @@ export default function PaymentChaser() {
   const [liveSignature, setLiveSignature] = useState("");
   const [clientSignature, setClientSignature] = useState("");
   const [infoOpen, setInfoOpen] = useState(false);
+  const [attachedMedia, setAttachedMedia] = useState([]);
 
   const isFav = (user?.favourites || []).includes(TOOL_ID);
   const toggleFav = async () => {
@@ -567,6 +569,7 @@ Rules: never invent dates, contractual clauses, notices, amounts or legal rights
 
           {/* Signature pad(s) — dual on Stage 3 (Letter Before Action) */}
           <div className="space-y-3 pt-2 border-t border-[#1a1a1a]">
+            <AttachMedia toolId="payment-chaser" toolLabel="Payment Chaser" value={attachedMedia} onChange={setAttachedMedia} testIdPrefix="pc-media" />
             <LiveSignatureBlock label={stage === 3 ? "Your signature" : "Sign before generating"} value={liveSignature} onChange={setLiveSignature} savedSignature={user?.signature} testIdPrefix="pc-sig-self" />
             {stage === 3 && (
               <LiveSignatureBlock label="Recipient acknowledgement (optional)" value={clientSignature} onChange={setClientSignature} testIdPrefix="pc-sig-client" />
