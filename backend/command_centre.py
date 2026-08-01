@@ -87,7 +87,7 @@ async def compute_attention(db, user: dict) -> List[Dict[str, Any]]:
             "projectId": j["id"],
             "projectName": j.get("clientName") or j.get("projectName"),
             "actionLabel": "Open Invoice",
-            "actionRoute": f"/app/jobs/{j['id']}",
+            "actionRoute": f"/app/jobs/{j['id']}?tab=finance",
             "severity": "urgent" if days_over >= 7 else "warning",
             "dueAt": due.isoformat(),
         })

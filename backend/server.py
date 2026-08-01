@@ -21,6 +21,7 @@ from email_helper import (
 from billing import build_router as build_billing_router, build_webhook_router, check_can_generate, record_usage, effective_plan
 from photo_vault import build_router as build_photo_vault_router, try_init_storage as try_init_photo_vault_storage
 from command_centre import build_router as build_command_centre_router
+from project_workspace import build_router as build_project_workspace_router, emit_event as emit_project_event
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -152,26 +153,37 @@ class ExpenseEntry(BaseModel):
     notes: Optional[str] = ""
 
 # ---------- Jobs ----------
-JOB_STATUSES = ["active", "invoiced", "paid", "completed", "disputed"]
+JOB_STATUSES = ["planning", "active", "on_hold", "awaiting_payment", "invoiced", "paid", "completed", "disputed", "archived"]
 
 class JobCreate(BaseModel):
     clientName: str
+    projectName: Optional[str] = None
+    company: Optional[str] = None
     address: Optional[str] = ""
+    siteManager: Optional[str] = None
+    clientContact: Optional[str] = None
     contractValue: Optional[float] = 0.0
+    poNumber: Optional[str] = None
     startDate: Optional[str] = None
     expectedCompletion: Optional[str] = None
     notes: Optional[str] = ""
 
 class JobUpdate(BaseModel):
     clientName: Optional[str] = None
+    projectName: Optional[str] = None
+    company: Optional[str] = None
     address: Optional[str] = None
+    siteManager: Optional[str] = None
+    clientContact: Optional[str] = None
     contractValue: Optional[float] = None
+    poNumber: Optional[str] = None
     startDate: Optional[str] = None
     expectedCompletion: Optional[str] = None
     status: Optional[str] = None
     notes: Optional[str] = None
     disputeNote: Optional[str] = None
     paidDate: Optional[str] = None
+    pinned: Optional[bool] = None
 
 # ---------- Helpers ----------
 def hash_pw(pw: str) -> str:
@@ -947,6 +959,27 @@ async def save_document(d: DocumentSave, authorization: Optional[str] = Header(N
         "createdAt": datetime.now(timezone.utc).isoformat(),
     }
     await db.documents.insert_one(doc)
+    # Emit project timeline event when saved doc is linked to a job
+    if d.jobId:
+        try:
+            kind_map = {
+                "rams": "rams_created",
+                "variation-letter": "variation_submitted",
+                "cis-invoice": "invoice_generated",
+                "application-for-payment": "application_submitted",
+                "site-diary": "site_diary_created",
+                "multiuser-site-diary": "site_diary_created",
+                "payment-chaser": "chase_sent",
+            }
+            event_kind = kind_map.get(d.toolId, "document_saved")
+            await emit_project_event(
+                db, user, d.jobId, event_kind,
+                d.title or event_kind.replace("_", " ").title(),
+                d.refNumber or "",
+                ref_doc_id=doc["id"],
+            )
+        except Exception:
+            logger.warning("Failed to emit doc save event")
     doc.pop("_id", None)
     return doc
 
@@ -990,6 +1023,11 @@ async def create_job(job: JobCreate, authorization: Optional[str] = Header(None)
         "createdAt": datetime.now(timezone.utc).isoformat(),
     }
     await db.jobs.insert_one(doc)
+    # Timeline event
+    try:
+        await emit_project_event(db, user, doc["id"], "project_created", "Project created", doc.get("clientName") or "")
+    except Exception:
+        logger.warning("Failed to emit project_created event")
     doc.pop("_id", None)
     return doc
 
@@ -1024,6 +1062,18 @@ async def update_job(job_id: str, update: JobUpdate, authorization: Optional[str
         result = await db.jobs.update_one({"id": job_id, "userId": user["id"]}, {"$set": patch})
         if result.matched_count == 0:
             raise HTTPException(404, "Job not found")
+        # Emit status change events for major transitions
+        if "status" in patch:
+            try:
+                new_status = patch["status"]
+                if new_status == "completed":
+                    await emit_project_event(db, user, job_id, "project_completed", "Project marked complete")
+                elif new_status == "archived":
+                    await emit_project_event(db, user, job_id, "project_archived", "Project archived")
+                else:
+                    await emit_project_event(db, user, job_id, "status_changed", f"Status set to {new_status}")
+            except Exception:
+                logger.warning("Failed to emit status event")
     updated = await db.jobs.find_one({"id": job_id, "userId": user["id"]}, {"_id": 0})
     return updated
 
@@ -1554,6 +1604,9 @@ app.include_router(build_photo_vault_router(db, get_user))
 # Command Centre V2 (attention feed)
 app.include_router(build_command_centre_router(db, get_user))
 
+# Project Workspace (tasks, events, stats, search)
+app.include_router(build_project_workspace_router(db, get_user))
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
@@ -1578,6 +1631,10 @@ async def on_startup():
         await db.media_items.create_index([("userId", 1), ("album", 1)])
         await db.media_items.create_index([("userId", 1), ("tool", 1)])
         await db.media_items.create_index([("userId", 1), ("usage.docId", 1)])
+        # Project Workspace indexes
+        await db.project_tasks.create_index([("userId", 1), ("jobId", 1), ("createdAt", -1)])
+        await db.project_events.create_index([("userId", 1), ("jobId", 1), ("createdAt", -1)])
+        await db.documents.create_index([("userId", 1), ("jobId", 1)])
     except Exception as e:
         logger.warning(f"Index creation: {e}")
     # Initialise Emergent Object Storage session (non-fatal on failure)

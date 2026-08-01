@@ -372,6 +372,13 @@ def build_router(db, get_user):
             "usage": [],
         }
         await db.media_items.insert_one(doc)
+        # Project timeline event — deduped to once per day per project.
+        if doc.get("jobId"):
+            try:
+                from project_workspace import emit_event as _emit
+                await _emit(db, user, doc["jobId"], "photo_uploaded", "Photos uploaded", dedupe_per_day=True)
+            except Exception:
+                logger.warning("Failed to emit photo_uploaded event")
         return _shape(doc)
 
     @router.patch("/{media_id}")

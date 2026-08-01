@@ -150,9 +150,14 @@ function JobCard({ job }) {
 
 function NewJobModal({ onClose, onCreated }) {
   const [form, setForm] = useState({
+    projectName: "",
     clientName: "",
+    company: "",
     address: "",
+    siteManager: "",
+    clientContact: "",
     contractValue: "",
+    poNumber: "",
     startDate: isoToday(),
     expectedCompletion: "",
     notes: "",
@@ -199,23 +204,39 @@ function NewJobModal({ onClose, onCreated }) {
           </div>
           <button type="button" onClick={onClose} className="text-[#706D66] hover:text-[#F0EDE8]" data-testid="job-create-close"><X size={18} /></button>
         </div>
-        <div className="space-y-4">
+        <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
+          <Field label="Project name">
+            <input className="input-base" value={form.projectName} onChange={(e) => setForm({ ...form, projectName: e.target.value })} placeholder="e.g. Chelsea Office Fit-Out" data-testid="job-project-name" />
+          </Field>
           <Field label="Client name" required>
             <input className="input-base" value={form.clientName} onChange={(e) => setForm({ ...form, clientName: e.target.value })} data-testid="job-client" autoFocus />
           </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Company"><input className="input-base" value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} data-testid="job-company" /></Field>
+            <Field label="Site manager"><input className="input-base" value={form.siteManager} onChange={(e) => setForm({ ...form, siteManager: e.target.value })} data-testid="job-site-manager" /></Field>
+          </div>
           <Field label="Site address">
             <textarea rows={2} className="input-base resize-y" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} data-testid="job-address" />
+          </Field>
+          <Field label="Client contact (name + phone/email)">
+            <input className="input-base" value={form.clientContact} onChange={(e) => setForm({ ...form, clientContact: e.target.value })} placeholder="e.g. Sarah — 07700 900123" data-testid="job-client-contact" />
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Contract value (£)">
               <input type="number" className="input-base" value={form.contractValue} onChange={(e) => setForm({ ...form, contractValue: e.target.value })} placeholder="0" data-testid="job-value" />
             </Field>
+            <Field label="PO number"><input className="input-base" value={form.poNumber} onChange={(e) => setForm({ ...form, poNumber: e.target.value })} data-testid="job-po" /></Field>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
             <Field label="Start date">
               <input type="date" className="input-base" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} data-testid="job-start" />
             </Field>
+            <Field label="Expected completion">
+              <input type="date" className="input-base" value={form.expectedCompletion} onChange={(e) => setForm({ ...form, expectedCompletion: e.target.value })} data-testid="job-end" />
+            </Field>
           </div>
-          <Field label="Expected completion">
-            <input type="date" className="input-base" value={form.expectedCompletion} onChange={(e) => setForm({ ...form, expectedCompletion: e.target.value })} data-testid="job-end" />
+          <Field label="Project notes">
+            <textarea rows={3} className="input-base resize-y" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Anything else worth remembering about this project…" data-testid="job-notes" />
           </Field>
         </div>
         <div className="flex gap-2 mt-6">

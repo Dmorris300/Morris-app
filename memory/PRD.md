@@ -27,6 +27,22 @@ Dark-themed construction administration SaaS web application for UK tradespeople
 
 ## What's been implemented
 
+- ✅ **[FEATURE] Project Workspace** (Feb 21, 2026)
+  - Complete rebuild of `/app/jobs/:id` into a 7-tab **Project Workspace** — the "digital site folder" per `/app/PROJECT_WORKSPACE_SPEC.md`. Tabs: **Overview / Documents / Photos / Finance / Tasks / Timeline / Team**.
+  - **Extended Job model** — added `projectName, company, siteManager, clientContact, poNumber, pinned` to `JobCreate`/`JobUpdate`. Expanded status list to 9 values (`planning`, `active`, `on_hold`, `awaiting_payment`, `invoiced`, `paid`, `completed`, `disputed`, `archived`). New-project modal captures all fields.
+  - **New backend module** `/app/backend/project_workspace.py` — mounted at `/api/jobs/*` (extends existing) and `/api/tasks/*`.
+    - `GET /api/jobs/{id}/stats` — counts of documents, photos, videos, open tasks, open variations, applications, site diaries + amount paid + outstanding + last 3 events.
+    - `POST/GET /api/jobs/{id}/tasks` and `PATCH/DELETE /api/tasks/{taskId}` — task CRUD across the 3-status board.
+    - `GET /api/jobs/{id}/events` — chronological project timeline.
+    - `GET /api/jobs/{id}/search?q=x` — project-scoped unified search across documents, drafts, media, tasks, events (Mongo `$regex`, no external search engine).
+    - `POST /api/jobs/{id}/payments` — record a payment; fires a `payment_received` timeline event that feeds Amount Paid on stats.
+  - **Automatic timeline events** — new `emit_event()` helper called from: `/api/jobs` create (project_created), `/api/jobs/{id}` PATCH status (project_completed/archived/status_changed), `/api/documents/save` (rams_created/variation_submitted/invoice_generated/application_submitted/site_diary_created/chase_sent/document_saved), `/api/media` (photo_uploaded, deduped once per day per project). New `project_events` collection with indexes.
+  - **Project Health** — deterministic `healthy/watch/at_risk` computed on the frontend from job status + days remaining + recent chase events.
+  - **Task presets** — one-tap creation of the 4 spec-mandated task kinds (Site Diary, Upload Photos, Generate Invoice, Complete Snagging).
+  - **Command Centre integration** — attention items now route with `?tab=` query hints (`finance` for overdue invoices, `documents` for missing diary) so the Workspace opens on the right sub-view.
+  - **Team tab skeleton** — placeholder card ("Team collaboration coming soon") preserves the URL slot for v2.
+  - **Verified end-to-end via curl + screenshots**: stats/tasks/events/search/payments all working; Overview + Finance + Tasks tabs render correctly with real data.
+
 - ✅ **[FEATURE] Command Centre V2** (Feb 21, 2026)
   - Full homepage redesign per `/app/COMMAND_CENTRE_V2_SPEC.md`. Sections in strict priority order: **Dynamic Greeting → Attention Required → Today's Work → Business Snapshot → Quick Actions → Continue Working → Recent Projects**.
   - **Greeting**: Time-of-day-aware (Morning/Afternoon/Evening based on local browser time, with correct overnight handling), pulls `firstName` → falls back to first token of `fullName` → "Welcome back." if neither. Sub-line rotates deterministically per calendar day from a curated list.
