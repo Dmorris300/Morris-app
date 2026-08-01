@@ -1,348 +1,399 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+// Morris Command Centre V2 — the daily workspace.
+// Six sections, in this priority order:
+//   1. Dynamic greeting
+//   2. Attention Required (highest priority, from /api/attention)
+//   3. Today's Work (continuation cards)
+//   4. Business Snapshot (four compact metrics)
+//   5. Quick Actions (curated 10)
+//   6. Continue Working (mixed feed: projects + drafts + docs)
+//   7. Recent Projects
+//
+// Full spec: /app/COMMAND_CENTRE_V2_SPEC.md
+
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import api from "../lib/api";
-import { TOOLS, WOW_TOOLS, emojiFor, getToolById } from "../lib/tools-config";
-import { recommendationsFor } from "../lib/trade-recommendations";
-import { Star, FileText, Mic, Camera, Calculator, ArrowRight, TrendingUp, Clock, HardHat, AlertTriangle, ShieldCheck, IdCard, PiggyBank, Receipt, Wallet, Gauge, Hammer, Plus, Briefcase } from "lucide-react";
-import { thisTaxYear, aggregateCis, refundCalc, taxPotFor, fGBPnoDp, currentTaxYearLabel } from "../lib/finance";
+import { getToolById } from "../lib/tools-config";
+import {
+  AlertTriangle, ArrowRight, CheckCircle2, Clock, FileText, Hammer, Images,
+  Briefcase, ClipboardList, HardHat, Receipt, Truck, Wallet, Loader2,
+  MapPin,
+} from "lucide-react";
 
-// ---------- Command Centre helpers ----------
-function daysUntil(iso) {
-  if (!iso) return null;
-  const target = new Date(iso);
-  if (isNaN(target.getTime())) return null;
-  const now = new Date();
-  return Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+// ---- Greeting helpers ----
+function greeting(now = new Date()) {
+  const h = now.getHours();
+  if (h >= 5 && h < 12) return "Morning";
+  if (h >= 12 && h < 17) return "Afternoon";
+  return "Evening";
+}
+// Deterministic sub-line based on the day of year so it changes daily but not per render.
+const SUBLINES = {
+  Morning: [
+    "Here's what needs your attention today.",
+    "Ready to get stuck in?",
+    "Let's get today's work moving.",
+    "Here's what's happening across your business today.",
+  ],
+  Afternoon: [
+    "Here's what needs your attention today.",
+    "How's the day going?",
+    "Let's keep the momentum up.",
+  ],
+  Evening: [
+    "Here's what needs your attention today.",
+    "Time to wrap up the day.",
+    "Here's what's still open.",
+  ],
+};
+function subline(period, seed) {
+  const list = SUBLINES[period];
+  const idx = Math.abs(seed) % list.length;
+  return list[idx];
+}
+function daySeed() {
+  const d = new Date();
+  return d.getFullYear() * 1000 + Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 86400000);
+}
+function firstName(user) {
+  if (user?.firstName) return user.firstName;
+  if (user?.fullName) return user.fullName.split(" ")[0];
+  return null;
 }
 
-// Returns "green" | "amber" | "red" | "unset"
-function expiryStatus(iso) {
-  if (!iso) return "unset";
-  const d = daysUntil(iso);
-  if (d === null) return "unset";
-  if (d < 30) return "red";
-  if (d <= 60) return "amber";
-  return "green";
-}
+const fGBP = (n) => `£${Number(n || 0).toLocaleString("en-GB", { maximumFractionDigits: 0 })}`;
 
-function nextSADeadline() {
-  // 31 January following each tax year end
-  const now = new Date();
-  const thisYearDeadline = new Date(now.getFullYear(), 0, 31); // 31 Jan this year
-  return now > thisYearDeadline
-    ? new Date(now.getFullYear() + 1, 0, 31)
-    : thisYearDeadline;
-}
+// ---- Quick Actions (curated 10, spec-driven) ----
+const QUICK_ACTIONS = [
+  { id: "jobs",                  label: "Jobs",        icon: Briefcase,    to: "/app/jobs" },
+  { id: "cis-invoice",           label: "Invoice",     icon: Receipt,      to: "/app/tool/cis-invoice" },
+  { id: "quote-builder",         label: "Quote",       icon: FileText,     to: "/app/tool/quote-builder" },
+  { id: "variation-letter",      label: "Variation",   icon: FileText,     to: "/app/tool/variation-letter" },
+  { id: "rams",                  label: "RAMS",        icon: HardHat,      to: "/app/rams" },
+  { id: "multiuser-site-diary",  label: "Site Diary",  icon: ClipboardList,to: "/app/multiuser-site-diary" },
+  { id: "toolbox-talk",          label: "Toolbox",     icon: HardHat,      to: "/app/tool/toolbox-talk" },
+  { id: "mileage",               label: "Mileage",     icon: Truck,        to: "/app/mileage" },
+  { id: "commercial-report",     label: "Report",      icon: FileText,     to: "/app/commercial-report" },
+  { id: "application-for-payment", label: "Application", icon: Receipt,    to: "/app/tool/application-for-payment" },
+];
 
-const STATUS_STYLES = {
-  green: { fg: "#5BC97A", bg: "rgba(91,201,122,0.06)", border: "rgba(91,201,122,0.35)" },
-  amber: { fg: "#E8A020", bg: "rgba(232,160,32,0.06)", border: "rgba(232,160,32,0.35)" },
-  red:   { fg: "#E5635A", bg: "rgba(229,99,90,0.06)",  border: "rgba(229,99,90,0.4)" },
-  unset: { fg: "#706D66", bg: "rgba(112,109,102,0.05)", border: "rgba(112,109,102,0.25)" },
+const SEVERITY_STYLES = {
+  urgent:  { fg: "#E5635A", border: "rgba(229,99,90,0.4)",  bg: "rgba(229,99,90,0.05)",  dot: "#E5635A" },
+  warning: { fg: "#E8A020", border: "rgba(232,160,32,0.4)", bg: "rgba(232,160,32,0.05)", dot: "#E8A020" },
+  info:    { fg: "#A19D94", border: "rgba(240,237,232,0.12)", bg: "rgba(240,237,232,0.02)", dot: "#706D66" },
 };
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const [docs, setDocs] = useState([]);
-  const [cis, setCis] = useState([]);
+  const navigate = useNavigate();
+  const [attention, setAttention] = useState(null);   // null = loading
   const [jobs, setJobs] = useState([]);
+  const [drafts, setDrafts] = useState([]);
+  const [docs, setDocs] = useState([]);
+  const [mediaStats, setMediaStats] = useState({ total: 0 });
 
-  // Empty-state prompts on the Command Centre are only shown on the user's
-  // first ever visit. The flag is keyed to the user id so a second account
-  // on the same device still sees the welcome prompts once.
-  const seenKey = user?.id ? `morris_cc_seen_${user.id}` : "morris_cc_seen";
-  const [hideEmptyPrompts, setHideEmptyPrompts] = useState(() => {
-    try { return !!localStorage.getItem(seenKey); } catch { return false; }
-  });
-
+  // Load everything in parallel.
   useEffect(() => {
-    api.get("/documents").then(r => setDocs(r.data)).catch((e) => { if (process.env.NODE_ENV !== "production") console.error("Documents load failed", e); });
-    api.get("/cis/payments").then(r => setCis(r.data)).catch((e) => { if (process.env.NODE_ENV !== "production") console.error("CIS payments load failed", e); });
-    api.get("/jobs").then(r => setJobs(r.data)).catch((e) => { if (process.env.NODE_ENV !== "production") console.error("Jobs load failed", e); });
-    // Mark this user as having seen the Command Centre. From the NEXT
-    // dashboard mount onwards (next login, refresh after navigation, etc.)
-    // the empty-state prompts will be suppressed automatically.
-    try { localStorage.setItem(seenKey, String(Date.now())); } catch { /* ignore */ }
-  }, [seenKey]);
+    api.get("/attention").then((r) => setAttention(r.data.items || [])).catch(() => setAttention([]));
+    api.get("/jobs").then((r) => setJobs(r.data || [])).catch(() => setJobs([]));
+    api.get("/drafts").then((r) => setDrafts(r.data || [])).catch(() => setDrafts([]));
+    api.get("/documents").then((r) => setDocs(r.data || [])).catch(() => setDocs([]));
+    api.get("/media/stats").then((r) => setMediaStats(r.data || { total: 0 })).catch(() => {});
+  }, []);
 
-  const favs = (user?.favourites || []).map(id => [...TOOLS, ...WOW_TOOLS].find(t => t.id === id)).filter(Boolean);
-  const recent = (user?.recentlyUsed || []).map(id => [...TOOLS, ...WOW_TOOLS].find(t => t.id === id)).filter(Boolean);
-  const recIds = recommendationsFor(user?.trade);
-  const recommended = recIds.map(id => getToolById(id)).filter(Boolean);
+  const period = greeting();
+  const name = firstName(user);
+  const sub = subline(period, daySeed());
 
-  // ---------- Command Centre figures (all tax-year aware) ----------
-  const ytdCis = thisTaxYear(cis);
-  const totals = aggregateCis(ytdCis);
-  const taxPot = taxPotFor(totals.net);
-  const calc = refundCalc({
-    grossLabourYtd: totals.grossLabour,
-    materialsYtd: totals.materials,
-    cisDeductedYtd: totals.deduction,
-  });
-  // Show refund estimate (£0 if owed); separate display for owed below if needed.
-  const cisRefundEstimate = calc.refund;
+  // ---- Business snapshot ----
+  const invoicedJobs = jobs.filter((j) => j.status === "invoiced");
+  const outstanding = invoicedJobs.reduce((a, j) => a + (Number(j.contractValue) || 0), 0);
+  const activeJobs = jobs.filter((j) => j.status === "active").length;
+  const openDocs = drafts.length + Math.max(0, (docs || []).length);
 
-  // Job tracker → finance integration
-  // Outstanding invoices = sum of invoiced jobs (not paid, not disputed)
-  const invoicedJobs = jobs.filter(j => j.status === "invoiced");
-  const disputedJobs = jobs.filter(j => j.status === "disputed");
-  const paidJobs = jobs.filter(j => j.status === "paid");
-  const outstandingInvoiced = invoicedJobs.reduce((a, j) => a + (Number(j.contractValue) || 0), 0);
-  const outstandingDisputed = disputedJobs.reduce((a, j) => a + (Number(j.contractValue) || 0), 0);
-  const paidYtdFromJobs = paidJobs.reduce((a, j) => a + (Number(j.contractValue) || 0), 0);
-  const earningsYtd = totals.grossLabour + paidYtdFromJobs;
-  const activeJobs = jobs.filter(j => j.status === "active").length;
+  // ---- Today's Work ----
+  // Active jobs touched in the last 3 days + fresh drafts (last 7 days).
+  const todayItems = useMemo(() => {
+    const now = Date.now();
+    const activeRecent = jobs
+      .filter((j) => j.status === "active")
+      .filter((j) => {
+        const t = new Date(j.updatedAt || j.createdAt || 0).getTime();
+        return t && (now - t) < 1000 * 60 * 60 * 24 * 3;
+      })
+      .slice(0, 4);
+    const freshDrafts = drafts
+      .filter((d) => {
+        const t = new Date(d.updatedAt || 0).getTime();
+        return t && (now - t) < 1000 * 60 * 60 * 24 * 7;
+      })
+      .slice(0, 4);
+    return { activeRecent, freshDrafts };
+  }, [jobs, drafts]);
 
-  const insuranceStatus = expiryStatus(user?.insuranceExpiry);
-  const cscsStatus = expiryStatus(user?.cscsExpiry);
-  const insuranceDays = daysUntil(user?.insuranceExpiry);
-  const cscsDays = daysUntil(user?.cscsExpiry);
+  // ---- Continue Working (dedup mixed feed) ----
+  const continueList = useMemo(() => {
+    const seen = new Set();
+    const out = [];
+    for (const d of drafts.slice(0, 8)) {
+      const key = `draft:${d.id}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const tool = getToolById(d.toolId);
+      out.push({
+        key, kind: "draft",
+        title: d.toolName || tool?.name || d.toolId,
+        subtitle: "Draft in progress",
+        updatedAt: d.updatedAt,
+        route: `/app/drafts`,
+      });
+    }
+    for (const doc of (docs || []).slice(0, 8)) {
+      const key = `doc:${doc.id || doc._id}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({
+        key, kind: "doc",
+        title: doc.title || "Document",
+        subtitle: doc.toolId ? `${getToolById(doc.toolId)?.name || doc.toolId}` : "Saved document",
+        updatedAt: doc.createdAt || doc.updatedAt,
+        route: `/app/history`,
+      });
+    }
+    return out
+      .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0))
+      .slice(0, 5);
+  }, [drafts, docs]);
 
-  const saDeadline = nextSADeadline();
-  const saDays = daysUntil(saDeadline.toISOString().slice(0, 10));
-  const recentDocs = docs.slice(0, 5);
-
-  const formatGBP = (n) => fGBPnoDp(n);
+  // ---- Recent Projects ----
+  const pinned = jobs.filter((j) => j.pinned);
+  const active = jobs.filter((j) => j.status === "active" && !j.pinned).slice(0, 6);
 
   return (
     <div className="p-6 md:p-10 max-w-7xl mx-auto" data-testid="dashboard-page">
-      <div className="mb-8">
-        <div className="text-[#E8A020] text-xs uppercase tracking-widest mb-2">Command Centre · Tax year {currentTaxYearLabel()}</div>
-        <h1 className="font-display text-5xl md:text-6xl" data-testid="welcome-name">
-          {user?.fullName ? `Hello, ${user.fullName.split(" ")[0]}.` : "Hello."}
+
+      {/* -------- Greeting -------- */}
+      <header className="mb-10" data-testid="cc-greeting">
+        <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl leading-tight text-[#F0EDE8]" data-testid="welcome-name">
+          {name ? `${period}, ${name}.` : `Welcome back.`}
         </h1>
-        <p className="text-[#A19D94] mt-3 text-sm" data-testid="cc-trade-line">
-          <span className="text-[#F0EDE8]">{user?.trade || "Trade not set"}</span>
-          {user?.companyName ? <> <span className="text-[#706D66]">·</span> <span className="text-[#F0EDE8]">{user.companyName}</span></> : null}
-        </p>
-      </div>
+        <p className="text-[#A19D94] text-base mt-3" data-testid="cc-subline">{sub}</p>
+      </header>
 
-      {/* ---------- Command Centre top grid ---------- */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4" data-testid="command-centre-stats">
-        <FinanceCard
-          label="Tax pot to set aside"
-          value={formatGBP(taxPot)}
-          subtitle="8% of net cash received"
-          icon={<PiggyBank size={16} />}
-          to="/app/taxpot"
-          testId="cc-tax-pot"
-        />
-        <FinanceCard
-          label={calc.delta >= 0 ? "CIS refund estimate" : "Tax owed estimate"}
-          value={formatGBP(Math.abs(calc.delta))}
-          subtitle={`Of ${formatGBP(totals.deduction)} deducted`}
-          icon={<Receipt size={16} />}
-          to="/app/cis-predictor"
-          testId="cc-cis-refund"
-          warn={calc.delta < 0}
-        />
-        <FinanceCard
-          label="Outstanding invoices"
-          value={formatGBP(outstandingInvoiced)}
-          subtitle={
-            jobs.length > 0
-              ? `${invoicedJobs.length} invoiced${outstandingDisputed > 0 ? ` · ${disputedJobs.length} disputed (${formatGBP(outstandingDisputed)})` : ""}`
-              : "Create a job to track"
-          }
-          icon={<Wallet size={16} />}
-          to="/app/jobs"
-          testId="cc-outstanding"
-          muted={jobs.length === 0}
-        />
-        <FinanceCard
-          label="Earnings YTD"
-          value={formatGBP(earningsYtd)}
-          subtitle={`${ytdCis.length} CIS payment${ytdCis.length === 1 ? "" : "s"}${paidJobs.length > 0 ? ` · ${paidJobs.length} paid job${paidJobs.length === 1 ? "" : "s"}` : ""}`}
-          icon={<Gauge size={16} />}
-          to="/app/earnings"
-          testId="cc-earnings"
-        />
-      </div>
-
-      {/* ---------- Expiry & deadline strip ---------- */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6" data-testid="command-centre-expiries">
-        <ExpiryCard
-          label="Public liability insurance"
-          status={insuranceStatus}
-          dateStr={user?.insuranceExpiry}
-          days={insuranceDays}
-          icon={<ShieldCheck size={16} />}
-          ctaTo="/app/profile"
-          testId="cc-insurance"
-        />
-        <ExpiryCard
-          label="CSCS card"
-          status={cscsStatus}
-          dateStr={user?.cscsExpiry}
-          days={cscsDays}
-          icon={<IdCard size={16} />}
-          ctaTo="/app/profile"
-          testId="cc-cscs"
-        />
-        <ExpiryCard
-          label="Self assessment"
-          status={saDays !== null && saDays < 30 ? "amber" : "green"}
-          dateStr={saDeadline.toISOString().slice(0, 10)}
-          days={saDays}
-          icon={<AlertTriangle size={16} />}
-          ctaTo="/app/tool/self-assessment-prep"
-          testId="cc-sa"
-        />
-      </div>
-
-      {/* ---------- Quick actions ---------- */}
-      <div className="mb-10">
-        <div className="text-[10px] uppercase tracking-[0.25em] text-[#706D66] mb-3">Quick actions</div>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3" data-testid="command-centre-quick-actions">
-          <QuickAction to="/app/jobs" icon={<Briefcase size={18} />} label="Jobs" testId="qa-jobs" />
-          <QuickAction to="/app/tool/cis-invoice" icon={<Receipt size={18} />} label="New invoice" testId="qa-invoice" />
-          <QuickAction to="/app/tool/variation-letter" icon={<Plus size={18} />} label="New variation" testId="qa-variation" />
-          <QuickAction to="/app/tool/rams" icon={<Hammer size={18} />} label="New RAMS" testId="qa-rams" />
-          <QuickAction to="/app/mileage" icon={<TrendingUp size={18} />} label="Log mileage" testId="qa-mileage" />
-        </div>
-      </div>
-
-      {/* ---------- Recent documents ---------- */}
-      {recentDocs.length > 0 && (
-        <div className="mb-10" data-testid="command-centre-recent-docs">
-          <h2 className="font-display text-3xl mb-4 flex items-center gap-3"><FileText size={20} className="text-[#E8A020]" /> Recent documents</h2>
-          <div className="card-dark divide-y divide-[#1a1a1a]">
-            {recentDocs.map(d => (
-              <Link key={d.id} to="/app/history" className="flex items-center justify-between p-4 hover:bg-[#0e0e0e] transition" data-testid={`recent-doc-${d.id}`}>
-                <div>
-                  <div className="text-sm font-semibold text-[#F0EDE8]">{d.title}</div>
-                  <div className="text-xs text-[#706D66] mt-1">{d.refNumber ? `${d.refNumber} · ` : ""}{new Date(d.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</div>
-                </div>
-                <ArrowRight size={14} className="text-[#706D66]" />
-              </Link>
-            ))}
+      {/* -------- 1. Attention Required -------- */}
+      <Section title="Attention Required" testId="cc-attention">
+        {attention === null ? (
+          <div className="py-8 text-[#706D66] text-sm inline-flex items-center gap-2"><Loader2 size={14} className="animate-spin" /> Working out what needs your eyes…</div>
+        ) : attention.length === 0 ? (
+          <div className="card-dark p-6 flex items-start gap-3" data-testid="cc-attention-empty">
+            <CheckCircle2 size={22} className="text-[#5BC97A] shrink-0 mt-0.5" />
+            <div>
+              <div className="text-[#F0EDE8] text-base">Everything looks good today.</div>
+              <div className="text-[#A19D94] text-sm mt-1">Enjoy the peace — or start something new below.</div>
+            </div>
           </div>
-        </div>
-      )}
-
-      <div className="mb-10">
-        <h2 className="font-display text-3xl mb-4">What Morris offers</h2>
-        <div className="grid md:grid-cols-3 gap-4">
-          <BigCard to="/app/wow/verbal-to-variation" icon={<Mic size={24} />} title="Verbal to Variation" desc="Talk it. Send it." testId="dash-wow-verbal" />
-          <BigCard to="/app/wow/photo-to-document" icon={<Camera size={24} />} title="Photo to Document" desc="Snap a scribble. Get a doc." testId="dash-wow-photo" />
-          <BigCard to="/app/cis-predictor" icon={<Calculator size={24} />} title="CIS Refund Predictor" desc="See what HMRC owes you." testId="dash-wow-cis" />
-        </div>
-      </div>
-
-      {user?.trade && recommended.length > 0 && (
-        <div className="mb-10" data-testid="dash-recommendations">
-          <div className="flex items-end justify-between flex-wrap gap-2 mb-4">
-            <h2 className="font-display text-3xl flex items-center gap-3"><HardHat size={20} className="text-[#E8A020]" /> Recommended for {user.trade}</h2>
-            <p className="text-xs text-[#706D66]">The paperwork most tradesmen in your trade reach for.</p>
-          </div>
-          <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-3">
-            {recommended.slice(0, 8).map(t => (
-              <Link key={"rec-" + t.id} to={t.route || `/app/tool/${t.id}`} className="card-dark p-4 hover:border-[#E8A020]/40 transition" data-testid={`dash-rec-${t.id}`}>
-                <div className="text-2xl mb-2">{emojiFor(t.id)}</div>
-                <div className="text-sm font-semibold leading-tight">{t.name}</div>
-                <div className="text-xs text-[#706D66] mt-1 capitalize">{t.section}</div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {recent.length > 0 && (
-        <div className="mb-10">
-          <h2 className="font-display text-3xl mb-4 flex items-center gap-3"><Clock size={20} className="text-[#E8A020]" /> Recently used</h2>
-          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
-            {recent.map(t => (
-              <Link key={"r-" + t.id} to={t.route || `/app/tool/${t.id}`} className="card-dark p-4 hover:border-[#E8A020]/40 transition" data-testid={`dash-recent-${t.id}`}>
-                <div className="text-sm font-semibold flex items-center gap-2"><span className="text-lg">{emojiFor(t.id)}</span> {t.name}</div>
-                <div className="text-xs text-[#706D66] mt-1 capitalize">{t.section}</div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div>
-        <h2 className="font-display text-3xl mb-4 flex items-center gap-3"><Star size={20} className="text-[#E8A020]" /> Favourites</h2>
-        {favs.length === 0 ? (
-          <div className="card-dark p-6 text-sm text-[#706D66]">Star a tool from its header to pin it here.</div>
         ) : (
-          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
-            {favs.map(t => (
-              <Link key={"f-" + t.id} to={t.route || `/app/tool/${t.id}`} className="card-dark p-4 hover:border-[#E8A020]/40 transition" data-testid={`dash-fav-${t.id}`}>
-                <div className="text-sm font-semibold flex items-center gap-2"><span className="text-lg">{emojiFor(t.id)}</span> {t.name}</div>
-                <div className="text-xs text-[#706D66] mt-1 capitalize">{t.section}</div>
-              </Link>
+          <div className="space-y-2" data-testid="cc-attention-list">
+            {attention.slice(0, 8).map((it) => (
+              <AttentionRow key={it.id} item={it} onOpen={() => navigate(it.actionRoute)} />
             ))}
+            {attention.length > 8 && (
+              <Link to="/app/attention" className="text-xs text-[#E8A020] hover:text-[#F0B040] inline-flex items-center gap-1 mt-2" data-testid="cc-attention-see-all">
+                Show all {attention.length} attention items <ArrowRight size={12} />
+              </Link>
+            )}
           </div>
         )}
-      </div>
+      </Section>
+
+      {/* -------- 2. Today's Work -------- */}
+      {(todayItems.activeRecent.length + todayItems.freshDrafts.length) > 0 && (
+        <Section title="Today's Work" testId="cc-today">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3" data-testid="cc-today-grid">
+            {todayItems.activeRecent.map((j) => (
+              <TodayCard
+                key={`job-${j.id}`}
+                title={j.clientName || j.ref}
+                subtitle={j.address ? j.address : "Active project"}
+                actionLabel="Continue"
+                onAction={() => navigate(`/app/jobs/${j.id}`)}
+                testId={`cc-today-job-${j.id}`}
+              />
+            ))}
+            {todayItems.freshDrafts.map((d) => (
+              <TodayCard
+                key={`draft-${d.id}`}
+                title={d.toolName || d.toolId}
+                subtitle={`Draft · updated ${timeAgo(d.updatedAt)}`}
+                actionLabel="Resume"
+                onAction={() => navigate(`/app/drafts`)}
+                testId={`cc-today-draft-${d.id}`}
+              />
+            ))}
+          </div>
+        </Section>
+      )}
+
+      {/* -------- 3. Business Snapshot -------- */}
+      <Section title="Business Snapshot" testId="cc-snapshot">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3" data-testid="cc-snapshot-grid">
+          <SnapshotTile label="Outstanding" value={fGBP(outstanding)} sub={`${invoicedJobs.length} invoice${invoicedJobs.length === 1 ? "" : "s"}`} to="/app/finance" testId="cc-snap-outstanding" />
+          <SnapshotTile label="Active Projects" value={activeJobs} sub="in progress" to="/app/jobs" testId="cc-snap-projects" />
+          <SnapshotTile label="Open Documents" value={openDocs} sub="drafts + saved" to="/app/drafts" testId="cc-snap-docs" />
+          <SnapshotTile label="Media Stored" value={mediaStats.total || 0} sub="photos & videos" to="/app/photo-vault" testId="cc-snap-media" />
+        </div>
+      </Section>
+
+      {/* -------- 4. Quick Actions -------- */}
+      <Section
+        title="Quick Actions"
+        testId="cc-quick"
+        rightSlot={<Link to="/app/tools-library" className="text-xs text-[#E8A020] hover:text-[#F0B040] inline-flex items-center gap-1" data-testid="cc-see-all-tools">See all tools <ArrowRight size={12} /></Link>}
+      >
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2" data-testid="cc-quick-grid">
+          {QUICK_ACTIONS.map((qa) => {
+            const Icon = qa.icon;
+            return (
+              <Link key={qa.id} to={qa.to} className="card-dark p-4 hover:border-[#E8A020]/40 transition flex flex-col items-center justify-center text-center gap-2 min-h-[92px]" data-testid={`cc-quick-${qa.id}`}>
+                <Icon size={18} className="text-[#E8A020]" />
+                <span className="text-xs text-[#F0EDE8]">{qa.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </Section>
+
+      {/* -------- 5. Continue Working -------- */}
+      {continueList.length > 0 && (
+        <Section title="Continue Working" testId="cc-continue">
+          <div className="divide-y divide-[#F0EDE8]/5 border border-[#F0EDE8]/5 rounded-md bg-[#0d0d0d]" data-testid="cc-continue-list">
+            {continueList.map((c) => (
+              <button
+                key={c.key}
+                onClick={() => navigate(c.route)}
+                className="w-full flex items-center justify-between gap-3 p-3 hover:bg-[#141414] text-left"
+                data-testid={`cc-continue-${c.key.replace(/[^a-z0-9-]/gi, "")}`}
+              >
+                <div className="min-w-0">
+                  <div className="text-sm text-[#F0EDE8] truncate">{c.title}</div>
+                  <div className="text-xs text-[#706D66]">{c.subtitle} · {timeAgo(c.updatedAt)}</div>
+                </div>
+                <ArrowRight size={14} className="text-[#706D66]" />
+              </button>
+            ))}
+          </div>
+        </Section>
+      )}
+
+      {/* -------- 6. Recent Projects -------- */}
+      {(pinned.length + active.length) > 0 && (
+        <Section title="Recent Projects" testId="cc-projects" rightSlot={<Link to="/app/jobs" className="text-xs text-[#E8A020] hover:text-[#F0B040] inline-flex items-center gap-1" data-testid="cc-projects-see-all">All projects <ArrowRight size={12} /></Link>}>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3" data-testid="cc-projects-grid">
+            {pinned.map((j) => <ProjectCard key={j.id} job={j} pinned />)}
+            {active.map((j) => <ProjectCard key={j.id} job={j} />)}
+          </div>
+        </Section>
+      )}
     </div>
   );
 }
 
-function FinanceCard({ label, value, subtitle, icon, to, testId, muted, warn }) {
-  return (
-    <Link
-      to={to}
-      className={`card-dark p-4 hover:border-[#E8A020]/40 transition block ${muted ? "opacity-70" : ""}`}
-      data-testid={testId}
-    >
-      <div className={`flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] mb-2 ${warn ? "text-[#E5635A]" : "text-[#E8A020]"}`}>{icon}{label}</div>
-      <div className="font-display text-3xl leading-tight" style={{ color: warn ? "#E5635A" : "#F0EDE8" }}>{value}</div>
-      <div className="text-[10px] text-[#706D66] mt-1">{subtitle}</div>
-    </Link>
-  );
-}
+// ---- Sub-components ----
 
-function ExpiryCard({ label, status, dateStr, days, icon, ctaTo, testId }) {
-  const s = STATUS_STYLES[status] || STATUS_STYLES.unset;
-  let detail;
-  if (status === "unset") {
-    detail = "Not set — tap to add";
-  } else if (days < 0) {
-    detail = `Expired ${Math.abs(days)} day${Math.abs(days) === 1 ? "" : "s"} ago`;
-  } else {
-    detail = `${days} day${days === 1 ? "" : "s"} left`;
-  }
+function Section({ title, children, testId, rightSlot }) {
   return (
-    <Link
-      to={ctaTo}
-      className="block p-4 rounded transition hover:opacity-90"
-      style={{ border: `1px solid ${s.border}`, background: s.bg }}
-      data-testid={testId}
-    >
-      <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] mb-2" style={{ color: s.fg }}>
-        {icon}{label}
+    <section className="mb-10" data-testid={testId}>
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-[10px] uppercase tracking-[0.25em] text-[#E8A020]">{title}</h2>
+        {rightSlot}
       </div>
-      <div className="text-sm font-semibold text-[#F0EDE8] mb-1">
-        {dateStr ? new Date(dateStr).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "Add an expiry date"}
-      </div>
-      <div className="text-[10px]" style={{ color: s.fg }}>{detail}</div>
-    </Link>
+      {children}
+    </section>
   );
 }
 
-function QuickAction({ to, icon, label, testId }) {
+function AttentionRow({ item, onOpen }) {
+  const s = SEVERITY_STYLES[item.severity] || SEVERITY_STYLES.info;
   return (
-    <Link
-      to={to}
-      className="card-dark p-4 hover:border-[#E8A020]/40 transition flex items-center gap-3"
-      data-testid={testId}
+    <div
+      className="flex items-start gap-3 p-3 rounded-md border"
+      style={{ borderColor: s.border, background: s.bg }}
+      data-testid={`cc-attention-item-${item.kind}-${item.projectId || "none"}`}
     >
-      <div className="w-9 h-9 rounded flex items-center justify-center text-[#E8A020]" style={{ border: "1px solid rgba(232,160,32,0.3)", background: "rgba(232,160,32,0.06)" }}>{icon}</div>
-      <div className="text-sm font-semibold text-[#F0EDE8]">{label}</div>
+      <span className="w-2 h-2 rounded-full mt-2 shrink-0" style={{ background: s.dot }} />
+      <div className="flex-1 min-w-0">
+        <div className="text-sm text-[#F0EDE8]">{item.title}</div>
+        {item.subtitle && <div className="text-xs text-[#A19D94] mt-0.5 truncate">{item.subtitle}</div>}
+      </div>
+      <button
+        onClick={onOpen}
+        className="text-xs px-3 py-1.5 rounded border hover:bg-[#141414] shrink-0"
+        style={{ color: s.fg, borderColor: s.border }}
+        data-testid={`cc-attention-action-${item.kind}-${item.projectId || "none"}`}
+      >
+        {item.actionLabel}
+      </button>
+    </div>
+  );
+}
+
+function TodayCard({ title, subtitle, actionLabel, onAction, testId }) {
+  return (
+    <div className="card-dark p-4" data-testid={testId}>
+      <div className="text-sm text-[#F0EDE8] font-medium truncate">{title}</div>
+      <div className="text-xs text-[#A19D94] mt-1 truncate">{subtitle}</div>
+      <button onClick={onAction} className="mt-3 text-xs text-[#E8A020] inline-flex items-center gap-1 hover:text-[#F0B040]">
+        {actionLabel} <ArrowRight size={12} />
+      </button>
+    </div>
+  );
+}
+
+function SnapshotTile({ label, value, sub, to, testId }) {
+  return (
+    <Link to={to} className="card-dark p-4 hover:border-[#E8A020]/40 transition block" data-testid={testId}>
+      <div className="text-[10px] uppercase tracking-widest text-[#706D66] mb-1">{label}</div>
+      <div className="text-2xl text-[#F0EDE8] font-display">{value}</div>
+      {sub && <div className="text-[10px] text-[#A19D94] mt-1">{sub}</div>}
     </Link>
   );
 }
 
-function BigCard({ to, icon, title, desc, testId }) {
+function ProjectCard({ job, pinned }) {
+  const s = STATUS_COLORS[job.status] || STATUS_COLORS.active;
   return (
-    <Link to={to} className="card-dark p-6 hover:border-[#E8A020]/40 transition group block" data-testid={testId}>
-      <div className="text-[#E8A020] mb-3">{icon}</div>
-      <div className="font-display text-2xl tracking-wide">{title}</div>
-      <div className="text-sm text-[#A19D94] mt-1">{desc}</div>
-      <div className="mt-3 flex items-center gap-1 text-xs text-[#E8A020] opacity-0 group-hover:opacity-100 transition">Open <ArrowRight size={12} /></div>
+    <Link to={`/app/jobs/${job.id}`} className="card-dark p-4 hover:border-[#E8A020]/40 transition block" data-testid={`cc-project-${job.id}`}>
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <span className="text-[9px] uppercase tracking-[0.2em] text-[#706D66]">{job.ref || (pinned ? "Pinned" : "")}</span>
+        <span className="text-[9px] uppercase tracking-[0.2em] px-2 py-0.5 rounded-full" style={{ color: s.fg, background: s.bg, border: `1px solid ${s.border}` }}>{job.status}</span>
+      </div>
+      <div className="text-sm text-[#F0EDE8] font-medium truncate">{job.clientName}</div>
+      {job.address && <div className="text-xs text-[#A19D94] mt-1 truncate flex items-center gap-1"><MapPin size={10} /> {job.address}</div>}
+      <div className="flex items-center gap-2 mt-3 pt-3 border-t border-[#1a1a1a] text-xs">
+        <span className="text-[#706D66]">{job.contractValue ? fGBP(job.contractValue) : "—"}</span>
+        <span className="ml-auto text-[#706D66] inline-flex items-center gap-2">
+          <Link to={`/app/photo-vault?jobId=${encodeURIComponent(job.id)}`} onClick={(e) => e.stopPropagation()} className="hover:text-[#E8A020] inline-flex items-center gap-1" data-testid={`cc-project-photos-${job.id}`}><Images size={11} /> Photos</Link>
+        </span>
+      </div>
     </Link>
   );
+}
+
+const STATUS_COLORS = {
+  active:   { fg: "#5BC97A", bg: "rgba(91,201,122,0.06)", border: "rgba(91,201,122,0.35)" },
+  invoiced: { fg: "#E8A020", bg: "rgba(232,160,32,0.06)", border: "rgba(232,160,32,0.35)" },
+  disputed: { fg: "#E5635A", bg: "rgba(229,99,90,0.06)",  border: "rgba(229,99,90,0.4)" },
+  paid:     { fg: "#A19D94", bg: "rgba(240,237,232,0.05)", border: "rgba(240,237,232,0.15)" },
+};
+
+function timeAgo(iso) {
+  if (!iso) return "";
+  const t = new Date(iso).getTime();
+  if (!t) return "";
+  const s = Math.max(0, Math.floor((Date.now() - t) / 1000));
+  if (s < 60) return "just now";
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  return `${Math.floor(s / 86400)}d ago`;
 }

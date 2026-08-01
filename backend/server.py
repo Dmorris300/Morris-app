@@ -20,6 +20,7 @@ from email_helper import (
 )
 from billing import build_router as build_billing_router, build_webhook_router, check_can_generate, record_usage, effective_plan
 from photo_vault import build_router as build_photo_vault_router, try_init_storage as try_init_photo_vault_storage
+from command_centre import build_router as build_command_centre_router
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -1549,6 +1550,9 @@ app.include_router(build_webhook_router(db, send_subscription_receipt))
 
 # Photo Vault (Emergent Object Storage backed media library)
 app.include_router(build_photo_vault_router(db, get_user))
+
+# Command Centre V2 (attention feed)
+app.include_router(build_command_centre_router(db, get_user))
 
 app.add_middleware(
     CORSMiddleware,

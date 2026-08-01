@@ -27,6 +27,17 @@ Dark-themed construction administration SaaS web application for UK tradespeople
 
 ## What's been implemented
 
+- ✅ **[FEATURE] Command Centre V2** (Feb 21, 2026)
+  - Full homepage redesign per `/app/COMMAND_CENTRE_V2_SPEC.md`. Sections in strict priority order: **Dynamic Greeting → Attention Required → Today's Work → Business Snapshot → Quick Actions → Continue Working → Recent Projects**.
+  - **Greeting**: Time-of-day-aware (Morning/Afternoon/Evening based on local browser time, with correct overnight handling), pulls `firstName` → falls back to first token of `fullName` → "Welcome back." if neither. Sub-line rotates deterministically per calendar day from a curated list.
+  - **Attention endpoint**: new `GET /api/attention` in `/app/backend/command_centre.py` — computes 9 alert types (overdue invoices, awaiting variations, chase-recommended, compliance expiring ≤30d, SA deadline <60d, unfinished RAMS, missing site diary after 17:00, no project photos after 7d, stale drafts >3d). Returns `{items, count, computedAt}` sorted by severity then dueAt. Zero guessing — every alert derives from stored data.
+  - **Overflow page** at `/app/attention` shown when >8 items exist.
+  - **Business Snapshot**: four compact tiles (Outstanding Payments, Active Projects, Open Documents, Media Stored) — each links to its detail hub. Tax Pot / CIS / Earnings are **removed from the homepage** and moved to the new Finance hub.
+  - **Quick Actions**: curated 10 (Jobs, Invoice, Quote, Variation, RAMS, Site Diary, Toolbox, Mileage, Report, Application). "See all tools →" link to the new Tools Library.
+  - **Hub routes** created (`/app/finance`, `/app/business`, `/app/compliance`, `/app/projects-hub`, `/app/tools-library`) via `/app/frontend/src/pages/Hubs.jsx` — each is a lightweight index of tiles linking to existing dedicated tools. No functional duplication.
+  - Old Dashboard.jsx (349 lines) replaced with the V2 layout. All existing routes still work — no breaking changes.
+  - Every interactive element has a unique kebab-case `data-testid` (`cc-attention-*`, `cc-quick-*`, `cc-snap-*`, `cc-project-*`, `hub-*`, `finance-tile-*`, etc.).
+
 - ✅ **[INFRA] Photo Vault — reusable infrastructure hardening** (Feb 21, 2026)
   - **First-class Albums**: `album` is now a proper metadata field on `media_items`. New `GET /api/media/albums` returns a distinct list with counts. Photo Vault sidebar has an "Albums" section with a user-defined album picker (auto-lists all albums the user has created). The detail modal has an "Album" text input with an HTML `<datalist>` suggesting existing album names. Album filtering supported via `section=album&album=<name>` or as a stand-alone filter. Independent of Projects — a photo can live in both an album and a project.
   - **`tool` field at upload time**: `AttachMedia` now forwards `toolId` as `tool` on every capture/upload. The detail modal shows a "Captured from RAMS" stamp under Date Taken when present. `list_media` accepts a `tool=<id>` filter.

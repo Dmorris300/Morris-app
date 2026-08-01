@@ -16,6 +16,8 @@ import GenericToolPage from "./pages/GenericToolPage";
 import VerbalToVariation from "./pages/VerbalToVariation";
 import PhotoToDocument from "./pages/PhotoToDocument";
 import PhotoVault from "./pages/PhotoVault";
+import AttentionPage from "./pages/AttentionPage";
+import { FinanceHub, BusinessHub, ComplianceHub, ProjectsHub, ToolsLibrary } from "./pages/Hubs";
 import Drafts from "./pages/Drafts";
 import CISRefundPredictor from "./pages/CISRefundPredictor";
 import MileageTracker from "./pages/MileageTracker";
@@ -141,6 +143,13 @@ function App() {
             <Route path="photo-vault" element={<ProfileGate><PhotoVault /></ProfileGate>} />
             {/* Legacy path — old "Site Photo Library" URL redirects into the Vault */}
             <Route path="site-photo-library" element={<Navigate to="/app/photo-vault" replace />} />
+            {/* Command Centre V2 — hubs + attention overflow */}
+            <Route path="attention" element={<ProfileGate><AttentionPage /></ProfileGate>} />
+            <Route path="finance" element={<ProfileGate><FinanceHub /></ProfileGate>} />
+            <Route path="business" element={<ProfileGate><BusinessHub /></ProfileGate>} />
+            <Route path="compliance" element={<ProfileGate><ComplianceHub /></ProfileGate>} />
+            <Route path="projects-hub" element={<ProfileGate><ProjectsHub /></ProfileGate>} />
+            <Route path="tools-library" element={<ProfileGate><ToolsLibrary /></ProfileGate>} />
             <Route path="drafts" element={<ProfileGate><Drafts /></ProfileGate>} />
             <Route path="cis-predictor" element={<ProfileGate><CISRefundPredictor /></ProfileGate>} />
             <Route path="mileage" element={<ProfileGate><MileageTracker /></ProfileGate>} />
