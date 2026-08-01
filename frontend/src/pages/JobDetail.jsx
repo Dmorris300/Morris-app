@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import api from "../lib/api";
 import { toast } from "sonner";
-import { ArrowLeft, FileText, Trash2, MapPin, Calendar, Wallet, AlertCircle, Save } from "lucide-react";
+import { ArrowLeft, FileText, Trash2, MapPin, Calendar, Wallet, AlertCircle, Save, Images } from "lucide-react";
 
 const STATUSES = ["active", "invoiced", "paid", "completed", "disputed"];
 const STATUS_COLORS = {
@@ -99,13 +99,22 @@ export default function JobDetail() {
             <div className="text-[10px] uppercase tracking-[0.25em] text-[#706D66] mb-2">{job.ref}</div>
             <h1 className="font-display text-4xl md:text-5xl">{job.clientName}</h1>
           </div>
-          <span
-            className="text-xs uppercase tracking-[0.25em] px-3 py-1 rounded-full"
-            style={{ color: s.fg, background: s.bg, border: `1px solid ${s.border}` }}
-            data-testid="job-status-pill"
-          >
-            {job.status}
-          </span>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Link
+              to={`/app/photo-vault?jobId=${encodeURIComponent(job.id)}`}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs uppercase tracking-widest text-[#E8A020] border border-[#E8A020]/40 hover:bg-[#E8A020]/10"
+              data-testid="job-view-photos"
+            >
+              <Images size={13} /> View project photos
+            </Link>
+            <span
+              className="text-xs uppercase tracking-[0.25em] px-3 py-1 rounded-full"
+              style={{ color: s.fg, background: s.bg, border: `1px solid ${s.border}` }}
+              data-testid="job-status-pill"
+            >
+              {job.status}
+            </span>
+          </div>
         </div>
 
         <div className="grid sm:grid-cols-3 gap-4 mt-6">

@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import api from "../lib/api";
 import { toast } from "sonner";
-import { Briefcase, Plus, ArrowRight, X } from "lucide-react";
+import { Briefcase, Plus, ArrowRight, X, Images } from "lucide-react";
 
 const STATUS_CHIPS = [
   { id: "all", label: "All" },
@@ -109,7 +109,13 @@ export default function Jobs() {
 }
 
 function JobCard({ job }) {
+  const navigate = useNavigate();
   const s = STATUS_COLORS[job.status] || STATUS_COLORS.active;
+  const openPhotos = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigate(`/app/photo-vault?jobId=${encodeURIComponent(job.id)}`);
+  };
   return (
     <Link to={`/app/jobs/${job.id}`} className="card-dark p-5 hover:border-[#E8A020]/40 transition block" data-testid={`job-card-${job.id}`}>
       <div className="flex items-center justify-between gap-2 mb-3">
@@ -125,7 +131,18 @@ function JobCard({ job }) {
       {job.address && <div className="text-xs text-[#A19D94] mb-3 line-clamp-1">{job.address}</div>}
       <div className="flex items-center justify-between text-xs text-[#706D66] pt-3 border-t border-[#1a1a1a]">
         <span>{job.contractValue ? `£${Number(job.contractValue).toLocaleString("en-GB")}` : "No value set"}</span>
-        <ArrowRight size={12} />
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={openPhotos}
+            className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] uppercase tracking-widest text-[#E8A020] border border-[#E8A020]/30 hover:bg-[#E8A020]/10"
+            title="View project photos in the Vault"
+            data-testid={`job-photos-${job.id}`}
+          >
+            <Images size={11} /> Photos
+          </button>
+          <ArrowRight size={12} />
+        </div>
       </div>
     </Link>
   );

@@ -6,7 +6,7 @@
 // project linking pulled from the user's Jobs list.
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
   Camera, Video, Upload, Search, Trash2, X, Star, StarOff, Play, Grid3x3,
@@ -33,16 +33,17 @@ const bytesLabel = (n) => {
 };
 
 export default function PhotoVault() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [section, setSection] = useState("all");
+  const [section, setSection] = useState(searchParams.get("jobId") ? "projects" : "all");
   const [category, setCategory] = useState("");
   const [q, setQuery] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [view, setView] = useState("grid");
   const [jobs, setJobs] = useState([]);
-  const [selectedJob, setSelectedJob] = useState("");
+  const [selectedJob, setSelectedJob] = useState(searchParams.get("jobId") || "");
   const [uploading, setUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState("");
   const [detail, setDetail] = useState(null);
