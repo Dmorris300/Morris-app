@@ -56,12 +56,14 @@ export default function PhotoVault() {
 
   // Load jobs once for the project dropdown.
   useEffect(() => {
-    api.get("/jobs").then((r) => setJobs(r.data || [])).catch(() => setJobs([]));
+    const loadJobs = () => api.get("/jobs").then((r) => setJobs(r.data || [])).catch(() => setJobs([]));
+    loadJobs();
+    window.addEventListener("morris:jobs-updated", loadJobs);
     queueSize().then(setPendingCount);
     const unsub = subscribeQueue(() => queueSize().then(setPendingCount));
     // Best-effort one-time migration of the retired Site Photo Library.
     migrateLegacyLibrary().then(() => queueSize().then(setPendingCount));
-    return unsub;
+    return () => { unsub(); window.removeEventListener("morris:jobs-updated", loadJobs); };
   }, []);
 
   const load = async () => {
@@ -82,11 +84,11 @@ export default function PhotoVault() {
     } finally { setLoading(false); }
   };
 
-  useEffect(() => { load(); }, [section, selectedJob, category, dateFrom, dateTo]);  // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, [section, selectedJob, category, dateFrom, dateTo]);
   useEffect(() => {
     const t = setTimeout(load, 250);
     return () => clearTimeout(t);
-  }, [q]);  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [q]);
 
   const handleFiles = async (fileList) => {
     const files = Array.from(fileList || []).filter((f) =>
@@ -446,10 +448,35 @@ function MediaDetail({ media, jobs, onClose, onUpdated, onDelete }) {
             </Field>
           )}
           <Field label="Project">
-            <select value={f.jobId} onChange={(e) => setF({ ...f, jobId: e.target.value })} className={inputCls} data-testid="vault-detail-project">
-              <option value="">— Unassigned —</option>
-              {jobs.map((j) => <option key={j.id} value={j.id}>{j.clientName || j.ref}</option>)}
-            </select>
+            <div className="flex gap-2">
+              <select
+                value={f.jobId}
+                onChange={(e) => {
+                  if (e.target.value === "__new__") {
+                    const name = window.prompt("New project — client or project name");
+                    if (!name || !name.trim()) return;
+                    api.post("/jobs", { clientName: name.trim() })
+                      .then((r) => {
+                        const created = r.data;
+                        // caller will refresh jobs list on next open
+                        setF((prev) => ({ ...prev, jobId: created.id, client: created.clientName || "" }));
+                        toast.success("Project created — remember to Save");
+                        // hint parent to reload jobs
+                        window.dispatchEvent(new CustomEvent("morris:jobs-updated"));
+                      })
+                      .catch(() => toast.error("Could not create project"));
+                    return;
+                  }
+                  setF({ ...f, jobId: e.target.value });
+                }}
+                className={inputCls}
+                data-testid="vault-detail-project"
+              >
+                <option value="">— Unassigned —</option>
+                <option value="__new__">+ Create new project…</option>
+                {jobs.map((j) => <option key={j.id} value={j.id}>{j.clientName || j.ref}</option>)}
+              </select>
+            </div>
           </Field>
           <Field label="Client"><input value={f.client} onChange={(e) => setF({ ...f, client: e.target.value })} className={inputCls} data-testid="vault-detail-client" /></Field>
           <Field label="Site / address"><input value={f.site} onChange={(e) => setF({ ...f, site: e.target.value })} className={inputCls} data-testid="vault-detail-site" /></Field>

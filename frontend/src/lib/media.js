@@ -63,6 +63,43 @@ export const removeUsage = (id, docId) => api.delete(`/media/${id}/usage/${docId
 export const deleteMedia = (id, { force = false } = {}) =>
   api.delete(`/media/${id}${force ? "?force=true" : ""}`).then((r) => r.data);
 
+// Convert Vault media items into the shape the PDF library's photo evidence
+// annex expects: [{ dataUrl, note, ukDate, time, location }]. For images we
+// fetch the full-size original; for videos we use the poster (or thumb) so
+// the PDF still gets a still frame + a "(Video)" note.
+export async function mediaListToPdfPhotos(list) {
+  if (!list || list.length === 0) return [];
+  const token = localStorage.getItem("morris_token") || "";
+  const out = [];
+  for (const m of list) {
+    try {
+      const variant = m.kind === "video" ? (m.posterPath ? "poster" : "thumb") : "original";
+      const url = `${API}/media/${m.id}/file?variant=${variant}&auth=${encodeURIComponent(token)}`;
+      const resp = await fetch(url);
+      if (!resp.ok) continue;
+      const blob = await resp.blob();
+      const dataUrl = await new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = () => res(r.result); r.onerror = rej;
+        r.readAsDataURL(blob);
+      });
+      const parts = [];
+      if (m.description) parts.push(m.description);
+      if (m.category) parts.push(m.category);
+      if (m.notes) parts.push(m.notes);
+      const note = parts.filter(Boolean).join(" — ") + (m.kind === "video" ? " (Video still)" : "");
+      out.push({
+        dataUrl,
+        note: note || m.originalFilename || "",
+        ukDate: m.dateTaken ? new Date(m.dateTaken).toLocaleDateString("en-GB") : "",
+        time: "",
+        location: m.site || "",
+      });
+    } catch { /* skip broken items — PDF still renders the rest */ }
+  }
+  return out;
+}
+
 // --- upload plumbing ---
 // Compress arbitrary image → JPEG blob capped at maxW/quality. Also returns a
 // 400px square thumbnail. Videos are uploaded as-is (poster generated separately).

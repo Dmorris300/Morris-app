@@ -27,6 +27,10 @@ Dark-themed construction administration SaaS web application for UK tradespeople
 
 ## What's been implemented
 
+- ✅ **[FEATURE] Photo Vault Phase 1 completion** (Feb 21, 2026)
+  - **PDF evidence embedding**: New helper `mediaListToPdfPhotos()` in `/app/frontend/src/lib/media.js` fetches attached Vault media (originals for images, posters for videos) as data-URLs and shapes them into the format the existing `appendPhotographicEvidence()` in `pdf.js` expects. `ResultActions` now accepts an optional `photosLoader` prop and awaits it before calling `downloadPdf()` — this keeps the fetch lazy (no bandwidth wasted on every render). GenericToolPage wires this in via a lazy `import()` so the media library only loads when the user actually downloads a PDF.
+  - **Create new project from the Vault**: Photo Vault detail modal's Project dropdown now has a "+ Create new project…" option that prompts for a client name, POSTs `/api/jobs`, dispatches a `morris:jobs-updated` event so the Vault refreshes its jobs list, and auto-selects the freshly created project on the media item. Meets Phase 1 spec: "Link every media item to Projects/Jobs, with the ability to create a new project if needed."
+
 - ✅ **[FEATURE] Photo Vault — central media library** (Feb 21, 2026)
   - **New Account tool**: `/app/photo-vault` — replaces the old browser-only "Site Photo Library" (200-item cap, localStorage). Old route `/app/site-photo-library` now `<Navigate replace>`s into the Vault.
   - **Backend**: `/app/backend/photo_vault.py` (450 lines) — full CRUD + usage-tracking API mounted at `/api/media/*`. Backed by Emergent Object Storage (`morris/media/{userId}/{uuid}.ext` layout, lazy `_init_storage()` with 403→re-init retry, X-Storage-Key header). MongoDB `media_items` collection with indexes on `(userId, createdAt)`, `(userId, jobId)`, `(userId, category)`, `(userId, favourite)`.

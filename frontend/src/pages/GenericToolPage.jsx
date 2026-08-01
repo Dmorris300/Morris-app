@@ -498,7 +498,7 @@ export default function GenericToolPage() {
           {result && (
             <>
               <div className="tool-result text-sm" data-testid="generated-content">{result}</div>
-              <ResultActions title={tool.name} content={result} toolId={tool.id} refNumber={refNumber} liveSignature={liveSignature} clientSignature={clientSignature} photo={attachedPhoto} photoCaption={attachedPhoto ? `Site photograph attached via Photo to Document.` : undefined} photos={attachedPhotos} />
+              <ResultActions title={tool.name} content={result} toolId={tool.id} refNumber={refNumber} liveSignature={liveSignature} clientSignature={clientSignature} photo={attachedPhoto} photoCaption={attachedPhoto ? `Site photograph attached via Photo to Document.` : undefined} photos={attachedPhotos} photosLoader={attachedMedia.length > 0 ? () => import("../lib/media").then((m) => m.mediaListToPdfPhotos(attachedMedia)) : undefined} />
             </>
           )}
         </div>
