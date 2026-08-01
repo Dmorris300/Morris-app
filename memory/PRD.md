@@ -1,5 +1,11 @@
 # Morris — Product Requirements Document
 
+> ⚠️ **Date accuracy notice**: Some historical entries below carry hallucinated
+> "Feb 2026" dates. The **real** dates for those items are in **June–August 2026**
+> per git log. For an accurate timeline, see **`/app/MORRIS_AUDIT_TIMELINE.md`**.
+> Always trust `git log` over dates in this file.
+
+
 ## Original problem statement
 Dark-themed construction administration SaaS web application for UK tradespeople.
 - Authentication (JWT + OTP, mocked SMS, real email via Resend)
