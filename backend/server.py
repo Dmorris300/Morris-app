@@ -1571,6 +1571,9 @@ async def on_startup():
         await db.media_items.create_index([("userId", 1), ("jobId", 1)])
         await db.media_items.create_index([("userId", 1), ("category", 1)])
         await db.media_items.create_index([("userId", 1), ("favourite", 1)])
+        await db.media_items.create_index([("userId", 1), ("album", 1)])
+        await db.media_items.create_index([("userId", 1), ("tool", 1)])
+        await db.media_items.create_index([("userId", 1), ("usage.docId", 1)])
     except Exception as e:
         logger.warning(f"Index creation: {e}")
     # Initialise Emergent Object Storage session (non-fatal on failure)

@@ -14,13 +14,14 @@ import {
 } from "lucide-react";
 import api from "../lib/api";
 import {
-  MEDIA_CATEGORIES, listMedia, updateMedia, deleteMedia, uploadMedia,
+  MEDIA_CATEGORIES, listMedia, updateMedia, deleteMedia, uploadMedia, listAlbums,
   thumbSrc, fileSrc, queueSize, subscribeQueue, backedOffUntil,
 } from "../lib/media";
 
 const SECTIONS = [
   { id: "all",         label: "All Media",       icon: ImageIcon },
   { id: "projects",    label: "Projects",        icon: FolderOpen },
+  { id: "albums",      label: "Albums",          icon: FolderOpen },
   { id: "unassigned",  label: "Unassigned",      icon: Inbox },
   { id: "favourites",  label: "Favourites",      icon: Star },
   { id: "recent",      label: "Recently Added",  icon: Clock },
@@ -44,6 +45,8 @@ export default function PhotoVault() {
   const [view, setView] = useState("grid");
   const [jobs, setJobs] = useState([]);
   const [selectedJob, setSelectedJob] = useState(searchParams.get("jobId") || "");
+  const [albums, setAlbums] = useState([]);
+  const [selectedAlbum, setSelectedAlbum] = useState("");
   const [uploading, setUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState("");
   const [detail, setDetail] = useState(null);
@@ -58,21 +61,35 @@ export default function PhotoVault() {
   // Load jobs once for the project dropdown.
   useEffect(() => {
     const loadJobs = () => api.get("/jobs").then((r) => setJobs(r.data || [])).catch(() => setJobs([]));
+    const loadAlbums = () => listAlbums().then(setAlbums).catch(() => setAlbums([]));
     loadJobs();
+    loadAlbums();
     window.addEventListener("morris:jobs-updated", loadJobs);
+    window.addEventListener("morris:albums-updated", loadAlbums);
     queueSize().then(setPendingCount);
     const unsub = subscribeQueue(() => queueSize().then(setPendingCount));
     // Best-effort one-time migration of the retired Site Photo Library.
-    migrateLegacyLibrary().then(() => queueSize().then(setPendingCount));
-    return () => { unsub(); window.removeEventListener("morris:jobs-updated", loadJobs); };
+    migrateLegacyLibrary().then(() => { queueSize().then(setPendingCount); loadAlbums(); });
+    return () => {
+      unsub();
+      window.removeEventListener("morris:jobs-updated", loadJobs);
+      window.removeEventListener("morris:albums-updated", loadAlbums);
+    };
   }, []);
 
   const load = async () => {
     setLoading(true);
     try {
       const params = {};
-      params.section = section === "projects" ? (selectedJob ? "project" : "all") : section;
+      if (section === "projects") {
+        params.section = selectedJob ? "project" : "all";
+      } else if (section === "albums") {
+        params.section = selectedAlbum ? "album" : "all";
+      } else {
+        params.section = section;
+      }
       if (selectedJob) params.jobId = selectedJob;
+      if (selectedAlbum) params.album = selectedAlbum;
       if (category) params.category = category;
       if (q) params.q = q;
       if (dateFrom) params.dateFrom = dateFrom;
@@ -85,7 +102,7 @@ export default function PhotoVault() {
     } finally { setLoading(false); }
   };
 
-  useEffect(() => { load(); }, [section, selectedJob, category, dateFrom, dateTo]);
+  useEffect(() => { load(); }, [section, selectedJob, selectedAlbum, category, dateFrom, dateTo]);
   useEffect(() => {
     const t = setTimeout(load, 250);
     return () => clearTimeout(t);
@@ -216,7 +233,11 @@ export default function PhotoVault() {
               return (
                 <button
                   key={s.id}
-                  onClick={() => { setSection(s.id); if (s.id !== "projects") setSelectedJob(""); }}
+                  onClick={() => {
+                    setSection(s.id);
+                    if (s.id !== "projects") setSelectedJob("");
+                    if (s.id !== "albums") setSelectedAlbum("");
+                  }}
                   className={`w-full text-left px-3 py-2.5 rounded-md text-sm inline-flex items-center gap-2 border ${active ? "bg-[#1e1a12] text-[#E8A020] border-[#E8A020]/40" : "bg-transparent text-[#A19D94] border-transparent hover:bg-[#141414]"}`}
                   data-testid={`vault-section-${s.id}`}
                 >
@@ -245,6 +266,31 @@ export default function PhotoVault() {
                     data-testid={`vault-project-${j.id}`}
                     title={`${j.ref || ""} — ${j.clientName || ""}`}
                   >{j.clientName || j.ref || "Untitled"}</button>
+                ))}
+              </div>
+            </div>
+          )}
+          {section === "albums" && (
+            <div className="mt-4" data-testid="vault-album-picker">
+              <p className="text-xs uppercase tracking-wide text-[#706D66] mb-2">Albums</p>
+              <div className="space-y-1 max-h-80 overflow-y-auto pr-1">
+                <button
+                  onClick={() => setSelectedAlbum("")}
+                  className={`w-full text-left px-3 py-1.5 rounded text-xs ${!selectedAlbum ? "bg-[#1e1a12] text-[#E8A020]" : "text-[#A19D94] hover:bg-[#141414]"}`}
+                >All albums</button>
+                {albums.length === 0 && (
+                  <p className="text-xs text-[#706D66] px-3">No albums yet. Add one from any media&apos;s detail panel.</p>
+                )}
+                {albums.map((a) => (
+                  <button
+                    key={a.name}
+                    onClick={() => setSelectedAlbum(a.name)}
+                    className={`w-full text-left px-3 py-1.5 rounded text-xs flex items-center justify-between gap-2 ${selectedAlbum === a.name ? "bg-[#1e1a12] text-[#E8A020]" : "text-[#A19D94] hover:bg-[#141414]"}`}
+                    data-testid={`vault-album-${a.name}`}
+                  >
+                    <span className="truncate">{a.name}</span>
+                    <span className="text-[10px] text-[#706D66]">{a.count}</span>
+                  </button>
                 ))}
               </div>
             </div>
@@ -379,6 +425,8 @@ function MediaRow({ m, onOpen, onFav }) {
 }
 
 function MediaDetail({ media, jobs, onClose, onUpdated, onDelete }) {
+  const [existingAlbums, setExistingAlbums] = useState([]);
+  useEffect(() => { listAlbums().then((a) => setExistingAlbums(a || [])).catch(() => {}); }, []);
   const [f, setF] = useState({
     description: media.description || "",
     notes: media.notes || "",
@@ -389,6 +437,8 @@ function MediaDetail({ media, jobs, onClose, onUpdated, onDelete }) {
     client: media.client || "",
     site: media.site || "",
     dateTaken: media.dateTaken || "",
+    album: media.album || "",
+    tool: media.tool || "",
   });
   const [saving, setSaving] = useState(false);
 
@@ -406,6 +456,10 @@ function MediaDetail({ media, jobs, onClose, onUpdated, onDelete }) {
       }
       const updated = await updateMedia(media.id, patch);
       onUpdated(updated);
+      // If album changed, refresh the albums list in the parent Vault.
+      if ((patch.album || "") !== (media.album || "")) {
+        window.dispatchEvent(new CustomEvent("morris:albums-updated"));
+      }
       toast.success("Saved");
     } catch { toast.error("Save failed"); }
     finally { setSaving(false); }
@@ -481,7 +535,25 @@ function MediaDetail({ media, jobs, onClose, onUpdated, onDelete }) {
           </Field>
           <Field label="Client"><input value={f.client} onChange={(e) => setF({ ...f, client: e.target.value })} className={inputCls} data-testid="vault-detail-client" /></Field>
           <Field label="Site / address"><input value={f.site} onChange={(e) => setF({ ...f, site: e.target.value })} className={inputCls} data-testid="vault-detail-site" /></Field>
+          <Field label="Album">
+            <input
+              value={f.album}
+              onChange={(e) => setF({ ...f, album: e.target.value })}
+              className={inputCls}
+              placeholder="e.g. 'Client walkarounds', 'Damage 2026'…"
+              list="vault-existing-albums"
+              data-testid="vault-detail-album"
+            />
+            <datalist id="vault-existing-albums">
+              {existingAlbums.map((a) => <option key={a.name} value={a.name} />)}
+            </datalist>
+          </Field>
           <Field label="Date taken"><input type="date" value={f.dateTaken} onChange={(e) => setF({ ...f, dateTaken: e.target.value })} className={inputCls} data-testid="vault-detail-date-taken" /></Field>
+          {media.tool && (
+            <div className="mb-3 text-xs text-[#706D66]" data-testid="vault-detail-tool-stamp">
+              Captured from <span className="text-[#E8A020]">{media.tool}</span>
+            </div>
+          )}
 
           {(media.usage?.length || 0) > 0 && (
             <div className="mt-3">

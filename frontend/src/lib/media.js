@@ -57,6 +57,8 @@ export const listMedia = (params = {}) => api.get("/media", { params }).then((r)
 export const getMedia = (id) => api.get(`/media/${id}`).then((r) => r.data);
 export const updateMedia = (id, patch) => api.patch(`/media/${id}`, patch).then((r) => r.data);
 export const stats = () => api.get("/media/stats").then((r) => r.data);
+export const listAlbums = () => api.get("/media/albums").then((r) => r.data);
+export const getDocumentMedia = (docId) => api.get(`/media/by-document/${docId}`).then((r) => r.data);
 export const addUsage = (id, { docId, docType, docTitle }) =>
   api.post(`/media/${id}/usage`, { docId, docType, docTitle }).then((r) => r.data);
 export const removeUsage = (id, docId) => api.delete(`/media/${id}/usage/${docId}`).then((r) => r.data);

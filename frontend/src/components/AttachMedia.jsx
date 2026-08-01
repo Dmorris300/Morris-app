@@ -50,6 +50,7 @@ export default function AttachMedia({
           const meta = {};
           if (jobId) meta.jobId = jobId;
           if (category) meta.category = category;
+          if (toolId) meta.tool = toolId;
           if (toolLabel) meta.description = `${toolLabel} — ${f.name}`;
           const res = await uploadMedia(f, meta);
           if (res?.queued) {

@@ -27,6 +27,12 @@ Dark-themed construction administration SaaS web application for UK tradespeople
 
 ## What's been implemented
 
+- ✅ **[INFRA] Photo Vault — reusable infrastructure hardening** (Feb 21, 2026)
+  - **First-class Albums**: `album` is now a proper metadata field on `media_items`. New `GET /api/media/albums` returns a distinct list with counts. Photo Vault sidebar has an "Albums" section with a user-defined album picker (auto-lists all albums the user has created). The detail modal has an "Album" text input with an HTML `<datalist>` suggesting existing album names. Album filtering supported via `section=album&album=<name>` or as a stand-alone filter. Independent of Projects — a photo can live in both an album and a project.
+  - **`tool` field at upload time**: `AttachMedia` now forwards `toolId` as `tool` on every capture/upload. The detail modal shows a "Captured from RAMS" stamp under Date Taken when present. `list_media` accepts a `tool=<id>` filter.
+  - **`getDocumentMedia()` reverse lookup**: new endpoint `GET /api/media/by-document/{docId}` returns every media item that references a given document (indexed on `usage.docId`). Exposed on the frontend as `getDocumentMedia(docId)` in `/app/frontend/src/lib/media.js`.
+  - Added MongoDB indexes `(userId, album)`, `(userId, tool)`, `(userId, usage.docId)` for the new filters.
+
 - ✅ **[FEATURE] Photo Vault Phase 1 completion** (Feb 21, 2026)
   - **PDF evidence embedding**: New helper `mediaListToPdfPhotos()` in `/app/frontend/src/lib/media.js` fetches attached Vault media (originals for images, posters for videos) as data-URLs and shapes them into the format the existing `appendPhotographicEvidence()` in `pdf.js` expects. `ResultActions` now accepts an optional `photosLoader` prop and awaits it before calling `downloadPdf()` — this keeps the fetch lazy (no bandwidth wasted on every render). GenericToolPage wires this in via a lazy `import()` so the media library only loads when the user actually downloads a PDF.
   - **Create new project from the Vault**: Photo Vault detail modal's Project dropdown now has a "+ Create new project…" option that prompts for a client name, POSTs `/api/jobs`, dispatches a `morris:jobs-updated` event so the Vault refreshes its jobs list, and auto-selects the freshly created project on the media item. Meets Phase 1 spec: "Link every media item to Projects/Jobs, with the ability to create a new project if needed."

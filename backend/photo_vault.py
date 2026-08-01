@@ -159,6 +159,35 @@ def build_router(db, get_user):
         d.pop("_id", None)
         return d
 
+    @router.get("/albums")
+    async def list_albums(authorization: Optional[str] = Header(None)):
+        """Distinct list of user-defined albums with item counts.
+
+        Albums are user-created named groupings that live alongside the
+        automatic Project albums but are independent of jobId.
+        """
+        token = authorization.replace("Bearer ", "") if authorization else None
+        user = await get_user(token)
+        pipeline = [
+            {"$match": {"userId": user["id"], "isDeleted": {"$ne": True}, "album": {"$nin": [None, ""]}}},
+            {"$group": {"_id": "$album", "count": {"$sum": 1}}},
+            {"$sort": {"_id": 1}},
+        ]
+        rows = await db.media_items.aggregate(pipeline).to_list(500)
+        return [{"name": r["_id"], "count": r["count"]} for r in rows]
+
+    @router.get("/by-document/{doc_id}")
+    async def by_document(doc_id: str, authorization: Optional[str] = Header(None)):
+        """Reverse lookup: every media item referenced by a given document."""
+        token = authorization.replace("Bearer ", "") if authorization else None
+        user = await get_user(token)
+        items = await db.media_items.find({
+            "userId": user["id"],
+            "isDeleted": {"$ne": True},
+            "usage.docId": doc_id,
+        }).sort("createdAt", -1).to_list(500)
+        return [_shape(x) for x in items]
+
     @router.get("/categories")
     async def list_categories():
         return {"categories": MEDIA_CATEGORIES}
@@ -179,8 +208,10 @@ def build_router(db, get_user):
     @router.get("")
     async def list_media(
         authorization: Optional[str] = Header(None),
-        section: str = Query("all"),          # all | unassigned | favourites | recent | project
+        section: str = Query("all"),          # all | unassigned | favourites | recent | project | album
         jobId: Optional[str] = Query(None),
+        album: Optional[str] = Query(None),
+        tool: Optional[str] = Query(None),
         category: Optional[str] = Query(None),
         q: Optional[str] = Query(None),
         dateFrom: Optional[str] = Query(None),
@@ -199,9 +230,15 @@ def build_router(db, get_user):
             filt["createdAt"] = {"$gte": (datetime.now(timezone.utc) - _td(30)).isoformat()}
         elif section == "project" and jobId:
             filt["jobId"] = jobId
+        elif section == "album" and album:
+            filt["album"] = album
 
         if category:
             filt["category"] = category
+        if album and section != "album":
+            filt["album"] = album
+        if tool:
+            filt["tool"] = tool
         if jobId and section != "project":
             filt["jobId"] = jobId
         if dateFrom or dateTo:
@@ -217,6 +254,7 @@ def build_router(db, get_user):
                 "$or": [
                     {"description": rx}, {"notes": rx}, {"originalFilename": rx},
                     {"project": rx}, {"client": rx}, {"site": rx}, {"category": rx},
+                    {"album": rx}, {"tool": rx},
                 ]
             }]
 
@@ -247,6 +285,8 @@ def build_router(db, get_user):
         description: Optional[str] = Form(""),
         notes: Optional[str] = Form(""),
         dateTaken: Optional[str] = Form(None),
+        album: Optional[str] = Form(None),
+        tool: Optional[str] = Form(None),
     ):
         token = authorization.replace("Bearer ", "") if authorization else None
         user = await get_user(token)
@@ -319,6 +359,8 @@ def build_router(db, get_user):
             "site": (site or "").strip() or None,
             "category": (category or "").strip() or None,
             "customCategory": (customCategory or "").strip() or None,
+            "album": (album or "").strip() or None,
+            "tool": (tool or "").strip() or None,
             "description": (description or "").strip(),
             "notes": (notes or "").strip(),
             "favourite": False,
@@ -338,7 +380,7 @@ def build_router(db, get_user):
         user = await get_user(token)
         upd = {k: v for k, v in patch.model_dump().items() if v is not None}
         # Empty-string handling for clearing linkage fields.
-        for k in ("project", "jobId", "client", "site", "category", "customCategory"):
+        for k in ("project", "jobId", "client", "site", "category", "customCategory", "album", "tool"):
             if k in upd and upd[k] == "":
                 upd[k] = None
         upd["updatedAt"] = datetime.now(timezone.utc).isoformat()
