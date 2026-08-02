@@ -1,0 +1,39 @@
+{
+  "summary": "Iteration 13 — Morris Platform Hubs V2 (5 new hubs + sidebar reorg) tested end-to-end on preview URL. Backend: 12/12 pytest cases pass for /api/compliance CRUD + summary + types + soft-delete + attention-feed integration. Frontend: sidebar reorg verified (8 nav testids present, no legacy Documents/Pricework/Sole Trader/Subcontractor Tools sections). Sidebar search filters and shows tool-link-<id> plus sidebar-search-open-library. All five hubs (Finance, Compliance, Business, Tools Library, Settings V2) render with every specified data-testid present. Compliance CRUD flow verified end-to-end via UI (create Employers Liability with 40-day expiry → new item shows '40 days left' badge → delete → item removed → 'Removed' toast). Command Centre 'Attention Required' strip integrates with Compliance and shows the existing Public Liability record with 'Open Compliance Hub' CTA. Legacy routes (/app/profile, /app/billing, /app/jobs, /app/rams, /app/tool/quote-builder) still render (regression clean). Settings Backup JSON export triggers a real download (morris-backup-2026-08-02.json).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_compliance.py",
+    "/app/test_reports/pytest/compliance.xml"
+  ],
+  "action_items": [
+    "Spec-only wording corrections (no code change required — the code is correct, the review request has typos):",
+    "  1. Compliance modal expiry field data-testid is `modal-expiry-date` (NOT `modal-expiry`).",
+    "  2. Finance Reports table data-testid is `reports-projects-table` (NOT `reports-project-table`).",
+    "Please update any external QA / spec docs to match the actual data-testid values in the code."
+  ],
+  "critical_code_review_comments": [
+    "compliance.py cleanly excludes MongoDB `_id` in `_shape()` and computes `daysUntilExpiry` inline — good.",
+    "compliance.py is 259 lines and single-responsibility — well within guidelines.",
+    "Attention-feed merge in command_centre.py imports collect_compliance_attention() lazily inside the handler — safe circular-import guard, good.",
+    "Compliance PATCH endpoint uses `body.model_dump(exclude_none=True)` — correctly avoids stomping unset fields.",
+    "Category validation on POST and PATCH returns 400 with clear detail — good.",
+    "Delete is soft (isDeleted=True) and 2nd delete returns 404 — correct idempotency behaviour.",
+    "Bearer-token parsing is duplicated across every endpoint (`authorization.replace('Bearer ', '')`) — consider a FastAPI dependency once the codebase settles.",
+    "Command Centre attention endpoint merges legacy profile-based compliance fields AND the new compliance_items collection — this means an insurance record created via the Compliance Hub AND a legacy `insuranceExpiry` on the profile can both appear as separate cards. Not incorrect, but worth deduping in a future iteration."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_compliance.py"
+  ],
+  "success_rate": {"backend": "100% (12/12)", "frontend": "100% (all specified data-testids present at correct routes; CRUD + delete + attention integration all verified visually)"},
+  "test_credentials": "darrenhustle300 / hustle1234 (admin) — worked as expected.",
+  "seed_data_creation": "test_compliance.py creates two items prefixed with 'TEST_' during the run and force-deletes them at the end via test_cleanup. UI test also created a 'TEST_UI_Retest' item and deleted it. One residual 'TEST_UI Ltd' item (no expiry) may remain on the darrenhustle300 account from an early modal-expiry-date spec mismatch — safe to leave (or user can delete via UI).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Compliance backend covered by /app/backend/tests/test_compliance.py (12 cases). Sidebar/hubs/settings V2 all shipped correctly with data-testids matching code. Two review-spec typos to keep in mind: modal-expiry-date (not modal-expiry) and reports-projects-table (not reports-project-table). Compliance items with expiryDate <= 60 days integrate into /api/attention as kind='compliance_expiring' and show on the Command Centre 'Attention Required' strip with an 'Open Compliance Hub' CTA linking to /app/compliance.",
+  "rca of the issue": "N/A — no functional bugs found. All 5 new hubs, sidebar reorg, and Compliance backend behave to spec."
+}
