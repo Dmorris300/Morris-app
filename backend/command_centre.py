@@ -310,6 +310,14 @@ def build_router(db, get_user):
         token = authorization.replace("Bearer ", "") if authorization else None
         user = await get_user(token)
         items = await compute_attention(db, user)
+        # Merge compliance-expiry items from the Compliance Hub.
+        try:
+            from compliance import collect_compliance_attention
+            comp = await collect_compliance_attention(db, user["id"], datetime.now(timezone.utc))
+            items = items + comp
+            items.sort(key=lambda x: (SEVERITY_ORDER.get(x.get("severity"), 3), x.get("dueAt") or "9999"))
+        except Exception:
+            pass
         return {"items": items, "count": len(items), "computedAt": datetime.now(timezone.utc).isoformat()}
 
     return router

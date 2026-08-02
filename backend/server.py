@@ -22,6 +22,7 @@ from billing import build_router as build_billing_router, build_webhook_router, 
 from photo_vault import build_router as build_photo_vault_router, try_init_storage as try_init_photo_vault_storage
 from command_centre import build_router as build_command_centre_router
 from project_workspace import build_router as build_project_workspace_router, emit_event as emit_project_event
+from compliance import build_router as build_compliance_router
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -1606,6 +1607,9 @@ app.include_router(build_command_centre_router(db, get_user))
 
 # Project Workspace (tasks, events, stats, search)
 app.include_router(build_project_workspace_router(db, get_user))
+
+# Compliance Hub (credentials, insurance, personnel, vehicles)
+app.include_router(build_compliance_router(db, get_user))
 
 app.add_middleware(
     CORSMiddleware,
