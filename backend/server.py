@@ -23,6 +23,7 @@ from photo_vault import build_router as build_photo_vault_router, try_init_stora
 from command_centre import build_router as build_command_centre_router
 from project_workspace import build_router as build_project_workspace_router, emit_event as emit_project_event
 from compliance import build_router as build_compliance_router
+from method_statement import build_router as build_method_statement_router
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -966,6 +967,7 @@ async def save_document(d: DocumentSave, authorization: Optional[str] = Header(N
         try:
             kind_map = {
                 "rams": "rams_created",
+                "method-statement": "method_statement_created",
                 "variation-letter": "variation_submitted",
                 "cis-invoice": "invoice_generated",
                 "application-for-payment": "application_submitted",
@@ -1611,6 +1613,9 @@ app.include_router(build_project_workspace_router(db, get_user))
 
 # Compliance Hub (credentials, insurance, personnel, vehicles)
 app.include_router(build_compliance_router(db, get_user))
+
+# Method Statement templates (work-sequence library)
+app.include_router(build_method_statement_router(db, get_user))
 
 app.add_middleware(
     CORSMiddleware,

@@ -128,6 +128,16 @@ Close with: 'To confirm acceptance of this variation please sign and return a co
 Close with a 'PREPARED BY' block (full name from profile, company, signature line, today's date) and a 'REVIEWED BY' block.
 Use only UK English. Do not use placeholder text. Use today's date and the auto-populated profile values throughout.`
   ),
+  t("method-statement", "Method Statement", "documents",
+    "A standalone Method Statement — the step-by-step safe method of work. Complements RAMS with a dedicated wizard for scope, work sequence, plant, materials, PPE, environmental controls and emergency procedures.",
+    [
+      f("projectName", "Project"),
+      f("clientName", "Client"),
+      ta("siteAddress", "Site Address"),
+      f("principalContractor", "Principal Contractor"),
+    ],
+    "Method Statement is edited in a dedicated wizard — this prompt is not used."
+  ),
   t("site-diary", "Site Diary", "documents",
     "A daily record of works carried out. weather, labour, plant, deliveries, delays, instructions. Vital evidence for disputes and payment claims.",
     [
@@ -2125,7 +2135,7 @@ export function getToolById(id) {
 // Emoji per tool. single source of truth so every render site is consistent
 export const TOOL_EMOJI = {
   // Documents
-  "variation-letter": "✉️", "rams": "🛡️", "site-diary": "📔", "quote-builder": "💷",
+  "variation-letter": "✉️", "rams": "🛡️", "method-statement": "📐", "site-diary": "📔", "quote-builder": "💷",
   "cis-invoice": "🧾", "delay-notice": "⏰", "handover-certificate": "🤝", "subcontract-letter": "📑",
   "complaint-letter": "⚠️", "timesheet": "⏱️", "daywork-sheet": "📋", "application-for-payment": "💰",
   "retention-chaser": "🔒", "final-account": "📊", "contra-charge-dispute": "⚔️", "eot-claim": "📅",
@@ -2165,7 +2175,7 @@ export function emojiFor(id) {
 // Each tool falls into one of four risk categories — drives the colour + label
 // of the disclaimer inside the Info popup.
 const HS_TOOLS = new Set([
-  "rams", "coshh", "noise-assessment", "manual-handling", "working-at-height-rescue",
+  "rams", "method-statement", "coshh", "noise-assessment", "manual-handling", "working-at-height-rescue",
   "risk-register", "hs-policy", "rams-library", "toolbox-talk", "asbestos-record",
 ]);
 const LEGAL_TOOLS = new Set([
@@ -2205,6 +2215,7 @@ export const REVIEW_REQUIRED_TOOLS = new Set([
   "noise-assessment",
   "manual-handling",
   "rams",
+  "method-statement",
   "new-starter-pack",
   "apprentice-manager",
 ]);

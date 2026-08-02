@@ -200,6 +200,7 @@ export default function GenericToolPage() {
   if (tool.id === "commercial-report") return <RedirectTo path="/app/commercial-report" />;
   if (tool.id === "new-starter-pack") return <RedirectTo path="/app/new-starter-pack" />;
   if (tool.id === "rams") return <RedirectTo path="/app/rams" />;
+  if (tool.id === "method-statement") return <RedirectTo path="/app/method-statement" />;
 
   const onGenerate = async () => {
     if (missingRequired.length > 0) {

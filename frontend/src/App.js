@@ -23,6 +23,7 @@ import ComplianceHub from "./pages/ComplianceHub";
 import BusinessHub from "./pages/BusinessHub";
 import ToolsLibrary from "./pages/ToolsLibrary";
 import Settings from "./pages/Settings";
+import MethodStatement from "./pages/MethodStatement";
 import Drafts from "./pages/Drafts";
 import CISRefundPredictor from "./pages/CISRefundPredictor";
 import MileageTracker from "./pages/MileageTracker";
@@ -201,6 +202,7 @@ function App() {
             <Route path="commercial-report" element={<ProfileGate><CommercialReport /></ProfileGate>} />
             <Route path="new-starter-pack" element={<ProfileGate><NewStarterPack /></ProfileGate>} />
             <Route path="rams" element={<ProfileGate><Rams /></ProfileGate>} />
+            <Route path="method-statement" element={<ProfileGate><MethodStatement /></ProfileGate>} />
             <Route path="company-checker" element={<ProfileGate><CompanyChecker /></ProfileGate>} />
             <Route path="offline-mode" element={<OfflineMode />} />
             <Route path="team" element={<TeamManagement />} />

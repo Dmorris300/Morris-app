@@ -19,10 +19,9 @@ const CATEGORIES = [
     label: "Health & Safety",
     icon: ShieldCheck,
     ids: [
-      "rams", "risk-register", "coshh", "toolbox-talk", "noise-assessment",
-      "manual-handling", "working-at-height-rescue", "asbestos-record",
-      "rams-library", "hs-policy", "incident-report", "incident-log",
-      "site-access-permit", "tool-register",
+      "rams", "method-statement", "risk-register", "coshh", "toolbox-talk",
+      "site-diary", "incident-report", "site-access-permit",
+      "manual-handling", "noise-assessment", "working-at-height-rescue",
     ],
   },
   {
@@ -46,7 +45,7 @@ const CATEGORIES = [
     label: "Site Management",
     icon: HardHat,
     ids: [
-      "site-diary", "multiuser-site-diary", "snagging-list", "delivery-record",
+      "multiuser-site-diary", "snagging-list", "delivery-record",
       "meeting-notes", "weather-log", "purchase-order", "procurement-schedule",
       "prestart-meeting", "measurement-record", "photo-to-document",
       "photo-evidence-log", "defects-tracker", "handover-certificate",
