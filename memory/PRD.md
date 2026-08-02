@@ -5,6 +5,15 @@
 > per git log. For an accurate timeline, see **`/app/MORRIS_AUDIT_TIMELINE.md`**.
 > Always trust `git log` over dates in this file.
 
+### 2 Aug 2026 — Toolbox Talks V2 + COSHH V2 (flagship H&S rebuilds)
+- ✅ **Toolbox Talks V2** at `/app/toolbox-talk` — 8-step wizard (Project / Topic / Talk Content / Attendees / Photos / Linked / Review / Generate). Backend `backend/toolbox_talks.py` with 16-topic UK library (`/api/toolbox-talks/topics`), custom templates CRUD, per-project stats. Per-attendee signature capture via `SignaturePad` reuse. Premium PDF `lib/toolbox-talk-pdf.js` with attendance register (name/company/trade/signature/time), photo grid, linked-docs table.
+- ✅ **COSHH V2** at `/app/coshh` — dashboard-first hazardous substance manager. Dashboard shows 5 stat cards (Total / Active / Reviews due / Expired / High-risk), favourites, recently used, templates row, search + project + hazard-level + status filters. 12-step wizard modal (Project / Substance / Hazards / Exposure / Controls / PPE / First Aid / Fire & Spill / Photos / Linked / Review / Save). Backend `backend/coshh.py` with assessments CRUD, templates CRUD, GHS pictogram + H/P statement library (`/api/coshh/hazards`), stats endpoint, and `collect_coshh_attention()` feeding review-due items into `/api/attention`. Premium PDF `lib/coshh-pdf.js` with GHS pictogram diamonds, sectioned tables.
+- ✅ **Command Centre integration**: COSHH review-due items now surface on `/api/attention` alongside compliance-expiry items.
+- ✅ **Timeline events**: `documents/save` kind_map now emits `toolbox_talk_delivered` and `coshh_created` when saved against a project.
+- ✅ **Testing**: `testing_agent_v3_fork` iteration_16 caught 3 issues (broken `AssessmentUpdate` `__annotations__` hack breaking PATCH, missing testids). All 3 fixed and verified by `bug_testing_agent` iteration_17 → 100% backend + 100% frontend, verdict `fixed`.
+
+
+
 ### 2 Aug 2026 — Method Statement V2 (standalone tool)
 - ✅ **Standalone 12-step wizard** at `/app/method-statement` — Project Details → Scope → Work Sequence → Plant → Materials → PPE → Environmental → Emergency → Attachments → Linked Documents → Review → Generate.
 - ✅ **Backend**: `/app/backend/method_statement.py` with `/api/method-statement/templates` CRUD (list/create/delete, soft-delete). `server.py` kind_map now emits `method_statement_created` timeline events when a Method Statement is saved against a project.
