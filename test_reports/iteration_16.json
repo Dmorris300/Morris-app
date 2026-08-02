@@ -1,0 +1,45 @@
+{
+  "summary": "Full backend + frontend testing of new flagship Toolbox Talks V2 and COSHH V2 tools. Backend pytest: 18/19 pass (94.7%). One backend defect found — PATCH /api/coshh/assessments/{id} returns 422 because AssessmentUpdate model reassigns __annotations__ inside the class body, which Pydantic doesn't process; every field ends up required=True and any partial update payload fails validation. Toolbox Talks: GET /topics returns 16 correctly shaped topics; templates POST/DELETE (soft delete) work; empty-name → 400; stats endpoint returns the expected shape. COSHH: hazards library returns 9 pictograms + H/P statement lists; assessments CRUD works (create, list, delete soft-delete, 404 on missing); stats returns full breakdown; templates CRUD works; unauthenticated calls return 401/403; review-due within 20 days shows up in /api/attention with kind='coshh_review_due' and severity='warning'. Frontend: /app/toolbox-talk renders with all 8 stepper tiles, Step 1 pre-fills presenter='Darren Morris', all 16 topic cards + custom button present, all Step-3 bullet-editor lists render, Step 4 attendee row with sign button opens, Step 6 linked-doc groups all present, Step 8 generate button present. /app/coshh renders with 5 stat cards, new/search/status-filter controls, 12-step wizard with all step tiles, projectName/assessor/date/reviewDate fields (assessor auto-filled), pictogram grid GHS01/02/05/09, PPE grid gloves/goggles/respirator, and Step 12 save-btn. Saving via UI successfully persisted a row (4 coshh-row-* tiles after save). All regression routes /app/rams, /app/method-statement, /app/finance, /app/business, /app/compliance, /app/settings, /app/tools-library render without errors. Tools Library H&S category shows RAMS, Method Statement, Risk Register, COSHH Assessment, Toolbox Talk, Site Diary etc.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "PATCH /api/coshh/assessments/{id}", "issue": "Returns 422 on any partial update. Root cause: `AssessmentUpdate` in /app/backend/coshh.py:106-108 does `__annotations__ = AssessmentIn.__annotations__` inside the class body, but Pydantic v2 does not inherit the default values from AssessmentIn via that assignment. Result: every field except productName is required=True. Verified via python REPL: all 30 fields show required=True. Fix: make AssessmentUpdate inherit from AssessmentIn and override every field as Optional with default None, OR use `class AssessmentUpdate(AssessmentIn):` combined with a model_validator that ignores missing fields, OR simply define a separate model with all fields Optional[...] = None.", "priority": "HIGH"}
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ToolboxTalk Step 5", "issue": "Missing data-testid=\"tbt-step-5-photos\" on the Step 5 photos container (spec requires it). Step 5 renders but test id is absent.", "selector": "[data-testid=tbt-step-5-photos]", "priority": "MEDIUM"},
+      {"component": "Coshh Wizard", "issue": "Missing data-testid=\"coshh-save-template-btn\" — spec requires a Save-as-template button in the wizard that opens coshh-template-modal. Not present in DOM. Templates POST works from backend, but there is no UI path to trigger it.", "selector": "[data-testid=coshh-save-template-btn]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "ToolboxTalk / Coshh / MethodStatement Step 1 project dropdowns", "issues": ["Pre-existing hydration warning: <span data-ve-dynamic> injected inside <option> by the build-time instrumentation wrapper (same issue flagged in iteration 15 for Method Statement). Does not break functionality but pollutes console."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_toolbox_coshh.py",
+    "/app/test_reports/pytest/tbt_coshh_results.xml"
+  ],
+  "action_items": [
+    "Fix AssessmentUpdate pydantic model in /app/backend/coshh.py so PATCH accepts partial updates (currently 422).",
+    "Add data-testid=\"tbt-step-5-photos\" to the ToolboxTalk Step 5 photos wrapper.",
+    "Add data-testid=\"coshh-save-template-btn\" button + coshh-template-modal wiring inside the CoshhWizard so users can save wizard state as a template (spec 10)."
+  ],
+  "critical_code_review_comments": [
+    "coshh.py:106-108 — using `__annotations__ = AssessmentIn.__annotations__` inside a Pydantic BaseModel class body is incorrect for pydantic v2; annotations set that way do not carry defaults, so every field is required. This is a genuine production bug in the PATCH endpoint.",
+    "toolbox_talks.py — clean: UUID ids, excludes _id, soft-delete, user-scoped queries, proper 400 validation.",
+    "coshh.py — attention feed correctly emits kind='coshh_review_due', severity 'urgent' for <=14 days or overdue and 'warning' for >14 days.",
+    "Coshh.jsx (frontend) — long single-file component; consider splitting CoshhWizard into its own file (currently mixed with dashboard code)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_toolbox_coshh.py",
+    "/app/test_reports/iteration_16.json"
+  ],
+  "success_rate": {"backend": "94.7% (18/19 pytest)", "frontend": "~93% (2 missing data-testid out of ~60 checked selectors; all core flows work; COSHH end-to-end save persisted correctly)"},
+  "test_credentials": "darrenhustle300 / hustle1234 (admin) from /app/memory/test_credentials.md",
+  "seed_data_creation": "Created and soft-deleted TEST_TBT_Template, TEST_CT1 Adhesive, TEST_ReviewDue assessments, TEST_COSHH_Tpl. One additional TEST_UI_CT1 assessment saved via UI still in DB (soft-delete safe since it's user-scoped for the admin account).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend pytest lives at /app/backend/tests/test_toolbox_coshh.py. Fix the AssessmentUpdate model before re-running test_patch_assessment. Two frontend selectors missing: tbt-step-5-photos and coshh-save-template-btn. All other spec items verified. Preview URL: https://prompt-web-4.preview.emergentagent.com.",
+  "rca of the issue": "Backend PATCH 422: In pydantic v2, defining `class AssessmentUpdate(BaseModel): __annotations__ = AssessmentIn.__annotations__` does NOT copy the class attributes (defaults) from AssessmentIn — only the type hints — so every previously-defaulted Optional field becomes a required field. Reproduction: `python -c 'from backend.coshh import AssessmentUpdate; [print(n, f.is_required()) for n,f in AssessmentUpdate.model_fields.items()]'` shows every field except the explicitly-overridden productName has required=True. Mitigation: change to `class AssessmentUpdate(AssessmentIn):` and override every field as Optional with default None, or better: `AssessmentUpdate = create_model('AssessmentUpdate', **{n: (Optional[t], None) for n, t in AssessmentIn.__annotations__.items()})`."
+}

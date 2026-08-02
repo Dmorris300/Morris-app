@@ -24,6 +24,8 @@ from command_centre import build_router as build_command_centre_router
 from project_workspace import build_router as build_project_workspace_router, emit_event as emit_project_event
 from compliance import build_router as build_compliance_router
 from method_statement import build_router as build_method_statement_router
+from toolbox_talks import build_router as build_toolbox_talks_router
+from coshh import build_router as build_coshh_router
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -968,6 +970,8 @@ async def save_document(d: DocumentSave, authorization: Optional[str] = Header(N
             kind_map = {
                 "rams": "rams_created",
                 "method-statement": "method_statement_created",
+                "toolbox-talk": "toolbox_talk_delivered",
+                "coshh": "coshh_created",
                 "variation-letter": "variation_submitted",
                 "cis-invoice": "invoice_generated",
                 "application-for-payment": "application_submitted",
@@ -1616,6 +1620,12 @@ app.include_router(build_compliance_router(db, get_user))
 
 # Method Statement templates (work-sequence library)
 app.include_router(build_method_statement_router(db, get_user))
+
+# Toolbox Talks V2 (topic library + templates + stats)
+app.include_router(build_toolbox_talks_router(db, get_user))
+
+# COSHH V2 (hazardous substance management)
+app.include_router(build_coshh_router(db, get_user))
 
 app.add_middleware(
     CORSMiddleware,

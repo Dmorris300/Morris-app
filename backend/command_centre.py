@@ -315,9 +315,16 @@ def build_router(db, get_user):
             from compliance import collect_compliance_attention
             comp = await collect_compliance_attention(db, user["id"], datetime.now(timezone.utc))
             items = items + comp
-            items.sort(key=lambda x: (SEVERITY_ORDER.get(x.get("severity"), 3), x.get("dueAt") or "9999"))
         except Exception:
             pass
+        # Merge COSHH review-due items.
+        try:
+            from coshh import collect_coshh_attention
+            coshh_items = await collect_coshh_attention(db, user["id"], datetime.now(timezone.utc))
+            items = items + coshh_items
+        except Exception:
+            pass
+        items.sort(key=lambda x: (SEVERITY_ORDER.get(x.get("severity"), 3), x.get("dueAt") or "9999"))
         return {"items": items, "count": len(items), "computedAt": datetime.now(timezone.utc).isoformat()}
 
     return router

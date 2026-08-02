@@ -24,6 +24,8 @@ import BusinessHub from "./pages/BusinessHub";
 import ToolsLibrary from "./pages/ToolsLibrary";
 import Settings from "./pages/Settings";
 import MethodStatement from "./pages/MethodStatement";
+import ToolboxTalk from "./pages/ToolboxTalk";
+import Coshh from "./pages/Coshh";
 import Drafts from "./pages/Drafts";
 import CISRefundPredictor from "./pages/CISRefundPredictor";
 import MileageTracker from "./pages/MileageTracker";
@@ -203,6 +205,8 @@ function App() {
             <Route path="new-starter-pack" element={<ProfileGate><NewStarterPack /></ProfileGate>} />
             <Route path="rams" element={<ProfileGate><Rams /></ProfileGate>} />
             <Route path="method-statement" element={<ProfileGate><MethodStatement /></ProfileGate>} />
+            <Route path="toolbox-talk" element={<ProfileGate><ToolboxTalk /></ProfileGate>} />
+            <Route path="coshh" element={<ProfileGate><Coshh /></ProfileGate>} />
             <Route path="company-checker" element={<ProfileGate><CompanyChecker /></ProfileGate>} />
             <Route path="offline-mode" element={<OfflineMode />} />
             <Route path="team" element={<TeamManagement />} />
