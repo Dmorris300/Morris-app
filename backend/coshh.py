@@ -104,8 +104,37 @@ class AssessmentIn(BaseModel):
 
 
 class AssessmentUpdate(BaseModel):
-    __annotations__ = AssessmentIn.__annotations__
-    productName: Optional[str] = None  # override to make it optional in patches
+    projectId: Optional[str] = None
+    projectName: Optional[str] = None
+    clientName: Optional[str] = None
+    siteAddress: Optional[str] = None
+    assessmentDate: Optional[str] = None
+    reviewDate: Optional[str] = None
+    assessor: Optional[str] = None
+    productName: Optional[str] = None
+    manufacturer: Optional[str] = None
+    supplier: Optional[str] = None
+    productCode: Optional[str] = None
+    description: Optional[str] = None
+    quantityUsed: Optional[str] = None
+    sdsUrl: Optional[str] = None
+    hazardClassification: Optional[str] = None
+    signalWord: Optional[str] = None
+    pictograms: Optional[List[str]] = None
+    hStatements: Optional[List[str]] = None
+    pStatements: Optional[List[str]] = None
+    hazardLevel: Optional[str] = None
+    exposure: Optional[Dict[str, Any]] = None
+    controlMeasures: Optional[Dict[str, Any]] = None
+    ppe: Optional[Dict[str, Any]] = None
+    firstAid: Optional[Dict[str, Any]] = None
+    fireSpill: Optional[Dict[str, Any]] = None
+    photos: Optional[List[Dict[str, Any]]] = None
+    linkedDocuments: Optional[Dict[str, Any]] = None
+    checkedBy: Optional[str] = None
+    approvedBy: Optional[str] = None
+    documentRef: Optional[str] = None
+    isFavourite: Optional[bool] = None
 
 
 class TemplateIn(BaseModel):

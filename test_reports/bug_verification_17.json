@@ -1,0 +1,50 @@
+{
+  "verdict": "fixed",
+  "user_reported_bug": "iteration_16 test report found 3 issues on the new Toolbox Talks V2 and COSHH V2 builds: (1) PATCH /api/coshh/assessments/{id} returned 422 due to a broken __annotations__ hack in AssessmentUpdate model, (2) missing data-testid tbt-step-5-photos on Toolbox Talk Step 5, (3) missing data-testid coshh-save-template-btn in the COSHH wizard (button was buried in step 12 only).",
+  "summary": "Focused retest only for the three iteration_16 issues. No relevant testing skill found. Backend API retest passed: COSHH POST created assessments, partial PATCH {hazardLevel: Medium} returned 200 with the updated document, GET projectId filtering worked, and DELETE soft-deleted records from lists. Frontend retest passed on the preview URL: Toolbox Talk Step 5 renders [data-testid=tbt-step-5-photos] with AttachMedia, COSHH save-template button is visible in the wizard header across steps 1-12, opens [data-testid=coshh-template-modal], and POST /api/coshh/templates returned 200. Method Statement and RAMS regression routes rendered.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Toolbox Talk / COSHH / Method Statement project dropdowns",
+        "issues": [
+          "Pre-existing console hydration warning remains from instrumentation injecting a span inside option elements; same class of warning was already noted in iteration_16 and did not block the verified flows."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/tests/bug_verification_17_backend.py",
+    "/app/tests/bug_verification_17_frontend_playwright.py",
+    "/app/test_reports/bug_verification_17.json",
+    "/app/test_reports/iteration_17.json"
+  ],
+  "action_items": [
+    "No action required for the three reported iteration_16 issues; focused retest verified them fixed."
+  ],
+  "critical_code_review_comments": [
+    "AssessmentUpdate in /app/backend/coshh.py now explicitly defines optional fields with None defaults, removing the broken __annotations__ hack that caused partial PATCH bodies to 422.",
+    "Toolbox Talk Step 5 wrapper now has data-testid=\"tbt-step-5-photos\" around the AttachMedia component.",
+    "COSHH save-template button now lives in the wizard header and remains visible while navigating steps 1-12."
+  ],
+  "updated_files": [
+    "/app/tests/bug_verification_17_backend.py",
+    "/app/tests/bug_verification_17_frontend_playwright.py",
+    "/app/test_reports/bug_verification_17.json",
+    "/app/test_reports/iteration_17.json"
+  ],
+  "success_rate": {
+    "backend": "100% focused retest (COSHH create, partial PATCH, filtered GET, soft-delete DELETE all passed)",
+    "frontend": "100% focused retest (Toolbox Step 5 selector/AttachMedia, COSHH template modal/API POST, COSHH 1-12 navigation, Toolbox 1-8 navigation, Method Statement/RAMS render all passed)"
+  },
+  "seed_data_creation": "Backend created two BUG17 COSHH assessments and soft-deleted both during cleanup. Frontend created one BUG17 COSHH template via the wizard and deleted it via API cleanup. No active test records intentionally left behind.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Use /app/tests/bug_verification_17_backend.py for the backend API retest and /app/tests/bug_verification_17_frontend_playwright.py as the UI checklist. Preview tested: https://prompt-web-4.preview.emergentagent.com with darrenhustle300 / hustle1234. Onboarding and cookie banners were dismissed through localStorage for focused testing.",
+  "rca_of_the_issue": "Original PATCH RCA from iteration_16 was confirmed fixed by runtime evidence: partial PATCH no longer fails Pydantic validation and returns the updated assessment document. Original UI selector omissions were fixed by adding the Toolbox Step 5 wrapper test id and moving COSHH Save as template into the wizard header."
+}

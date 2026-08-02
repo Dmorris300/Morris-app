@@ -216,7 +216,7 @@ export default function ToolboxTalkV2() {
         {currentStep.key === "content" && <StepContent data={data} setData={setData} onSaveTemplateClick={() => setTemplateModalOpen(true)} />}
         {currentStep.key === "attendees" && <StepAttendees data={data} setData={setData} />}
         {currentStep.key === "photos" && (
-          <div className="space-y-3">
+          <div className="space-y-3" data-testid="tbt-step-5-photos">
             <p className="text-xs text-[#A19D94]">Attach photos of the site conditions, unsafe area, correct setup or PPE examples.</p>
             <AttachMedia toolId={TOOL_ID} toolLabel="Toolbox Talk" jobId={data.projectId || null} category="toolbox-talk"
               value={data.photos || []} onChange={(list) => setData((d) => ({ ...d, photos: list }))} testIdPrefix="tbt-attach" />

@@ -423,6 +423,12 @@ function CoshhWizard({ initial, user, jobs, hazards, onClose, onSaved, onTemplat
             <button onClick={onClose} className="text-[#A19D94] hover:text-[#F0EDE8]" data-testid="coshh-wizard-close"><X size={20} /></button>
           </div>
 
+          <div className="flex justify-end mb-3">
+            <button onClick={() => setTplModalOpen(true)} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md border border-[#2a2620] text-xs text-[#F0EDE8] hover:border-[#E8A020]" data-testid="coshh-save-template-btn">
+              <Save size={12} /> Save as template
+            </button>
+          </div>
+
           <div className="overflow-x-auto mb-5">
             <div className="flex gap-1 min-w-max">
               {WIZARD_STEPS.map(s => (
@@ -586,7 +592,6 @@ function CoshhWizard({ initial, user, jobs, hazards, onClose, onSaved, onTemplat
                 <div>Review date {data.reviewDate ? `set to ${data.reviewDate}` : "not set"} — reminders fire 30 days before.</div>
               </div>
               <div className="flex gap-2">
-                <button onClick={() => setTplModalOpen(true)} className="inline-flex items-center gap-1 px-3 py-2 rounded-md border border-[#2a2620] text-xs text-[#F0EDE8] hover:border-[#E8A020]" data-testid="coshh-save-template-btn"><Save size={12} /> Save as template</button>
                 <button onClick={saveAssessment} disabled={saving} className="inline-flex items-center gap-2 px-6 py-3 rounded-md bg-[#E8A020] text-black text-sm font-medium disabled:opacity-60" data-testid="coshh-save-btn">
                   <Download size={16} /> {saving ? "Saving..." : "Save & Generate PDF"}
                 </button>
