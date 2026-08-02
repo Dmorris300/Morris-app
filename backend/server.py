@@ -94,6 +94,7 @@ class ProfileUpdate(BaseModel):
     email: Optional[EmailStr] = None
     favourites: Optional[List[str]] = None
     recentlyUsed: Optional[List[str]] = None
+    notificationPrefs: Optional[dict] = None
 
 class GenerateReq(BaseModel):
     toolId: str

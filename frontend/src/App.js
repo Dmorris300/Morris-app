@@ -22,6 +22,7 @@ import FinanceHub from "./pages/FinanceHub";
 import ComplianceHub from "./pages/ComplianceHub";
 import BusinessHub from "./pages/BusinessHub";
 import ToolsLibrary from "./pages/ToolsLibrary";
+import Settings from "./pages/Settings";
 import Drafts from "./pages/Drafts";
 import CISRefundPredictor from "./pages/CISRefundPredictor";
 import MileageTracker from "./pages/MileageTracker";
@@ -154,6 +155,7 @@ function App() {
             <Route path="compliance" element={<ProfileGate><ComplianceHub /></ProfileGate>} />
             <Route path="projects-hub" element={<ProfileGate><ProjectsHub /></ProfileGate>} />
             <Route path="tools-library" element={<ProfileGate><ToolsLibrary /></ProfileGate>} />
+            <Route path="settings" element={<ProfileGate><Settings /></ProfileGate>} />
             <Route path="drafts" element={<ProfileGate><Drafts /></ProfileGate>} />
             <Route path="cis-predictor" element={<ProfileGate><CISRefundPredictor /></ProfileGate>} />
             <Route path="mileage" element={<ProfileGate><MileageTracker /></ProfileGate>} />
