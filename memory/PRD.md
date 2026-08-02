@@ -5,6 +5,17 @@
 > per git log. For an accurate timeline, see **`/app/MORRIS_AUDIT_TIMELINE.md`**.
 > Always trust `git log` over dates in this file.
 
+### 2 Aug 2026 — Method Statement V2 (standalone tool)
+- ✅ **Standalone 12-step wizard** at `/app/method-statement` — Project Details → Scope → Work Sequence → Plant → Materials → PPE → Environmental → Emergency → Attachments → Linked Documents → Review → Generate.
+- ✅ **Backend**: `/app/backend/method_statement.py` with `/api/method-statement/templates` CRUD (list/create/delete, soft-delete). `server.py` kind_map now emits `method_statement_created` timeline events when a Method Statement is saved against a project.
+- ✅ **PDF renderer**: `/app/frontend/src/lib/method-statement-pdf.js` — premium cover page + document info + scope + numbered work sequence + plant/materials tables + PPE grid with badges + environmental controls + emergency procedures + linked documents + site photos + sign-off (supports live signature).
+- ✅ **Frontend wizard**: `/app/frontend/src/pages/MethodStatement.jsx` — `@dnd-kit/sortable` drag-and-drop for step reordering, autosave draft to localStorage, template save/load/delete flow, Photo Vault via existing `AttachMedia`, links to existing RAMS/Risk/COSHH/TBT documents.
+- ✅ **Health & Safety category re-ordered** in Tools Library to match spec: RAMS, Method Statement, Risk Assessments, COSHH, Toolbox Talks, Site Diary, Incident Report, Site Access Permit, Manual Handling, Noise Assessment, Working at Height Rescue Plan. Site Diary moved out of Site Management.
+- ✅ **Testing**: `testing_agent_v3_fork` iteration_15 — 100% backend + 100% frontend, zero blocking issues. Only note: harmless DOM-validity warning from platform's build-time instrumentation.
+- 📦 **New dependency**: `@dnd-kit/core` + `@dnd-kit/sortable` + `@dnd-kit/utilities`.
+
+
+
 ### 2 Aug 2026 — Platform Hubs V2 (this session)
 - ✅ **Finance Hub V2** (`/app/finance`) — 4 tabs (Dashboard / Tax / Commercial / Reports), live aggregator over Payment Tracker + `/api/cis/payments` + `/api/expenses` + `/api/documents`, SVG cash-flow chart, project profitability table.
 - ✅ **Compliance Hub V2** (`/app/compliance`) — new backend module `backend/compliance.py` with `/api/compliance/items` CRUD + `/summary` + `/types`. Frontend `ComplianceHub.jsx` with 4 tabs (Company / Personnel / Project / Vehicles). Expiring items within 60 days flow into `/api/attention` via `collect_compliance_attention()` and appear on the Command Centre.
