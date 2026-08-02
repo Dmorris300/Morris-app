@@ -97,28 +97,32 @@ function toolNameMatches(tool, q) {
 
 function ToolCard({ tool, favourite, onToggleFav, testIdPrefix }) {
   if (!tool) return null;
+  const route = tool.route || `/app/tool/${tool.id}`;
   return (
-    <div className="card-dark p-3 hover:border-[#E8A020]/40 transition relative group" data-testid={`${testIdPrefix}-${tool.id}`}>
-      <Link to={tool.route} className="block">
-        <div className="flex items-start gap-2">
-          <div className="text-xl leading-none shrink-0">{emojiFor(tool.id)}</div>
-          <div className="min-w-0 flex-1 pr-6">
-            <div className="text-sm text-[#F0EDE8] font-medium truncate">{tool.name}</div>
-            {tool.info && <div className="text-[11px] text-[#A19D94] mt-1 line-clamp-2">{tool.info}</div>}
-          </div>
+    <Link
+      to={route}
+      className="card-dark p-3 hover:border-[#E8A020]/40 transition relative group block"
+      data-testid={`${testIdPrefix}-${tool.id}`}
+    >
+      <div className="flex items-start gap-2">
+        <div className="text-xl leading-none shrink-0">{emojiFor(tool.id)}</div>
+        <div className="min-w-0 flex-1 pr-6">
+          <div className="text-sm text-[#F0EDE8] font-medium truncate">{tool.name}</div>
+          {tool.info && <div className="text-[11px] text-[#A19D94] mt-1 line-clamp-2">{tool.info}</div>}
         </div>
-      </Link>
+      </div>
       {onToggleFav && (
         <button
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleFav(tool.id); }}
           className={`absolute top-2 right-2 p-1 transition ${favourite ? "text-[#E8A020]" : "text-[#706D66] opacity-0 group-hover:opacity-100 hover:text-[#E8A020]"}`}
           aria-label={favourite ? "Unfavourite" : "Favourite"}
           data-testid={`${testIdPrefix}-fav-${tool.id}`}
+          type="button"
         >
           <Star size={14} fill={favourite ? "#E8A020" : "none"} />
         </button>
       )}
-    </div>
+    </Link>
   );
 }
 
