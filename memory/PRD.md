@@ -5,6 +5,19 @@
 > per git log. For an accurate timeline, see **`/app/MORRIS_AUDIT_TIMELINE.md`**.
 > Always trust `git log` over dates in this file.
 
+### 2 Aug 2026 — Platform Hubs V2 (this session)
+- ✅ **Finance Hub V2** (`/app/finance`) — 4 tabs (Dashboard / Tax / Commercial / Reports), live aggregator over Payment Tracker + `/api/cis/payments` + `/api/expenses` + `/api/documents`, SVG cash-flow chart, project profitability table.
+- ✅ **Compliance Hub V2** (`/app/compliance`) — new backend module `backend/compliance.py` with `/api/compliance/items` CRUD + `/summary` + `/types`. Frontend `ComplianceHub.jsx` with 4 tabs (Company / Personnel / Project / Vehicles). Expiring items within 60 days flow into `/api/attention` via `collect_compliance_attention()` and appear on the Command Centre.
+- ✅ **Business Hub V2** (`/app/business`) — 4 tabs (Overview / Projects / Team / Insights), active/completed/archived/at-risk categorisation, pipeline value, 12-month growth SVG chart, embeds Team Management summary.
+- ✅ **Tools Library V2** (`/app/tools-library`) — 81 tools categorised into Health & Safety / Commercial / Site Management / Finance / HR / Utilities. Search, favourites (persists to `profile.favourites`), recently used, recently created documents.
+- ✅ **Settings V2** (`/app/settings`) — 7-tab sidebar layout: Profile, Company, Branding, Notifications, Security, Subscription, Backup & Export. `ProfileUpdate` schema extended with `notificationPrefs`. JSON backup export downloads entire user data bundle.
+- ✅ **Sidebar reorganised** — `AppShell.jsx` rewritten to show only the 8 top-level items per spec (Command Centre → Projects → Business → Finance → Compliance → Tools Library → Photo Vault → Settings). Recently-used strip retained as shortcut. Legacy tool-tree sections (Documents / Pricework / Sole Trader / Subcontractor Tools) removed from sidebar — tools now live inside Tools Library only.
+- ✅ **Testing** — `testing_agent_v3_fork` iteration_13 pass, 100% backend (12/12) + 100% frontend, zero bugs. Report: `/app/test_reports/iteration_13.json`. New test file: `/app/backend/tests/test_compliance.py` (12 cases).
+- 📄 **Audit doc**: `/app/MORRIS_TOOL_UPGRADE_AUDIT.md` produced earlier this session — definitive roadmap across all 89 tools/modules.
+- 📄 **Timeline doc**: `/app/MORRIS_AUDIT_TIMELINE.md` rewritten with real git-sourced dates.
+
+
+
 
 ## Original problem statement
 Dark-themed construction administration SaaS web application for UK tradespeople.
