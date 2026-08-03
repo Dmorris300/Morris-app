@@ -1,0 +1,33 @@
+{
+  "summary": "Incident Report V2 (iteration-20) end-to-end tested. Backend: 14/14 pytest passing in /app/backend/tests/test_incident_report.py — covers reference lists (incidentTypes/severities/statuses/riddorCategories/riskReviewKeys), full CRUD with all V2 fields (fiveWhys, riskReview.notes, capa[], drawings[], preparedSignature/reviewedSignature/approvedSignature, RIDDOR fields), 400 validation for missing date and missing incidentType, PATCH partial update (status='Closed' + isFavourite toggle), soft-delete removal from list, PATCH/DELETE 404s, templates CRUD, and stats-counting arithmetic (baseline-delta assertions: total, open, closed, highPriority requires severity in High/Critical AND status != Closed, nearMisses by incidentType == 'Near Miss', underInvestigation, capaOutstanding excludes Done/Closed/Complete/Completed). Frontend: dashboard renders all 6 stat cards (ir-stat-total/open/closed/high/nearmiss/capa) plus ir-stat-investigation strip, filter row (project/type/severity/status) + ir-search + ir-new-btn + ir-empty. Wizard opens with 9-step stepper in EXACT order: 1.Project → 2.Incident → 3.People → 4.Evidence → 5.Investigation → 6.Risk Review → 7.CAPA → 8.Linked Docs → 9.Sign-off. Step 2 exposes ir-incidentType/severity/status/location/description/immediateActions/riddorReportable, and ticking RIDDOR reveals ir-riddorCategory and ir-riddorReference. Step 3 supervisor/firstAider + ir-injured-add & ir-witness-add produce ir-injured-name-1 and ir-witness-statement-1 rows. Step 4 has BOTH ir-attach- and ir-drawing- AttachMedia widgets. Step 5 immediateCause/underlyingCause/rootCause + ir-add-why produces ir-why-q-1/ir-why-a-1. Step 6 has all 5 checkboxes (ramsUpdate/methodStatementUpdate/coshhUpdate/toolboxTalkRequired/riskAssessmentReview) and ticking one reveals ir-rr-note-{key}. Step 7 ir-capa-add creates a row with description/responsible/due/priority/status testids. Step 8 shows all 6 linked doc kinds (RAMS, Method Statement, COSHH, Toolbox Talk, Risk Assessment, Site Diary). Step 9 shows THREE sign boxes ir-sign-prepared/reviewed/approved — each opens ir-sign-modal with the correct title ('Prepared by' / 'Reviewed by' / 'Approved by') verified in DOM. Backwards compat: /app/tool/incident-report redirects to /app/incident-report (verified via navigation).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_incident_report.py",
+    "/app/test_reports/pytest/incident_report_results.xml",
+    "/app/test_reports/iteration_20.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "incident_report.py is compact (370 lines) and cleanly separates CRUD, templates, stats and Command-Centre attention collection. Good.",
+    "highPriority correctly excludes Closed even for High/Critical rows; capaOutstanding correctly excludes {done, complete, completed, closed} via lowercased comparison — matches spec verbatim.",
+    "IncidentReport.jsx is 879 lines — starting to trend large; consider extracting step components (StepProject/StepIncident/... /StepSignoff) into /pages/incident-report/steps/ for maintainability, mirroring the Site Diary suggestion. Not blocking.",
+    "Backend does not validate `status`/`severity`/`incidentType` against enum lists (accepts arbitrary strings). Non-blocking because the counting logic uses exact string comparisons that safely default to 'Open' bucket, but adding Pydantic Literal[...] fields would harden the API.",
+    "Pre-existing console warning: '<span> cannot be a child of <option>' triggers a React hydration error on the IR page (originates from a select's option rendering — likely dropdown component reused elsewhere). Not introduced by IR V2, but worth cleaning up.",
+    "collect_incident_attention surfaces every open High/Critical regardless of age (spec mentioned 'older than 3 days' in the docstring, but the code has no age filter). Behaviour is arguably better without the gate, but docstring and implementation disagree — align one of them."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_incident_report.py"
+  ],
+  "success_rate": { "backend": "100% (14/14)", "frontend": "100% of requested selectors and flows verified" },
+  "test_credentials": "darrenhustle300 / hustle1234 (admin, unlimited)",
+  "seed_data_creation": "Tests create TEST_IR_Project entry + 4 TEST_IR_STATS entries + TEST_IR_Tpl template — all removed within the same pytest run.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Preview URL: https://prompt-web-4.preview.emergentagent.com. Login via [data-testid=login-username]/[data-testid=login-password]/[data-testid=login-submit]. Skip onboarding tour ('Skip tour' button) before opening the New Incident wizard. Save & Generate PDF flow's UI trigger was not clicked (would produce a live file download); backend POST /api/incident-report/entries and stats path exercised directly via pytest. Test file /app/backend/tests/test_incident_report.py can be re-run as regression.",
+  "rca_of_the_issue": "N/A — no bugs found."
+}

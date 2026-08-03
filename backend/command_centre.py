@@ -336,6 +336,13 @@ def build_router(db, get_user):
             items = items + coshh_items
         except Exception:
             pass
+        # Merge Incident Report attention (open high-priority + overdue CAPA).
+        try:
+            from incident_report import collect_incident_attention
+            inc_items = await collect_incident_attention(db, user["id"], datetime.now(timezone.utc))
+            items = items + inc_items
+        except Exception:
+            pass
         items.sort(key=lambda x: (SEVERITY_ORDER.get(x.get("severity"), 3), x.get("dueAt") or "9999"))
         return {"items": items, "count": len(items), "computedAt": datetime.now(timezone.utc).isoformat()}
 
