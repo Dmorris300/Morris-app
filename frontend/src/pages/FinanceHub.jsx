@@ -61,39 +61,61 @@ function EmptyState({ title, subtitle, cta, to, testId }) {
   );
 }
 
-// Micro bar chart (SVG). data = [{ label, invoiced, received }]
-function CashFlowChart({ data }) {
+// Cash flow summary table. Replaces the previous SVG chart per Morris Global
+// Design Standard (No Charts): prefer trustworthy tables and KPI cards over
+// decorative visualisations.
+function CashFlowSummary({ data }) {
   if (!data || data.length === 0) return null;
-  const max = Math.max(1, ...data.map((d) => Math.max(d.invoiced, d.received)));
   const monthLabel = (ym) => {
     const [y, m] = ym.split("-");
     const names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     return `${names[parseInt(m, 10) - 1]} ${y.slice(2)}`;
   };
-  const w = 640, h = 180, pad = 32;
-  const barW = (w - pad * 2) / data.length / 2.6;
+  const totalInvoiced = data.reduce((s, x) => s + (x.invoiced || 0), 0);
+  const totalReceived = data.reduce((s, x) => s + (x.received || 0), 0);
+  const gap = totalInvoiced - totalReceived;
   return (
-    <div className="card-dark p-5" data-testid="cashflow-chart">
-      <div className="text-[10px] uppercase tracking-[0.2em] text-[#A19D94] mb-3">Cash flow — last 6 months (invoiced vs received)</div>
-      <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-40">
-        <line x1={pad} x2={w - pad} y1={h - pad} y2={h - pad} stroke="#2a2620" strokeWidth="1" />
-        {data.map((d, i) => {
-          const x = pad + i * ((w - pad * 2) / data.length) + ((w - pad * 2) / data.length) / 4;
-          const ih = ((h - pad * 2) * d.invoiced) / max;
-          const rh = ((h - pad * 2) * d.received) / max;
-          return (
-            <g key={d.ym}>
-              <rect x={x} y={h - pad - ih} width={barW} height={ih} fill="#E8A020" opacity="0.7" rx="2" />
-              <rect x={x + barW + 4} y={h - pad - rh} width={barW} height={rh} fill="#68D391" opacity="0.75" rx="2" />
-              <text x={x + barW} y={h - pad + 14} fontSize="9" fill="#706D66" textAnchor="middle">{monthLabel(d.ym)}</text>
-            </g>
-          );
-        })}
-      </svg>
-      <div className="flex gap-4 mt-2 text-[11px] text-[#A19D94]">
-        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-[#E8A020]/70" /> Invoiced</span>
-        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-[#68D391]/75" /> Received</span>
+    <div className="card-dark p-5" data-testid="cashflow-summary">
+      <div className="flex items-center justify-between mb-3">
+        <div className="text-[10px] uppercase tracking-[0.2em] text-[#A19D94]">Cash flow — last 6 months</div>
+        <div className="text-[11px] text-[#A19D94]">Outstanding across period: <span className={`font-medium ${gap > 0 ? "text-[#E8A020]" : "text-[#68D391]"}`}>{fGBP(Math.max(0, gap))}</span></div>
       </div>
+      <table className="w-full text-sm" data-testid="cashflow-summary-table">
+        <thead>
+          <tr className="text-[10px] uppercase tracking-[0.15em] text-[#706D66] border-b border-[#2a2620]">
+            <th className="text-left py-2 font-normal">Month</th>
+            <th className="text-right py-2 font-normal">Invoiced</th>
+            <th className="text-right py-2 font-normal">Received</th>
+            <th className="text-right py-2 font-normal">Outstanding</th>
+            <th className="text-right py-2 font-normal">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((d) => {
+            const out = Math.max(0, (d.invoiced || 0) - (d.received || 0));
+            const ratio = d.invoiced > 0 ? (d.received || 0) / d.invoiced : 1;
+            const tone = ratio >= 0.9 ? "green" : ratio >= 0.6 ? "gold" : "red";
+            const cls = tone === "green" ? "text-[#68D391] border-[#68D391]/40" : tone === "gold" ? "text-[#E8A020] border-[#E8A020]/40" : "text-[#F27C7C] border-[#F27C7C]/40";
+            const label = tone === "green" ? "On track" : tone === "gold" ? "Watch" : "Behind";
+            return (
+              <tr key={d.ym} className="border-b border-[#2a2620]/60 last:border-0">
+                <td className="py-2 text-[#F0EDE8]">{monthLabel(d.ym)}</td>
+                <td className="py-2 text-right text-[#F0EDE8]">{fGBP(d.invoiced || 0)}</td>
+                <td className="py-2 text-right text-[#68D391]">{fGBP(d.received || 0)}</td>
+                <td className="py-2 text-right text-[#E8A020]">{fGBP(out)}</td>
+                <td className="py-2 text-right"><span className={`text-[10px] px-2 py-0.5 rounded-full border ${cls}`}>{label}</span></td>
+              </tr>
+            );
+          })}
+          <tr className="border-t border-[#E8A020]/30 bg-[#1e1a12]/40">
+            <td className="py-2 text-[#F0EDE8] font-medium">Total</td>
+            <td className="py-2 text-right text-[#F0EDE8] font-medium">{fGBP(totalInvoiced)}</td>
+            <td className="py-2 text-right text-[#68D391] font-medium">{fGBP(totalReceived)}</td>
+            <td className="py-2 text-right text-[#E8A020] font-medium">{fGBP(Math.max(0, gap))}</td>
+            <td />
+          </tr>
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -113,9 +135,9 @@ function DashboardTab({ d }) {
 
       <SectionHeader eyebrow="Money flow" title="Cash flow summary" action={<Link to="/app/payment-tracker" className="text-xs text-[#E8A020] hover:underline flex items-center gap-1">Open Tracker <ArrowRight size={12} /></Link>} />
       {d.invoiceRows.length === 0 ? (
-        <EmptyState title="No invoices logged yet" subtitle="Log your first invoice in the Payment Tracker and this chart will populate automatically." cta="Open Payment Tracker" to="/app/payment-tracker" testId="empty-cashflow" />
+        <EmptyState title="No invoices logged yet" subtitle="Log your first invoice in the Payment Tracker and this summary will populate automatically." cta="Open Payment Tracker" to="/app/payment-tracker" testId="empty-cashflow" />
       ) : (
-        <CashFlowChart data={dashboardKpis.cashFlow} />
+        <CashFlowSummary data={dashboardKpis.cashFlow} />
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">

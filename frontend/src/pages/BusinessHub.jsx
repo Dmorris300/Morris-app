@@ -146,30 +146,60 @@ function KpiCard({ label, value, sub, icon: Icon, to, tone, testId }) {
   );
 }
 
-// Growth chart (last 12 months)
-function GrowthChart({ data }) {
+// Growth summary table (last 12 months). Replaces the previous SVG line
+// chart per Morris Global Design Standard (No Charts).
+function GrowthSummary({ data }) {
   if (!data || data.length === 0) return null;
-  const max = Math.max(1, ...data.map((d) => d.revenue));
-  const w = 640, h = 160, pad = 24;
-  const points = data.map((d, i) => {
-    const x = pad + (i * (w - pad * 2)) / (data.length - 1);
-    const y = h - pad - ((h - pad * 2) * d.revenue) / max;
-    return `${x},${y}`;
-  }).join(" ");
+  const monthLabel = (ym) => {
+    if (!ym || !ym.includes("-")) return ym;
+    const [y, m] = ym.split("-");
+    const names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return `${names[parseInt(m, 10) - 1]} ${y.slice(2)}`;
+  };
+  const total = data.reduce((s, x) => s + (x.revenue || 0), 0);
+  const avg = total / data.length;
+  const best = data.reduce((b, x) => (x.revenue || 0) > (b?.revenue || 0) ? x : b, data[0]);
+  const latest = data[data.length - 1] || {};
+  const prev = data[data.length - 2] || {};
+  const mom = prev.revenue > 0 ? Math.round((((latest.revenue || 0) - prev.revenue) / prev.revenue) * 100) : null;
+  const rowsPerCol = Math.ceil(data.length / 2);
+  const cols = [data.slice(0, rowsPerCol), data.slice(rowsPerCol)];
   return (
-    <div className="card-dark p-5" data-testid="business-growth-chart">
-      <div className="text-[10px] uppercase tracking-[0.2em] text-[#A19D94] mb-3">Business growth — revenue over 12 months</div>
-      <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-40">
-        <line x1={pad} x2={w - pad} y1={h - pad} y2={h - pad} stroke="#2a2620" strokeWidth="1" />
-        <polyline points={points} fill="none" stroke="#E8A020" strokeWidth="2" />
-        {data.map((d, i) => {
-          const x = pad + (i * (w - pad * 2)) / (data.length - 1);
-          const y = h - pad - ((h - pad * 2) * d.revenue) / max;
-          return <circle key={d.ym} cx={x} cy={y} r="2.5" fill="#E8A020" />;
-        })}
-      </svg>
-      <div className="flex justify-between text-[10px] text-[#706D66] mt-1">
-        <span>{data[0]?.ym}</span><span>{data[data.length - 1]?.ym}</span>
+    <div className="card-dark p-5" data-testid="business-growth-summary">
+      <div className="flex items-center justify-between mb-3">
+        <div className="text-[10px] uppercase tracking-[0.2em] text-[#A19D94]">Business growth — last 12 months</div>
+        <div className="text-[11px] text-[#A19D94]">Total {fGBP(total)} · Avg {fGBP(Math.round(avg))} / month</div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+        <div className="rounded-md border border-[#2a2620] p-3">
+          <div className="text-[10px] uppercase tracking-[0.15em] text-[#706D66]">Latest month</div>
+          <div className="text-lg text-[#F0EDE8] mt-1">{fGBP(latest.revenue || 0)}</div>
+          <div className="text-[11px] text-[#A19D94] mt-0.5">{monthLabel(latest.ym)} {mom !== null && <span className={mom >= 0 ? "text-[#68D391]" : "text-[#F27C7C]"}>· {mom >= 0 ? "+" : ""}{mom}% vs prev</span>}</div>
+        </div>
+        <div className="rounded-md border border-[#2a2620] p-3">
+          <div className="text-[10px] uppercase tracking-[0.15em] text-[#706D66]">Best month</div>
+          <div className="text-lg text-[#68D391] mt-1">{fGBP(best?.revenue || 0)}</div>
+          <div className="text-[11px] text-[#A19D94] mt-0.5">{monthLabel(best?.ym)}</div>
+        </div>
+        <div className="rounded-md border border-[#2a2620] p-3">
+          <div className="text-[10px] uppercase tracking-[0.15em] text-[#706D66]">Monthly average</div>
+          <div className="text-lg text-[#F0EDE8] mt-1">{fGBP(Math.round(avg))}</div>
+          <div className="text-[11px] text-[#A19D94] mt-0.5">Across {data.length} month{data.length === 1 ? "" : "s"}</div>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1 text-sm">
+        {cols.map((col, ci) => (
+          <table key={ci} className="w-full">
+            <tbody>
+              {col.map((d) => (
+                <tr key={d.ym} className="border-b border-[#2a2620]/60 last:border-0">
+                  <td className="py-1.5 text-[#A19D94] w-24">{monthLabel(d.ym)}</td>
+                  <td className="py-1.5 text-right text-[#F0EDE8]">{fGBP(d.revenue || 0)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ))}
       </div>
     </div>
   );
@@ -368,7 +398,7 @@ function InsightsTab({ d }) {
       </div>
 
       <div className="mt-6">
-        <GrowthChart data={d.growth} />
+        <GrowthSummary data={d.growth} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-6">

@@ -51,6 +51,35 @@ remain as audit-trail references only — they are NOT product marketing copy.
 
 ---
 
+## 📊 Global Design Standard — No Charts (3 Aug 2026)
+
+**Morris removes unnecessary charts, graphs and analytics visualisations.** Users
+must be able to assess project health within seconds without interpreting graphs.
+
+**Remove**: trend charts · variance charts · profit trend graphs · incident trend
+graphs · risk trend graphs · analytics dashboards built around graphs · decorative
+visualisations that do not improve decision-making.
+
+**Replace with**: KPI cards · professional summary tables · Green/Amber/Red status
+indicators · checklists · timelines · calendar views · outstanding action lists ·
+clean financial summaries.
+
+**Use charts only where they provide a genuine operational benefit.**
+
+**Applied across**: Commercial Reports, Incident Reports, Risk Assessments, Site
+Diary, Command Centre, Finance Hub, Business Hub, Compliance Hub — and all future
+Morris modules must follow this standard.
+
+**Audit complete 3 Aug 2026** — removed the two SVG charts that existed:
+`CashFlowChart` (Finance Hub) → replaced with `CashFlowSummary` (KPI-header +
+month table with GAR status badges). `GrowthChart` (Business Hub Insights) →
+replaced with `GrowthSummary` (Latest / Best / Monthly-Average KPI trio +
+two-column month revenue table). No `recharts` or other chart library is used
+anywhere in the app — `recharts` remains as a dependency in package.json but is
+imported by zero files.
+
+---
+
 ### 3 Aug 2026 — Risk Assessment V2 (flagship central H&S record)
 - ✅ **Risk Assessment V2** at `/app/risk-register` — dashboard-first central H&S record with 4 stat cards (Active / Reviews due / High risks / Total), favourites, recent, templates, filters (project / status / residual risk level).
 - ✅ **12-step wizard**: Project → Activity → Hazard Identification → Persons at Risk → Existing Controls → Initial Rating (5×5 matrix highlight) → Additional Controls → Residual Rating (5×5 matrix) → Photos & Evidence → Linked Docs (6 kinds incl Incident Reports & Site Diary) → Sign-off (triple: Prepared/Reviewed/Approved) → Preview & Generate PDF. Hazard picker pill row on steps 3/5/6/7/8 lets users edit each hazard's controls and ratings independently.
