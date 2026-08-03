@@ -1572,10 +1572,10 @@ Rules: never invent facts. If a field is blank, leave the line out cleanly. No s
     [],
     "Produce a UK Procurement Schedule (see the dedicated page for full inputs)."
   ),
-  t("risk-register", "Risk Register", "site",
-    "Risk register required under the Management of Health and Safety at Work Regulations 1999. Standard risk matrix (likelihood × severity). Documents hazards, controls, and residual risk for every site activity.",
+  t("risk-register", "Risk Assessment", "site",
+    "The central Health & Safety record. Identify hazards, assess risk on the standard 5×5 matrix (likelihood × severity), track controls and produce a professional PDF suitable for clients, principal contractors and audits. Required under the Management of Health and Safety at Work Regulations 1999.",
     [],
-    "Produce a UK Risk Register (see the dedicated page for full inputs)."
+    "Produce a UK Risk Assessment (see the dedicated page for full inputs)."
   ),
   t("variation-instruction-log", "Variation Instruction Log", "site",
     "A live register of every variation, extra and change instructed by the client or main contractor. Add rows throughout the project so no variation is forgotten or unpaid. Summary panel updates live.",

@@ -1,0 +1,37 @@
+{
+  "summary": "Risk Assessment V2 tested end-to-end. Backend: 8/9 pytest cases pass; discovered bug in /api/risk-assessment/stats where highRisks counter INCLUDES Closed assessments (spec: only non-Closed should count). Frontend: dashboard, 12-step wizard, hazard picker, per-hazard live L×S rating, matrix highlight, 8 person cards, 3 sign-off modals, backwards compat redirect, blank-activity toast, save-and-persist flow all verified against darrenhustle300 account on the public URL.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "GET /api/risk-assessment/stats", "issue": "highRisks counts Closed assessments. Repro: create two entries with residual Extreme hazards where one has status='Closed'; stats.highRisks reports 2 instead of 1. Fix in /app/backend/risk_assessment.py line ~284: guard with `if st != 'Closed' and _has_high_residual(r):`", "priority": "HIGH"}
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Risk Register dashboard (all pages using the risk residual filter)", "issues": ["React hydration warning in console: `<span> cannot be a child of <option>` — appears to originate from the dev instrumentation wrapping option children (x-file-name span). Non-blocking but should be reviewed to ensure it is dev-only and not shipped."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_risk_assessment.py",
+    "/app/test_reports/pytest/risk_assessment_results.xml"
+  ],
+  "action_items": [
+    "Fix highRisks stat in /app/backend/risk_assessment.py to skip Closed rows (line 284 area).",
+    "Consider re-running frontend risk-register in dev vs prod build to confirm the <span> in <option> hydration warning is dev-only instrumentation."
+  ],
+  "critical_code_review_comments": [
+    "risk_assessment.py stats: `high_risks += 1` does not filter status. Divergent from spec text 'only counts non-Closed'.",
+    "RiskRegister.jsx is 862 lines — approaching the 700-line guideline. Consider splitting wizard steps into per-file components for maintainability.",
+    "Server-side rating computation is clean; _shape() properly excludes _id."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "89% (8/9 pytest cases; 1 legitimate stats bug found)", "frontend": "100%"},
+  "test_credentials": "darrenhustle300 / hustle1234 (admin from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Test-only assessments were created with TEST_ prefix and deleted at end of run.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend test file lives at /app/backend/tests/test_risk_assessment.py. It creates TEST_-prefixed entries and cleans them up. The one failing case is TestStats.test_stats_counts — asserts highRisks must exclude Closed rows. After E1 patches the guard, re-run just that test.",
+  "rca of the issue": "In /app/backend/risk_assessment.py the /stats handler branches on `st != 'Closed'` for both active and reviewsDue counters, but the highRisks branch calls `_has_high_residual(r)` without a status check. Repro: POST an entry with status='Closed' plus a hazard L=5 S=5 (residual Extreme) — GET /stats returns highRisks=1 for that entry alone. Fix: wrap the branch with `if st != 'Closed' and _has_high_residual(r):`. Same status check is already correctly applied in collect_risk_assessment_attention()."
+}

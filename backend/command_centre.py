@@ -343,6 +343,13 @@ def build_router(db, get_user):
             items = items + inc_items
         except Exception:
             pass
+        # Merge Risk Assessment attention (reviews due + high residuals).
+        try:
+            from risk_assessment import collect_risk_assessment_attention
+            ra_items = await collect_risk_assessment_attention(db, user["id"], datetime.now(timezone.utc))
+            items = items + ra_items
+        except Exception:
+            pass
         items.sort(key=lambda x: (SEVERITY_ORDER.get(x.get("severity"), 3), x.get("dueAt") or "9999"))
         return {"items": items, "count": len(items), "computedAt": datetime.now(timezone.utc).isoformat()}
 
