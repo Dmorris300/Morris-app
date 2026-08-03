@@ -135,7 +135,7 @@ export default function PreStartMeeting() {
 
     setGenerating(true); setResult(""); setRefNumber("");
 
-    // Build human-readable blocks for the AI prompt
+    // Build human-readable blocks for the document generator prompt.
     const hsBlock = HS_ITEMS.map((it) => {
       const v = hsChecks[it.key] || "Not Applicable";
       return `   ${it.label}: ${v}`;

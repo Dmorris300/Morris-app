@@ -1,6 +1,6 @@
 // Drafts API client + helpers. Drafts persist mid-form state per-user, per-tool.
 // Each tool decides what to serialise into `data` — Generic tools save the
-// values object + AI result; dedicated tools save their bespoke state shape.
+// values object + generator result; dedicated tools save their bespoke state shape.
 import api from "./api";
 
 export async function listDrafts() {

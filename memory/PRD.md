@@ -5,6 +5,52 @@
 > per git log. For an accurate timeline, see **`/app/MORRIS_AUDIT_TIMELINE.md`**.
 > Always trust `git log` over dates in this file.
 
+---
+
+## 🎯 Design Philosophy — Read Before Every New Feature (3 Aug 2026)
+
+**Morris is a professional construction operating system.** It is NOT an AI product.
+Technology supports the user. It never replaces the user.
+
+**Language rules for all new UI copy, spec text, tool descriptions and PDFs:**
+
+| ❌ Never say | ✅ Say instead |
+| --- | --- |
+| AI Assistant | Smart Assistance |
+| AI Powered | Workflow Optimisation |
+| AI Generated | Professionally generated / Template-driven |
+| AI Suggestions | Suggested Content |
+| AI Draft | Draft |
+| AI Writing / AI Content | Suggested Content / Smart Assistance |
+| AI Summary | Summary |
+| AI Feature | Productivity Tool |
+| Powered by AI | (do not use) |
+
+**Every workflow must let the user:** Review → Edit → Approve. The software assists;
+the user stays in control.
+
+**Test for every new feature:** *"Does this improve the contractor's workflow?"* If
+yes, ship it. If it is only a demo of clever tech, don't.
+
+**Roadmap phase rename**: "Workflow & Automation" → **"Workflow Optimisation & Platform
+Polish"**. Focus for this phase:
+
+- Smart document linking · Reusable templates · Draft recovery · Global search
+- Better notifications · Shared project data · Consistent workflows · Faster performance
+- Better mobile experience · Professional PDF improvements · Platform stability
+- Offline reliability · Cleaner navigation · Reduced data entry
+
+**Positioning check across existing specs** (Method Statement, Toolbox Talks, COSHH,
+Site Diary, Incident Report, Risk Assessments, Commercial Reports, Command Centre,
+Project Workspace): audit complete on 3 Aug 2026 — UI copy is already clean of
+AI-first framing; only historical code comments and one line in
+`MORRIS_TOOL_UPGRADE_AUDIT.md` referred to "AI-generated" and have been rephrased
+to "template-generated / document generator". Historical PRD entries below use "AI"
+and "LLM" as internal technical descriptors of the document-generation engine and
+remain as audit-trail references only — they are NOT product marketing copy.
+
+---
+
 ### 3 Aug 2026 — Site Diary V2 (flagship daily site management)
 - ✅ **Site Diary V2** at `/app/site-diary` — dashboard-first daily site management. Dashboard: 6 stat cards (Total entries / Today's diary / This week / With delays / Missing today / Outstanding actions), favourites, recent entries, templates row, search + project + date-range + weather + user filters. 11-step wizard modal in the definitive order (Project → Weather → Labour → Works Completed → Deliveries → Plant & Equipment → Delays & Issues → Variations → Site Photos → Actions → Sign-off).
 - ✅ **Backend** `backend/site_diary.py` — entries CRUD (soft-delete) with new fields `actions[]`, `completedBy`, `completedSignature`, `supervisorName`, `supervisorSignature`, `delays[].priority`, `plant[].breakdown`, `worksCompleted[].details`; templates CRUD; `/api/site-diary/stats` extended with `outstandingActions` (counts Open/In progress/Blocked, excludes Done/Complete/Closed); `/api/site-diary/reference`; `collect_site_diary_attention()` for the missing-today alert.

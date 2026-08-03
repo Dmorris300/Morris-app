@@ -215,7 +215,7 @@ export default function GenericToolPage() {
     setGenerating(true); setResult(""); setRefNumber("");
     try {
       // Flatten any array values (from checkbox groups) into comma-separated strings
-      // so the AI prompt reads naturally.
+      // so the document generator receives cleanly structured input.
       const flatValues = Object.fromEntries(
         Object.entries(values).map(([k, v]) => [k, Array.isArray(v) ? v.join(", ") : v])
       );

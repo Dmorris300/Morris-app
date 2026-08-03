@@ -240,7 +240,7 @@ export default function PaymentChaser() {
   const onGenerate = async () => {
     setGenerating(true); setResult(""); setRefNumber("");
     try {
-      // Build a stage-aware prompt template inline so the AI gets the right tone.
+      // Build a stage-aware prompt template inline so the document generator receives the right tone.
       const prevHistory = historyFor(form.invNo);
       const promptTemplate = `Produce a UK Payment Chaser letter. Plain direct English. No padding. No banned consultant words.
 
