@@ -51,6 +51,17 @@ remain as audit-trail references only — they are NOT product marketing copy.
 
 ---
 
+### 3 Aug 2026 — Applications for Payment V2 (flagship payment application system)
+- ✅ **Applications for Payment V2** at `/app/applications-for-payment` — commercial flagship replacing the legacy form-based `application-for-payment`. Dashboard-first: 6 status stat cards (Draft / Submitted / Certified / Paid / Overdue / Rejected) + 3 KPI value cards (Outstanding / Overdue / Paid year-to-date) + search + status filter (incl. Overdue) + project filter + templates.
+- ✅ **9-step wizard**: Project → Contract & Client → **Previous Applications & Valuations** (running totals auto-loaded from prior AFPs on the same project) → **Current Valuation** (Labour / Materials / Plant / Preliminaries / Subcontractor / Variations / Other, with **auto-pulled Approved Variation total** from Variation Orders V2) → **Retention / VAT / CIS / Adjustments** (server-authoritative math) → Photos & Docs (Photo Vault picker + supporting refs) → Review & Approval (dual sign-off) → Status Tracking → Preview & Generate PDF.
+- ✅ **Backend** `backend/applications_for_payment.py` — CRUD + templates + stats + project summary + status endpoint. **Server computes `totals` on every create + PATCH**: gross valuation, gross including variations, this-period value, retention (rate × gross + running balance), CIS deduction on labour ratio only, VAT (Standard 20% / Reduced 5% / Zero-rated / **Reverse charge (0%)** / Exempt), adjustments (+/-), totalDue. Auto AFP-NNN reference. Auto application number per project. Certified auto-stamps date + amount; Paid auto-stamps date + increments the linked job's `amountPaid`.
+- ✅ **Command Centre attention** `collect_afp_attention`: Overdue (Submitted / Certified past due date) surfaced as `afp_overdue`; Submitted >7 days awaiting cert as `afp_awaiting`; deep-linked to `?open={id}`.
+- ✅ **Variation Orders integration**: AFP `POST` auto-pulls the sum of Approved variations on the linked project into `approvedVariationsValue` (unless client already sent one), so the QS never double-keys.
+- ✅ **Project workspace integration**: Paid AFPs feed the project's `amountPaid` running total. Outstanding calculation on the project workspace already uses revised contract value (variations included).
+- ✅ **PDF** `lib/application-for-payment-pdf.js` — cover with status pill + total due, application/contract details, current valuation table with per-category subtotals, previous applications table for the same project, full certification summary (gross → variations → previously certified → this period → retention → adjustments → subtotal net → CIS → VAT → **TOTAL DUE**), retention running balance, supporting evidence, terms, dual sign-off (contractor + client/QS with role).
+- ✅ **Routing/redirects**: legacy `/app/tool/application-for-payment` now redirects to V2. Business Hub tile and Dashboard quick-action updated.
+- ✅ Tested end-to-end (backend pytest 9/9 pass + frontend 9-step wizard walkthrough + row quick-action state transitions all live). Report: `/app/test_reports/iteration_23.json`.
+
 ### 3 Aug 2026 — Variation Orders V2 (flagship variation management system)
 - ✅ **Variation Orders V2** at `/app/variation-orders` — commercial flagship replacing the legacy form-based `variation-letter`. Dashboard-first: 5 status stat cards (Draft / Submitted / In Progress / Approved / Rejected) + 3 KPI value cards (Approved value / Submitted awaiting approval / Approved additional days) + search + status filter + project filter + templates.
 - ✅ **9-step wizard**: Project (auto-fills from linked job) → Original Contract (auto-fills from linked Quote Builder quote — scope, ref, date) → Variation Details & Reason (8 canned reasons + 8 instruction methods + instructor name/role/date/location + description of change + reason narrative + reference docs) → Cost Breakdown (Labour / Materials / Plant / Subcontractor / Preliminaries / Other, VAT-toggleable) → Programme / Time Impact (No impact / Additional days / Reduction in days / Sequence only + optional new PC date) → Photos & Docs (Photo Vault picker filtered by project + supporting document references) → Client Approval (dual sign-off) → Status Tracking → Preview & Generate PDF.
@@ -547,8 +558,7 @@ Dark-themed construction administration SaaS web application for UK tradespeople
 _None._
 
 ### P1 — High priority
-- **Applications for Payment V2** (next flagship rebuild) — spec matches VO/QB pattern: dashboard-first, valuation math with retention + CIS + reverse charge, dual sign-off, PDF
-- **Invoice Builder V2** (flagship rebuild) — CIS-aware invoicing, payment terms, VAT rules
+- **Invoice Builder V2** (next flagship rebuild) — CIS-aware invoicing, payment terms, VAT rules
 - **Extension of Time Claims V2** (flagship rebuild) — contract-aware (JCT / NEC4 / bespoke), evidence schedule, EOT ≠ loss & expense distinction
 - **Commercial Reports V2** (living register redesign)
 - **Global Search** (cross-project search endpoint + top-bar UI)
