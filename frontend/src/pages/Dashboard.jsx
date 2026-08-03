@@ -69,7 +69,7 @@ const QUICK_ACTIONS = [
   { id: "jobs",                  label: "Jobs",        icon: Briefcase,    to: "/app/jobs" },
   { id: "cis-invoice",           label: "Invoice",     icon: Receipt,      to: "/app/tool/cis-invoice" },
   { id: "quote-builder",         label: "Quote",       icon: FileText,     to: "/app/tool/quote-builder" },
-  { id: "variation-letter",      label: "Variation",   icon: FileText,     to: "/app/tool/variation-letter" },
+  { id: "variation-letter",      label: "Variation",   icon: FileText,     to: "/app/variation-orders" },
   { id: "rams",                  label: "RAMS",        icon: HardHat,      to: "/app/rams" },
   { id: "multiuser-site-diary",  label: "Site Diary",  icon: ClipboardList,to: "/app/multiuser-site-diary" },
   { id: "toolbox-talk",          label: "Toolbox",     icon: HardHat,      to: "/app/tool/toolbox-talk" },

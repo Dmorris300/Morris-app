@@ -221,6 +221,25 @@ def build_router(db, get_user):
             "userId": uid, "toolId": "variation-letter",
             "$or": [{"data.jobId": job_id}, {"jobId": job_id}],
         })
+        # Include V2 variation-orders that are open (Draft / Submitted / In Progress)
+        try:
+            v2_open = await db.variation_orders.count_documents({
+                "userId": uid, "projectId": job_id, "isDeleted": {"$ne": True},
+                "status": {"$in": ["Draft", "Submitted", "In Progress"]},
+            })
+            open_variations += v2_open
+        except Exception:
+            pass
+        # Approved variation orders — added onto the linked project's commercial value
+        approved_variations_value = 0.0
+        try:
+            async for r in db.variation_orders.find({
+                "userId": uid, "projectId": job_id, "isDeleted": {"$ne": True},
+                "status": "Approved",
+            }):
+                approved_variations_value += float(((r.get("totals") or {}).get("total")) or 0)
+        except Exception:
+            pass
         # Applications submitted
         applications = await db.documents.count_documents({
             "userId": uid, "jobId": job_id, "toolId": "application-for-payment",
@@ -232,6 +251,8 @@ def build_router(db, get_user):
 
         # Financial roll-up
         contract_value = float(job.get("contractValue") or 0)
+        # Approved variations extend the effective commercial value of the project
+        revised_contract_value = round(contract_value + approved_variations_value, 2)
         # Payments received — sum of payment_received event subtitles that parse to numbers
         received = 0.0
         async for ev in db.project_events.find({"userId": uid, "jobId": job_id, "kind": "payment_received"}):
@@ -239,7 +260,7 @@ def build_router(db, get_user):
                 received += float((ev.get("subtitle") or "").replace("£", "").replace(",", "").split()[0])
             except (ValueError, IndexError):
                 pass
-        outstanding = contract_value - received if job.get("status") not in ("paid", "completed") else 0.0
+        outstanding = revised_contract_value - received if job.get("status") not in ("paid", "completed") else 0.0
         outstanding = max(0.0, outstanding)
 
         # Recent activity (last 3 events)
@@ -254,6 +275,9 @@ def build_router(db, get_user):
             "completedTasks": completed_tasks,
             "openTasks": open_tasks,
             "openVariations": open_variations,
+            "approvedVariationsValue": round(approved_variations_value, 2),
+            "originalContractValue": round(contract_value, 2),
+            "revisedContractValue": revised_contract_value,
             "applications": applications,
             "siteDiaries": diary_docs,
             "recentActivity": [_shape(r) for r in recent],

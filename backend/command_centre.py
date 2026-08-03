@@ -357,6 +357,13 @@ def build_router(db, get_user):
             items = items + qb_items
         except Exception:
             pass
+        # Merge Variation Orders attention (submitted awaiting approval / in-progress idle).
+        try:
+            from variation_orders import collect_variation_orders_attention
+            vo_items = await collect_variation_orders_attention(db, user["id"], datetime.now(timezone.utc))
+            items = items + vo_items
+        except Exception:
+            pass
         items.sort(key=lambda x: (SEVERITY_ORDER.get(x.get("severity"), 3), x.get("dueAt") or "9999"))
         return {"items": items, "count": len(items), "computedAt": datetime.now(timezone.utc).isoformat()}
 

@@ -1,0 +1,298 @@
+// Morris — Variation Orders V2 PDF renderer.
+// Professional Variation Order: cover + project + instruction + description
+// + cost breakdown + programme impact + evidence + terms + dual sign-off.
+
+import { jsPDF } from "jspdf";
+import { drawHeader, addFooter } from "./pdf";
+
+const GOLD = [232, 160, 32], INK = [20, 20, 20], MUTED = [110, 110, 110], BORDER = [180, 180, 180], ZEBRA = [248, 246, 242];
+const MARGIN = 48;
+
+const fGBP = (n) => `£${(Number(n) || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
+const STATUS_COLOUR = {
+  "Draft": [140, 140, 140],
+  "Submitted": [232, 160, 32],
+  "Approved": [104, 211, 145],
+  "Rejected": [242, 124, 124],
+  "In Progress": [180, 180, 180],
+};
+
+export function generateVariationPdf({ data, user, today }) {
+  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const userName = user?.fullName || user?.username || "";
+  const company = user?.companyName || userName;
+  const todayStr = today || new Date().toLocaleDateString("en-GB");
+  const ref = data.variationRef || "VO-DRAFT";
+  const totals = data.totals || {};
+  const status = data.status || "Draft";
+
+  drawCover(doc, { data, user, company, todayStr, ref, pageWidth, pageHeight, totals, status });
+  doc.addPage();
+  doc.setFillColor(255, 255, 255); doc.rect(0, 0, pageWidth, pageHeight, "F");
+  drawHeader(doc, pageWidth, MARGIN, user, company, todayStr, "Variation Order");
+  const state = { y: 150, doc, pageWidth, pageHeight, user, company, todayStr, ref, userName, sectionNum: 0 };
+
+  // 1. Project details
+  section(state, "Project Details");
+  kvTable(state, [
+    ["Project", data.projectName || "—"],
+    ["Site address", data.projectAddress || "—"],
+    ["Client", data.clientName || "—"],
+    ["Client company", data.clientCompany || "—"],
+    ["Client email", data.clientEmail || "—"],
+    ["Client phone", data.clientPhone || "—"],
+    ["Original contract ref", data.originalContractRef || "—"],
+    ["Original contract date", data.originalContractDate || "—"],
+    ["Linked quote", data.originalQuoteRef || "—"],
+  ]);
+
+  // 2. Variation summary
+  section(state, "Variation Summary");
+  kvTable(state, [
+    ["Variation reference", ref],
+    ["Date raised", data.variationDate || todayStr],
+    ["Status", status],
+    ["Reason", data.reason || "—"],
+    ["Instruction method", data.instructionMethod || "—"],
+    ["Instructor name", data.instructorName || "—"],
+    ["Instructor role", data.instructorRole || "—"],
+    ["Instruction date", data.instructionDate || "—"],
+    ["Location on site", data.instructionLocation || "—"],
+  ]);
+
+  // 3. Original scope + description of change
+  if (data.scopeSummary) {
+    section(state, "Original Scope");
+    para(state, data.scopeSummary);
+  }
+  section(state, "Description of Change");
+  para(state, data.descriptionOfChange || "—");
+  if (data.reasonNarrative) {
+    subSection(state, "Reason narrative");
+    para(state, data.reasonNarrative);
+  }
+  if (data.referenceDocs) {
+    subSection(state, "Reference documents");
+    para(state, data.referenceDocs);
+  }
+
+  // 4. Cost breakdown
+  const items = data.lineItems || [];
+  if (items.length > 0) {
+    section(state, "Cost Breakdown");
+    table(state, ["Category", "Description", "Qty", "Unit", "Unit price", "Line total"],
+      items.map(it => [it.category || "—", it.description || "—", it.qty || "", it.unit || "", fGBP(it.unitPrice), fGBP((Number(it.qty) || 0) * (Number(it.unitPrice) || 0))]),
+      { colWidths: computeColumnWidths(state, [0.16, 0.36, 0.08, 0.10, 0.14, 0.16]) });
+
+    const byCat = totals.byCategory || {};
+    if (Object.keys(byCat).length > 1) {
+      subSection(state, "Subtotal by category");
+      const rows = Object.entries(byCat).map(([k, v]) => [k, fGBP(v)]);
+      table(state, null, rows, { colWidths: [state.pageWidth - MARGIN * 2 - 120, 120], header: false, zebra: true });
+    }
+
+    subSection(state, "Total");
+    const totalRows = [["Subtotal", fGBP(totals.subtotal || 0)]];
+    if (data.addVat) {
+      totalRows.push([`VAT @ ${totals.vatRate ?? data.vatRate ?? 20}%`, fGBP(totals.vatAmount || 0)]);
+      totalRows.push(["TOTAL VARIATION COST (inc VAT)", fGBP(totals.total || 0)]);
+    } else {
+      totalRows.push(["TOTAL VARIATION COST", fGBP(totals.total || 0)]);
+    }
+    table(state, null, totalRows, { colWidths: [state.pageWidth - MARGIN * 2 - 160, 160], header: false, zebra: true });
+  } else {
+    section(state, "Cost Breakdown");
+    para(state, "No cost items have been recorded on this variation.");
+  }
+
+  // 5. Programme impact
+  section(state, "Programme / Time Impact");
+  const impact = data.programmeImpact || {};
+  const impactKind = impact.kind || "No impact";
+  const impactRows = [["Impact type", impactKind]];
+  if (impactKind === "Additional days" || impactKind === "Reduction in days") {
+    const days = Number(impact.days) || 0;
+    const sign = impactKind === "Reduction in days" ? "-" : "";
+    impactRows.push(["Days", `${sign}${Math.round(days)} working day${Math.round(days) === 1 ? "" : "s"}`]);
+    if (impact.newPCDate) impactRows.push(["New Practical Completion date", impact.newPCDate]);
+  }
+  if (impact.notes) impactRows.push(["Notes", impact.notes]);
+  table(state, null, impactRows, { colWidths: [state.pageWidth - MARGIN * 2 - 260, 260], header: false, zebra: true });
+
+  // 6. Evidence
+  const docsAttached = data.supportingDocs || [];
+  const photoIds = data.photoIds || [];
+  if (docsAttached.length > 0 || photoIds.length > 0) {
+    section(state, "Supporting Evidence");
+    if (docsAttached.length > 0) {
+      subSection(state, "Documents attached");
+      const rows = docsAttached.map((d, i) => [String(i + 1), d.name || d.id || "Document"]);
+      table(state, null, rows, { colWidths: [40, state.pageWidth - MARGIN * 2 - 40], header: false, zebra: true });
+    }
+    if (photoIds.length > 0) {
+      subSection(state, "Photos linked from Photo Vault");
+      para(state, `${photoIds.length} photo${photoIds.length === 1 ? "" : "s"} attached from the Photo Vault. Reference IDs: ${photoIds.slice(0, 12).join(", ")}${photoIds.length > 12 ? "…" : ""}`);
+    }
+  }
+
+  // 7. Terms
+  section(state, "Terms");
+  para(state, data.paymentTerms || "Payment for this variation will be included in the next Application for Payment.");
+  para(state, "Any variation to the scope of works above will only be valid once agreed in writing. This variation forms an addendum to the original contract.");
+  if (data.notes) { subSection(state, "Additional notes"); para(state, data.notes); }
+
+  // 8. Sign-off (dual: contractor + client approval)
+  section(state, "Approval");
+  if (status === "Rejected" && data.rejectionReason) {
+    subSection(state, "Rejection reason");
+    para(state, data.rejectionReason);
+  }
+  drawDualSignoff(state, data, user, todayStr);
+
+  addFooter(doc, pageWidth, pageHeight, user, ref, todayStr, userName);
+  return doc;
+}
+
+export function downloadVariationPdf(args) {
+  const d = generateVariationPdf(args);
+  const project = (args?.data?.projectName || args?.data?.clientName || "variation").toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40);
+  d.save(`variation-order-${args?.data?.variationRef || "draft"}-${project}.pdf`);
+}
+export function variationPdfBlobUrl(args) { return generateVariationPdf(args).output("bloburl"); }
+
+// ---------- helpers ----------
+function drawCover(doc, { data, user, company, todayStr, ref, pageWidth, pageHeight, totals, status }) {
+  doc.setFillColor(20, 18, 16); doc.rect(0, 0, pageWidth, pageHeight, "F");
+  doc.setDrawColor(...GOLD); doc.setLineWidth(1.5);
+  doc.line(MARGIN, 90, pageWidth - MARGIN, 90);
+  doc.line(MARGIN, pageHeight - 90, pageWidth - MARGIN, pageHeight - 90);
+  if (user?.companyLogo) { try { doc.addImage(user.companyLogo, "PNG", MARGIN, 30, 120, 44, undefined, "FAST"); } catch { /* ignore */ } }
+  doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(...GOLD);
+  doc.text("VARIATION ORDER", MARGIN, 140);
+  doc.setFontSize(30); doc.setTextColor(240, 237, 232);
+  const wrapped = doc.splitTextToSize(data.projectName || data.clientCompany || "Project", pageWidth - MARGIN * 2);
+  let y = 175; wrapped.forEach(l => { doc.text(l, MARGIN, y); y += 34; });
+  y += 12;
+
+  // Status pill
+  const statusColour = STATUS_COLOUR[status] || [180, 180, 180];
+  doc.setFillColor(...statusColour); doc.setDrawColor(...statusColour);
+  const label = (status || "Draft").toUpperCase();
+  doc.setFont("helvetica", "bold"); doc.setFontSize(9);
+  const pillW = doc.getTextWidth(label) + 18;
+  doc.roundedRect(MARGIN, y, pillW, 20, 10, 10, "F");
+  doc.setTextColor(20, 18, 16); doc.text(label, MARGIN + 9, y + 14);
+  y += 32;
+
+  const rows = [
+    ["Prepared for", data.clientName || data.clientCompany || "—"],
+    ["Site", data.projectAddress || "—"],
+    ["Reference", ref],
+    ["Date raised", data.variationDate || todayStr],
+    ["Reason", data.reason || "—"],
+    ["Total (inc VAT)", fGBP(totals?.total || 0)],
+  ];
+  rows.forEach(([k, v]) => {
+    doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(160, 155, 145);
+    doc.text(k.toUpperCase(), MARGIN, y);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(240, 237, 232);
+    const vLines = doc.splitTextToSize(String(v), pageWidth - MARGIN * 2);
+    vLines.forEach((l, i) => doc.text(l, MARGIN, y + 14 + i * 14));
+    y += 14 + vLines.length * 14 + 8;
+  });
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(160, 155, 145);
+  doc.text((company || "").toUpperCase(), MARGIN, pageHeight - 60);
+  doc.text("Generated by Morris  ·  morrisapp.co.uk", MARGIN, pageHeight - 46);
+}
+
+function computeColumnWidths(s, ratios) { const usable = s.pageWidth - MARGIN * 2; return ratios.map(r => usable * r); }
+function ensureRoom(s, n = 20) { if (s.y + n > s.pageHeight - 70) newPage(s); }
+function newPage(s) {
+  addFooter(s.doc, s.pageWidth, s.pageHeight, s.user, s.ref, s.todayStr, s.userName);
+  s.doc.addPage();
+  s.doc.setFillColor(255, 255, 255); s.doc.rect(0, 0, s.pageWidth, s.pageHeight, "F");
+  drawHeader(s.doc, s.pageWidth, MARGIN, s.user, s.company, s.todayStr, null);
+  s.y = 110;
+}
+function section(s, title) {
+  ensureRoom(s, 34);
+  s.sectionNum = (s.sectionNum || 0) + 1;
+  s.doc.setFont("helvetica", "bold"); s.doc.setFontSize(13); s.doc.setTextColor(...INK);
+  s.doc.text(`${s.sectionNum}. ${title}`, MARGIN, s.y);
+  s.doc.setDrawColor(...GOLD); s.doc.setLineWidth(0.6);
+  s.doc.line(MARGIN, s.y + 4, s.pageWidth - MARGIN, s.y + 4);
+  s.y += 20;
+}
+function subSection(s, title) {
+  ensureRoom(s, 22);
+  s.doc.setFont("helvetica", "bold"); s.doc.setFontSize(10.5); s.doc.setTextColor(...MUTED);
+  s.doc.text(title, MARGIN, s.y); s.y += 14;
+}
+function para(s, text) {
+  s.doc.setFont("helvetica", "normal"); s.doc.setFontSize(11); s.doc.setTextColor(...INK);
+  const lines = s.doc.splitTextToSize(String(text || ""), s.pageWidth - MARGIN * 2);
+  lines.forEach(l => { ensureRoom(s, 15); s.doc.text(l, MARGIN, s.y); s.y += 14; });
+  s.y += 6;
+}
+function kvTable(s, rows) { const usable = s.pageWidth - MARGIN * 2; table(s, null, rows, { colWidths: [usable * 0.32, usable * 0.68], header: false, zebra: true }); }
+function table(s, header, rows, opts = {}) {
+  const usable = s.pageWidth - MARGIN * 2;
+  const colWidths = opts.colWidths || (header ? Array(header.length).fill(usable / header.length) : [usable]);
+  const padX = 6, padY = 4;
+  if (header && opts.header !== false) {
+    ensureRoom(s, 24);
+    s.doc.setFillColor(245, 240, 225);
+    s.doc.rect(MARGIN, s.y, colWidths.reduce((a, b) => a + b, 0), 22, "F");
+    s.doc.setDrawColor(...BORDER); s.doc.setLineWidth(0.4);
+    s.doc.rect(MARGIN, s.y, colWidths.reduce((a, b) => a + b, 0), 22);
+    s.doc.setFont("helvetica", "bold"); s.doc.setFontSize(9.5); s.doc.setTextColor(...INK);
+    let cx = MARGIN;
+    header.forEach((h, i) => { s.doc.text(String(h), cx + padX, s.y + 14); if (i > 0) s.doc.line(cx, s.y, cx, s.y + 22); cx += colWidths[i]; });
+    s.y += 22;
+  }
+  s.doc.setFont("helvetica", "normal"); s.doc.setFontSize(9.5); s.doc.setTextColor(...INK);
+  (rows || []).forEach((row, rIdx) => {
+    const wrapped = row.map((c, i) => s.doc.splitTextToSize(String(c ?? ""), colWidths[i] - padX * 2));
+    const h = Math.max(...wrapped.map(w => w.length)) * 12 + padY * 2;
+    ensureRoom(s, h);
+    if (opts.zebra && rIdx % 2 === 1) { s.doc.setFillColor(...ZEBRA); s.doc.rect(MARGIN, s.y, colWidths.reduce((a, b) => a + b, 0), h, "F"); }
+    s.doc.setDrawColor(...BORDER); s.doc.setLineWidth(0.4);
+    s.doc.rect(MARGIN, s.y, colWidths.reduce((a, b) => a + b, 0), h);
+    let vx = MARGIN;
+    for (let i = 0; i < colWidths.length - 1; i++) { vx += colWidths[i]; s.doc.line(vx, s.y, vx, s.y + h); }
+    let cx = MARGIN;
+    wrapped.forEach((ws, i) => { ws.forEach((l, j) => s.doc.text(l, cx + padX, s.y + padY + 9 + j * 12)); cx += colWidths[i]; });
+    s.y += h;
+  });
+  s.y += 6;
+}
+function drawDualSignoff(s, data, user, todayStr) {
+  const usable = s.pageWidth - MARGIN * 2;
+  const gap = 20; const cellW = (usable - gap) / 2; const cellH = 140;
+  ensureRoom(s, cellH + 10);
+  const boxTop = s.y;
+  const cells = [
+    { title: "PREPARED BY (CONTRACTOR)", name: data.preparedBy || user?.fullName || "—", sig: data.preparedSignature || user?.signature, date: data.variationDate || todayStr },
+    { title: "APPROVED BY (CLIENT)", name: data.clientApproverName || "—", sig: data.clientApproverSignature, date: data.approvedDate || "—" },
+  ];
+  cells.forEach((cell, i) => {
+    const x = MARGIN + i * (cellW + gap);
+    s.doc.setDrawColor(...BORDER); s.doc.setLineWidth(0.4);
+    s.doc.rect(x, boxTop, cellW, cellH);
+    s.doc.setFont("helvetica", "bold"); s.doc.setFontSize(9); s.doc.setTextColor(...GOLD);
+    s.doc.text(cell.title, x + 8, boxTop + 16);
+    s.doc.setFont("helvetica", "normal"); s.doc.setFontSize(9); s.doc.setTextColor(...MUTED);
+    s.doc.text("Name:", x + 8, boxTop + 34);
+    s.doc.setFont("helvetica", "bold"); s.doc.setFontSize(10.5); s.doc.setTextColor(...INK);
+    const nameW = s.doc.splitTextToSize(cell.name, cellW - 16);
+    nameW.slice(0, 2).forEach((l, k) => s.doc.text(l, x + 8, boxTop + 48 + k * 12));
+    s.doc.setFont("helvetica", "normal"); s.doc.setFontSize(9); s.doc.setTextColor(...MUTED);
+    s.doc.text("Date:", x + 8, boxTop + 80);
+    s.doc.setFont("helvetica", "bold"); s.doc.setFontSize(10); s.doc.setTextColor(...INK);
+    s.doc.text(cell.date, x + 8, boxTop + 94);
+    if (cell.sig) { try { s.doc.addImage(cell.sig, "PNG", x + 8, boxTop + 100, cellW - 16, 34, undefined, "FAST"); } catch { /* ignore */ } }
+  });
+  s.y = boxTop + cellH + 8;
+}

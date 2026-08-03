@@ -1,0 +1,38 @@
+{
+  "summary": "Variation Orders V2 tested end-to-end. Backend: 11/11 pytest cases pass covering reference, stats, CRUD with VO-NNN ref generation & VAT/subtotal/total math, PATCH auto-stamp of approvedDate on Approved, list filters + search, soft delete, templates, project roll-up (originalContractValue + approvedValue = revisedContractValue), /api/jobs/{id}/stats returning approvedVariationsValue + revisedContractValue + openVariations, and /api/attention endpoint not erroring. Frontend on public URL with darrenhustle300: dashboard renders all 5 status stat cards + 3 KPI value cards + search/filter/CTA, /app/tool/variation-letter correctly redirects to /app/variation-orders, wizard opens & walks 9 steps, cost breakdown computes £300 (4x50 + 5x20), Save & Generate PDF closes wizard and shows 'Variation saved' toast with new VO-007 row, Draft row Submit action moves it to Submitted (dashboard counters update live). No console errors seen. Mobile viewport: page renders and is usable but stat cards stack in 1 column instead of the 2 columns mentioned in the spec — minor design gap.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Variation Orders dashboard (mobile 390x844)", "issues": ["The 5 status stat cards render single-column on mobile. Spec asked for 2-column stacking on mobile. Consider grid-cols-2 at sm breakpoint to match Quote Builder/Site Diary layouts."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_variation_orders.py",
+    "/app/test_reports/pytest/variation_orders_results.xml"
+  ],
+  "action_items": [
+    "(Design polish, non-blocking) Update stat card grid on VariationOrders.jsx to render 2 columns on mobile widths (e.g. grid-cols-2 sm:grid-cols-5)."
+  ],
+  "critical_code_review_comments": [
+    "variation_orders.py is a clean, well-scoped module. _shape() correctly strips ObjectId. VO reference counter (_seq_ref) uses find_one_and_update — atomic, good.",
+    "PATCH endpoint recomputes totals only when pricing keys are touched — correct optimization.",
+    "auto-stamp of approvedDate only sets when transitioning to Approved AND no prior approvedDate — good idempotency.",
+    "project_workspace.py /jobs/{id}/stats correctly aggregates approvedVariationsValue and computes revisedContractValue as contractValue + approvedVariationsValue.",
+    "VariationOrders.jsx is a large single file — main wizard is ~750 lines with dashboard. Approaching the 700-line guideline; splitting wizard steps into subcomponents would improve maintainability, matching feedback given for RiskRegister.jsx in iteration_21."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_variation_orders.py (new)"
+  ],
+  "success_rate": {"backend": "100% (11/11)", "frontend": "100% of tested flows"},
+  "test_credentials": "darrenhustle300 / hustle1234 (admin) from /app/memory/test_credentials.md",
+  "seed_data_creation": "Backend test file creates TEST_-prefixed variations, a TEST_ job, and TEST_ templates, and cleans them up in the terminal test. During UI walkthrough one 'TEST_UI VO Project' variation was created and left on the account (VO-007, then Submitted); harmless but can be deleted from UI if desired.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend regression file at /app/backend/tests/test_variation_orders.py — runs against public URL, self-cleans. VO frontend testids all use 'vo-' prefix. Photo picker + Quote link and command-centre attention (>7 day stale variation) were not deep-tested via UI because they need pre-existing media/quotes and time-shifted rows; backend attention endpoint itself was verified to return 200 without error, and the collector logic was code-reviewed. Approved date auto-stamp confirmed by pytest.",
+  "rca of the issue": "No blocking issues observed."
+}
