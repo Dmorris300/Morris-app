@@ -350,6 +350,13 @@ def build_router(db, get_user):
             items = items + ra_items
         except Exception:
             pass
+        # Merge Quote Builder attention (expiring / stale quotes).
+        try:
+            from quote_builder import collect_quote_builder_attention
+            qb_items = await collect_quote_builder_attention(db, user["id"], datetime.now(timezone.utc))
+            items = items + qb_items
+        except Exception:
+            pass
         items.sort(key=lambda x: (SEVERITY_ORDER.get(x.get("severity"), 3), x.get("dueAt") or "9999"))
         return {"items": items, "count": len(items), "computedAt": datetime.now(timezone.utc).isoformat()}
 

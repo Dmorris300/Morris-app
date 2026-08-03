@@ -27,7 +27,7 @@ import MethodStatement from "./pages/MethodStatement";
 import ToolboxTalk from "./pages/ToolboxTalk";
 import Coshh from "./pages/Coshh";
 import SiteDiary from "./pages/SiteDiary";
-import Drafts from "./pages/Drafts";
+import QuoteBuilder from "./pages/QuoteBuilder";import Drafts from "./pages/Drafts";
 import CISRefundPredictor from "./pages/CISRefundPredictor";
 import MileageTracker from "./pages/MileageTracker";
 import PaymentChaser from "./pages/PaymentChaser";
@@ -209,6 +209,7 @@ function App() {
             <Route path="toolbox-talk" element={<ProfileGate><ToolboxTalk /></ProfileGate>} />
             <Route path="coshh" element={<ProfileGate><Coshh /></ProfileGate>} />
             <Route path="site-diary" element={<ProfileGate><SiteDiary /></ProfileGate>} />
+            <Route path="quote-builder" element={<ProfileGate><QuoteBuilder /></ProfileGate>} />
             <Route path="company-checker" element={<ProfileGate><CompanyChecker /></ProfileGate>} />
             <Route path="offline-mode" element={<OfflineMode />} />
             <Route path="team" element={<TeamManagement />} />

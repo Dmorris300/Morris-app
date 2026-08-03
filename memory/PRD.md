@@ -51,6 +51,14 @@ remain as audit-trail references only — they are NOT product marketing copy.
 
 ---
 
+### 3 Aug 2026 — Quote Builder V2 (flagship estimating & quotation system)
+- ✅ **Quote Builder V2** at `/app/quote-builder` — dashboard-first commercial flagship. 5 status stat cards (Draft / Sent / Accepted / Expired / Rejected) + 3 pipeline value cards (Pipeline value / Accepted value / Expiring within 7 days) + templates + search & status filter. Quick-action Send/Accept buttons on each row.
+- ✅ **9-step wizard**: Client (with library pick + save-to-library) → Project (auto-fill from linked job) → Scope of Works → Line Items (Labour/Materials/Plant/Subcontractor/Other) → Optional Sections (Exclusions/Assumptions/Provisional Sums) → Stage Payments (auto-computes amount from % of total) → Terms & Validity (VAT, discount %/fixed, payment terms) → Review & Client Acceptance (dual sign-off) → Preview & Generate PDF.
+- ✅ **Backend** `backend/quote_builder.py` — quotes CRUD + client library + templates + stats. **Server computes `totals` on every create and PATCH** (subtotal, byCategory, provisionalSumTotal, discountAmount, net, vatAmount, total). Auto quoteRef. Sent quotes past validUntil auto-classified as Expired in stats.
+- ✅ **Command Centre attention** `collect_quote_builder_attention`: expiring-in-7-days, expired, and Sent-but-stale (>7 days) quotes deep-linking to `?open={id}`.
+- ✅ **PDF** `lib/quote-builder-pdf.js` — cover with total inc-VAT, client + project details, scope, itemised pricing table with per-category subtotals, provisional sums, summary block (Subtotal→Discount→Prov Sums→Net→VAT→TOTAL), exclusions/assumptions, stage-payment schedule, T&Cs, dual sign-off (contractor + client acceptance).
+- ✅ **Backend regression** verified: 1900 subtotal · 190 discount · 500 prov · 2210 net · 442 VAT · **£2,652 total** for the reference scenario. Client library + 400 validation working.
+
 ## 📊 Global Design Standard — No Charts (3 Aug 2026)
 
 **Morris removes unnecessary charts, graphs and analytics visualisations.** Users

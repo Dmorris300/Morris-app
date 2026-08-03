@@ -29,6 +29,7 @@ from coshh import build_router as build_coshh_router
 from site_diary import build_router as build_site_diary_router
 from incident_report import build_router as build_incident_report_router
 from risk_assessment import build_router as build_risk_assessment_router
+from quote_builder import build_router as build_quote_builder_router
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -1638,6 +1639,9 @@ app.include_router(build_incident_report_router(db, get_user))
 
 # Risk Assessment V2 (central H&S risk record)
 app.include_router(build_risk_assessment_router(db, get_user))
+
+# Quote Builder V2 (estimating & quotation)
+app.include_router(build_quote_builder_router(db, get_user))
 
 app.add_middleware(
     CORSMiddleware,
