@@ -51,6 +51,16 @@ remain as audit-trail references only — they are NOT product marketing copy.
 
 ---
 
+### 3 Aug 2026 — Variation Orders V2 (flagship variation management system)
+- ✅ **Variation Orders V2** at `/app/variation-orders` — commercial flagship replacing the legacy form-based `variation-letter`. Dashboard-first: 5 status stat cards (Draft / Submitted / In Progress / Approved / Rejected) + 3 KPI value cards (Approved value / Submitted awaiting approval / Approved additional days) + search + status filter + project filter + templates.
+- ✅ **9-step wizard**: Project (auto-fills from linked job) → Original Contract (auto-fills from linked Quote Builder quote — scope, ref, date) → Variation Details & Reason (8 canned reasons + 8 instruction methods + instructor name/role/date/location + description of change + reason narrative + reference docs) → Cost Breakdown (Labour / Materials / Plant / Subcontractor / Preliminaries / Other, VAT-toggleable) → Programme / Time Impact (No impact / Additional days / Reduction in days / Sequence only + optional new PC date) → Photos & Docs (Photo Vault picker filtered by project + supporting document references) → Client Approval (dual sign-off) → Status Tracking → Preview & Generate PDF.
+- ✅ **Backend** `backend/variation_orders.py` — variations CRUD + templates + stats + project summary. **Server computes `totals` on every create and PATCH** (subtotal, byCategory, vatAmount, total). Auto sequential VO-NNN reference. Moving to Approved auto-stamps `approvedDate` if blank.
+- ✅ **Command Centre attention** `collect_variation_orders_attention`: Submitted >7 days awaiting client approval, In Progress >30 days stale — deep-linking to `?open={id}`.
+- ✅ **Project workspace integration**: Approved variations automatically add on top of the linked project's contract value — `/api/jobs/{id}/stats` now returns `approvedVariationsValue` + `revisedContractValue` + `originalContractValue`, and `openVariations` count includes V2 variations in Draft/Submitted/In Progress. Outstanding calculation uses revised contract value.
+- ✅ **PDF** `lib/variation-order-pdf.js` — cover with status pill and inc-VAT total, project + client + linked-contract details, variation summary, original scope, description of change (with reason narrative + reference docs), cost breakdown table with per-category subtotals + total line (with/without VAT), programme impact table, evidence annex (photos + supporting docs), terms, dual sign-off (contractor + client approval box). Rejection reason surfaced when status = Rejected.
+- ✅ **Routing/redirects**: `/app/tool/variation-letter`, Business Hub Variation tile and Dashboard Variation quick action now all resolve to `/app/variation-orders`. Legacy `variation-letter` tools-config entry retained for backwards compatibility (LLM prompt path) but the frontend user always lands on V2.
+- ✅ Tested end-to-end (backend pytest 11/11 pass + frontend UI walkthrough). Report: `/app/test_reports/iteration_22.json`.
+
 ### 3 Aug 2026 — Quote Builder V2 (flagship estimating & quotation system)
 - ✅ **Quote Builder V2** at `/app/quote-builder` — dashboard-first commercial flagship. 5 status stat cards (Draft / Sent / Accepted / Expired / Rejected) + 3 pipeline value cards (Pipeline value / Accepted value / Expiring within 7 days) + templates + search & status filter. Quick-action Send/Accept buttons on each row.
 - ✅ **9-step wizard**: Client (with library pick + save-to-library) → Project (auto-fill from linked job) → Scope of Works → Line Items (Labour/Materials/Plant/Subcontractor/Other) → Optional Sections (Exclusions/Assumptions/Provisional Sums) → Stage Payments (auto-computes amount from % of total) → Terms & Validity (VAT, discount %/fixed, payment terms) → Review & Client Acceptance (dual sign-off) → Preview & Generate PDF.
@@ -537,6 +547,12 @@ Dark-themed construction administration SaaS web application for UK tradespeople
 _None._
 
 ### P1 — High priority
+- **Applications for Payment V2** (next flagship rebuild) — spec matches VO/QB pattern: dashboard-first, valuation math with retention + CIS + reverse charge, dual sign-off, PDF
+- **Invoice Builder V2** (flagship rebuild) — CIS-aware invoicing, payment terms, VAT rules
+- **Extension of Time Claims V2** (flagship rebuild) — contract-aware (JCT / NEC4 / bespoke), evidence schedule, EOT ≠ loss & expense distinction
+- **Commercial Reports V2** (living register redesign)
+- **Global Search** (cross-project search endpoint + top-bar UI)
+- **Document Library V2** (filters + search + bulk actions)
 - Replace mock SMS OTP with real Twilio integration
 - Refactor `tools-config.js` (1950+ lines) — split into category files
 - Refactor `server.py` (1340+ lines) — extract routes into `/app/backend/routes/`
