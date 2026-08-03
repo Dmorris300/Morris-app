@@ -8,7 +8,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import {
   Plus, Search, RefreshCw, Trash2, Edit2, X, ChevronLeft, ChevronRight,
   ClipboardList, CloudSun, Users, Hammer, Truck, Wrench, AlertTriangle,
-  FileText, Camera, Link2, CheckCircle2, Star, Download, Save, PenTool,
+  FileText, Camera, ListChecks, Star, Download, Save, PenTool,
   Copy, Calendar,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -24,16 +24,16 @@ const DRAFT_KEY = "morris.tool_draft.site-diary";
 
 const WIZARD_STEPS = [
   { id: 1,  key: "project",     label: "Project",             icon: ClipboardList },
-  { id: 2,  key: "weather",     label: "Date & Weather",      icon: CloudSun },
-  { id: 3,  key: "crew",        label: "Labour / Crew",       icon: Users },
+  { id: 2,  key: "weather",     label: "Weather",             icon: CloudSun },
+  { id: 3,  key: "crew",        label: "Labour",              icon: Users },
   { id: 4,  key: "works",       label: "Works Completed",     icon: Hammer },
   { id: 5,  key: "deliveries",  label: "Deliveries",          icon: Truck },
   { id: 6,  key: "plant",       label: "Plant & Equipment",   icon: Wrench },
   { id: 7,  key: "delays",      label: "Delays & Issues",     icon: AlertTriangle },
   { id: 8,  key: "variations",  label: "Variations",          icon: FileText },
-  { id: 9,  key: "photos",      label: "Photos",              icon: Camera },
-  { id: 10, key: "linked",      label: "Linked Docs",         icon: Link2 },
-  { id: 11, key: "review",      label: "Review & Generate",   icon: Download },
+  { id: 9,  key: "photos",      label: "Site Photos",         icon: Camera },
+  { id: 10, key: "actions",     label: "Actions",             icon: ListChecks },
+  { id: 11, key: "signoff",     label: "Sign-off",            icon: Download },
 ];
 
 const inputClass = "w-full bg-[#0f0d09] border border-[#2a2620] rounded-md px-3 py-2 text-sm text-[#F0EDE8] focus:border-[#E8A020] focus:outline-none";
@@ -51,14 +51,19 @@ const emptyEntry = () => ({
   date: new Date().toISOString().slice(0, 10),
   startTime: "08:00", endTime: "17:00",
   tempAM: "", tempPM: "", wind: "", rain: "", conditions: "", weatherImpact: "",
-  supervisor: "", crew: [], subcontractorsOnSite: [], totalOperatives: 0,
+  supervisor: "", crew: [], subcontractorsOnSite: [], totalOperatives: 0, visitors: [],
   worksCompleted: [], worksTomorrow: "", progressPercent: "",
   deliveries: [], plant: [],
-  delays: [], issues: [], instructions: [], hsObservations: [], visitors: [],
+  delays: [], issues: [], instructions: [], hsObservations: [],
   variations: [],
   photos: [],
+  actions: [],
   linkedDocuments: { rams: [], methodStatement: [], coshh: [], toolboxTalk: [], riskRegister: [] },
-  notes: "", preparedBy: "", signature: "", isFavourite: false,
+  notes: "",
+  completedBy: "", completedSignature: "",
+  supervisorName: "", supervisorSignature: "",
+  preparedBy: "", signature: "",
+  isFavourite: false,
 });
 
 function saveDraft(d) { try { localStorage.setItem(DRAFT_KEY, JSON.stringify(d)); } catch { /* ignore */ } }
@@ -78,6 +83,8 @@ export default function SiteDiaryV2() {
   const [filterProject, setFilterProject] = useState(initialProjectId);
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
+  const [filterWeather, setFilterWeather] = useState("");
+  const [filterUser, setFilterUser] = useState("");
   const [editing, setEditing] = useState(null);
   const [wizardOpen, setWizardOpen] = useState(false);
 
@@ -150,20 +157,25 @@ export default function SiteDiaryV2() {
     const q = query.trim().toLowerCase();
     return entries.filter(e => {
       if (q) {
-        const hay = `${e.projectName || ""} ${e.clientName || ""} ${e.supervisor || ""} ${e.notes || ""}`.toLowerCase();
+        const hay = `${e.projectName || ""} ${e.clientName || ""} ${e.supervisor || ""} ${e.completedBy || ""} ${e.notes || ""} ${(e.worksCompleted || []).map(w => `${w.activity || ""} ${w.location || ""} ${w.details || ""}`).join(" ")}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       if (filterProject) {
-        // filterProject may be a projectId (from url) or projectName (from dropdown)
         const matchesId = e.projectId === filterProject;
         const matchesName = e.projectName === filterProject;
         if (!matchesId && !matchesName) return false;
       }
       if (filterDateFrom && (e.date || "") < filterDateFrom) return false;
       if (filterDateTo && (e.date || "") > filterDateTo) return false;
+      if (filterWeather && e.conditions !== filterWeather) return false;
+      if (filterUser) {
+        const u = filterUser.toLowerCase();
+        const uHay = `${e.completedBy || ""} ${e.preparedBy || ""} ${e.supervisor || ""}`.toLowerCase();
+        if (!uHay.includes(u)) return false;
+      }
       return true;
     });
-  }, [entries, query, filterProject, filterDateFrom, filterDateTo]);
+  }, [entries, query, filterProject, filterDateFrom, filterDateTo, filterWeather, filterUser]);
 
   const favourites = entries.filter(e => e.isFavourite);
   const recent = [...entries].sort((a, b) => (b.date || "").localeCompare(a.date || "")).slice(0, 5);
@@ -183,12 +195,13 @@ export default function SiteDiaryV2() {
       </header>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-6">
         <StatCard label="Total entries" value={stats?.total ?? 0} icon={ClipboardList} testId="sd-stat-total" />
-        <StatCard label="Today" value={stats?.enteredToday ?? 0} icon={Calendar} tone="green" testId="sd-stat-today" />
+        <StatCard label="Today's diary" value={stats?.enteredToday ?? 0} icon={Calendar} tone="green" testId="sd-stat-today" />
         <StatCard label="This week" value={stats?.thisWeek ?? 0} icon={Calendar} testId="sd-stat-week" />
         <StatCard label="With delays" value={stats?.withDelays ?? 0} icon={AlertTriangle} tone="gold" testId="sd-stat-delays" />
         <StatCard label="Missing today" value={stats?.missingToday ?? 0} icon={AlertTriangle} tone="red" testId="sd-stat-missing" />
+        <StatCard label="Outstanding actions" value={stats?.outstandingActions ?? 0} icon={ListChecks} tone="gold" testId="sd-stat-actions" />
       </div>
 
       {/* Favourites & Recently used */}
@@ -236,7 +249,7 @@ export default function SiteDiaryV2() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <div className="relative md:col-span-2">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#706D66]" />
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search project, supervisor, notes..." className={`${inputClass} pl-9`} data-testid="sd-search" />
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search project, supervisor, notes, works keywords..." className={`${inputClass} pl-9`} data-testid="sd-search" />
           </div>
           <select value={filterProject} onChange={(e) => setFilterProject(e.target.value)} className={inputClass} data-testid="sd-filter-project">
             <option value="">All projects</option>
@@ -246,6 +259,13 @@ export default function SiteDiaryV2() {
             <input type="date" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} className={inputClass} placeholder="From" data-testid="sd-filter-from" />
             <input type="date" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} className={inputClass} placeholder="To" data-testid="sd-filter-to" />
           </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-3">
+          <select value={filterWeather} onChange={(e) => setFilterWeather(e.target.value)} className={inputClass} data-testid="sd-filter-weather">
+            <option value="">All weather</option>
+            {["Clear", "Partly Cloudy", "Overcast", "Light Rain", "Heavy Rain", "Snow", "Frost", "Fog", "Windy", "Storm"].map(x => <option key={x} value={x}>{x}</option>)}
+          </select>
+          <input value={filterUser} onChange={(e) => setFilterUser(e.target.value)} placeholder="Completed by / supervisor..." className={inputClass} data-testid="sd-filter-user" />
         </div>
       </div>
 
@@ -344,7 +364,7 @@ function DiaryWizard({ initial, user, jobs, onClose, onSaved, onTemplatesChanged
   const [docs, setDocs] = useState([]);
   const [tplModalOpen, setTplModalOpen] = useState(false);
   const [tplName, setTplName] = useState("");
-  const [signingOpen, setSigningOpen] = useState(false);
+  const [signingOpen, setSigningOpen] = useState(null); // null | "completed" | "supervisor"
 
   useEffect(() => { api.get("/documents").then(r => setDocs(Array.isArray(r.data) ? r.data : [])).catch(() => {}); }, []);
   useEffect(() => { if (user?.fullName && !data.supervisor) setData(d => ({ ...d, supervisor: user.fullName })); }, [user?.fullName]);
@@ -446,7 +466,7 @@ function DiaryWizard({ initial, user, jobs, onClose, onSaved, onTemplatesChanged
             </div>
           </div>
 
-          {step === 1 && <StepProject data={data} setData={setData} pickProject={pickProject} jobs={jobs} />}
+          {step === 1 && <StepProject data={data} setData={setData} pickProject={pickProject} jobs={jobs} user={user} set={set} />}
           {step === 2 && <StepWeather data={data} set={set} />}
           {step === 3 && <StepCrew data={data} setData={setData} autoTotal={autoTotal} />}
           {step === 4 && <StepWorks data={data} setData={setData} set={set} />}
@@ -456,13 +476,13 @@ function DiaryWizard({ initial, user, jobs, onClose, onSaved, onTemplatesChanged
           {step === 8 && <StepVariations data={data} setData={setData} />}
           {step === 9 && (
             <div className="space-y-3" data-testid="sd-step-9-photos">
-              <p className="text-xs text-[#A19D94]">Photos of works completed, deliveries, damage, delays, or unsafe conditions.</p>
+              <p className="text-xs text-[#A19D94]">Attach unlimited photos from the Photo Vault. Add captions to describe each shot (progress, delivery, defect, completed work, safety).</p>
               <AttachMedia toolId={TOOL_ID} toolLabel="Site Diary" jobId={data.projectId || null} category="site-diary"
                 value={data.photos || []} onChange={(list) => set("photos")(list)} testIdPrefix="sd-attach" />
             </div>
           )}
-          {step === 10 && <StepLinked data={data} setData={setData} docs={docs} />}
-          {step === 11 && <StepReview data={data} user={user} previewUrl={previewUrl} onPreview={generatePreview} onSave={saveEntry} saving={saving} onOpenSign={() => setSigningOpen(true)} set={set} />}
+          {step === 10 && <StepActions data={data} setData={setData} />}
+          {step === 11 && <StepSignoff data={data} setData={setData} user={user} previewUrl={previewUrl} onPreview={generatePreview} onSave={saveEntry} saving={saving} onOpenSign={(who) => setSigningOpen(who)} set={set} docs={docs} />}
 
           <div className="flex items-center justify-between mt-6">
             <button onClick={() => setStep(Math.max(1, step - 1))} disabled={step === 1} className="inline-flex items-center gap-2 px-4 py-2 rounded-md border border-[#2a2620] text-sm text-[#A19D94] disabled:opacity-40" data-testid="sd-btn-prev"><ChevronLeft size={14} /> Back</button>
@@ -492,13 +512,16 @@ function DiaryWizard({ initial, user, jobs, onClose, onSaved, onTemplatesChanged
           <div className="fixed inset-0 bg-black/70 z-[60] flex items-center justify-center p-4" data-testid="sd-sign-modal">
             <div className="card-dark p-5 max-w-lg w-full">
               <div className="flex items-start justify-between mb-3">
-                <h3 className="font-display text-xl text-[#F0EDE8]">Sign the diary</h3>
-                <button onClick={() => setSigningOpen(false)} className="text-[#A19D94]"><X size={18} /></button>
+                <h3 className="font-display text-xl text-[#F0EDE8]">{signingOpen === "supervisor" ? "Supervisor signature" : "Completed by signature"}</h3>
+                <button onClick={() => setSigningOpen(null)} className="text-[#A19D94]"><X size={18} /></button>
               </div>
-              <SignaturePad value={data.signature || ""} onChange={(v) => set("signature")(v)} />
+              <SignaturePad
+                value={signingOpen === "supervisor" ? (data.supervisorSignature || "") : (data.completedSignature || "")}
+                onChange={(v) => set(signingOpen === "supervisor" ? "supervisorSignature" : "completedSignature")(v)}
+              />
               <div className="flex gap-2 mt-3">
-                <button onClick={() => setSigningOpen(false)} className="flex-1 py-2 rounded-md border border-[#2a2620] text-sm text-[#A19D94]">Cancel</button>
-                <button onClick={() => setSigningOpen(false)} className="flex-1 py-2 rounded-md bg-[#E8A020] text-black text-sm font-medium" data-testid="sd-sign-done">Done</button>
+                <button onClick={() => setSigningOpen(null)} className="flex-1 py-2 rounded-md border border-[#2a2620] text-sm text-[#A19D94]">Cancel</button>
+                <button onClick={() => setSigningOpen(null)} className="flex-1 py-2 rounded-md bg-[#E8A020] text-black text-sm font-medium" data-testid="sd-sign-done">Done</button>
               </div>
             </div>
           </div>
@@ -510,8 +533,7 @@ function DiaryWizard({ initial, user, jobs, onClose, onSaved, onTemplatesChanged
 
 // ---- Step components ----
 
-function StepProject({ data, setData, pickProject, jobs }) {
-  const set = (k) => (v) => setData(d => ({ ...d, [k]: v }));
+function StepProject({ data, setData, pickProject, jobs, user, set }) {
   return (
     <div className="space-y-4" data-testid="sd-step-1-project">
       {jobs.length > 0 && (
@@ -528,6 +550,12 @@ function StepProject({ data, setData, pickProject, jobs }) {
         <Field label="Principal contractor"><input className={inputClass} value={data.principalContractor} onChange={(e) => set("principalContractor")(e.target.value)} data-testid="sd-pc" /></Field>
         <Field label="Site address"><textarea className={`${inputClass} min-h-[52px]`} value={data.siteAddress} onChange={(e) => set("siteAddress")(e.target.value)} data-testid="sd-siteAddress" /></Field>
       </div>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Field label="Date *"><input type="date" className={inputClass} value={data.date} onChange={(e) => set("date")(e.target.value)} data-testid="sd-date" /></Field>
+        <Field label="Start time"><input type="time" className={inputClass} value={data.startTime} onChange={(e) => set("startTime")(e.target.value)} data-testid="sd-startTime" /></Field>
+        <Field label="Finish time"><input type="time" className={inputClass} value={data.endTime} onChange={(e) => set("endTime")(e.target.value)} data-testid="sd-endTime" /></Field>
+        <Field label="Person completing diary" hint="Signs at step 11."><input className={inputClass} value={data.completedBy || user?.fullName || ""} onChange={(e) => set("completedBy")(e.target.value)} data-testid="sd-completedBy" /></Field>
+      </div>
     </div>
   );
 }
@@ -535,11 +563,6 @@ function StepProject({ data, setData, pickProject, jobs }) {
 function StepWeather({ data, set }) {
   return (
     <div className="space-y-4" data-testid="sd-step-2-weather">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Field label="Diary date *"><input type="date" className={inputClass} value={data.date} onChange={(e) => set("date")(e.target.value)} data-testid="sd-date" /></Field>
-        <Field label="Start on site"><input type="time" className={inputClass} value={data.startTime} onChange={(e) => set("startTime")(e.target.value)} data-testid="sd-startTime" /></Field>
-        <Field label="End on site"><input type="time" className={inputClass} value={data.endTime} onChange={(e) => set("endTime")(e.target.value)} data-testid="sd-endTime" /></Field>
-      </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Field label="Conditions">
           <select className={inputClass} value={data.conditions} onChange={(e) => set("conditions")(e.target.value)} data-testid="sd-conditions">
@@ -630,7 +653,7 @@ function StepCrew({ data, setData, autoTotal }) {
 
 function StepWorks({ data, setData, set }) {
   const works = data.worksCompleted || [];
-  const add = () => setData(d => ({ ...d, worksCompleted: [...(d.worksCompleted || []), { id: crypto.randomUUID(), location: "", activity: "", progress: "" }] }));
+  const add = () => setData(d => ({ ...d, worksCompleted: [...(d.worksCompleted || []), { id: crypto.randomUUID(), location: "", activity: "", progress: "", details: "" }] }));
   const upd = (id, patch) => setData(d => ({ ...d, worksCompleted: d.worksCompleted.map(x => x.id === id ? { ...x, ...patch } : x) }));
   const del = (id) => setData(d => ({ ...d, worksCompleted: d.worksCompleted.filter(x => x.id !== id) }));
   return (
@@ -639,7 +662,7 @@ function StepWorks({ data, setData, set }) {
         <div className="text-xs text-[#A19D94]">{works.length} activit{works.length === 1 ? "y" : "ies"} logged</div>
         <button onClick={add} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md bg-[#E8A020] text-black text-xs font-medium" data-testid="sd-add-works"><Plus size={12} /> Add activity</button>
       </div>
-      {works.length === 0 && <div className="card-dark p-4 text-center text-xs text-[#A19D94]">No works logged.</div>}
+      {works.length === 0 && <div className="card-dark p-4 text-center text-xs text-[#A19D94]">No works logged. Tap Add activity to record every work stream (e.g. First fix electrics, Partitions, Ceiling grid).</div>}
       {works.map((w, i) => (
         <div key={w.id} className="card-dark p-3" data-testid={`sd-work-${i + 1}`}>
           <div className="flex items-center justify-between mb-2"><span className="text-[10px] uppercase tracking-[0.2em] text-[#E8A020]">Activity {i + 1}</span><button onClick={() => del(w.id)} className="text-[#A19D94] hover:text-[#F27C7C]"><Trash2 size={14} /></button></div>
@@ -647,6 +670,11 @@ function StepWorks({ data, setData, set }) {
             <Field label="Area / Location"><input className={inputClass} value={w.location} onChange={(e) => upd(w.id, { location: e.target.value })} placeholder="e.g. Level 2 north" data-testid={`sd-work-location-${i + 1}`} /></Field>
             <Field label="Activity"><input className={inputClass} value={w.activity} onChange={(e) => upd(w.id, { activity: e.target.value })} placeholder="e.g. First-fix electrics" data-testid={`sd-work-activity-${i + 1}`} /></Field>
             <Field label="Progress today"><input className={inputClass} value={w.progress} onChange={(e) => upd(w.id, { progress: e.target.value })} placeholder="e.g. 60% complete" /></Field>
+          </div>
+          <div className="mt-2">
+            <Field label="Details" hint="Multi-line description of what was actually done. Detail is your friend in a delay dispute.">
+              <textarea className={`${inputClass} min-h-[64px]`} value={w.details || ""} onChange={(e) => upd(w.id, { details: e.target.value })} placeholder="e.g. Ran cable trays from riser to plant room. Terminated 3 x DBs and megger tested." data-testid={`sd-work-details-${i + 1}`} />
+            </Field>
           </div>
         </div>
       ))}
@@ -679,6 +707,8 @@ function RowEditor({ testId, title, list, columns, add, upd, del }) {
                   </select>
                 ) : col.type === "time" ? (
                   <input type="time" className={inputClass} value={row[col.k] || ""} onChange={(e) => upd(row.id, { [col.k]: e.target.value })} data-testid={`${testId}-${col.k}-${i + 1}`} />
+                ) : col.type === "date" ? (
+                  <input type="date" className={inputClass} value={row[col.k] || ""} onChange={(e) => upd(row.id, { [col.k]: e.target.value })} data-testid={`${testId}-${col.k}-${i + 1}`} />
                 ) : col.textarea ? (
                   <textarea className={`${inputClass} min-h-[52px]`} value={row[col.k] || ""} onChange={(e) => upd(row.id, { [col.k]: e.target.value })} placeholder={col.placeholder} data-testid={`${testId}-${col.k}-${i + 1}`} />
                 ) : (
@@ -720,9 +750,10 @@ function StepPlant({ data, setData }) {
         { k: "owner", label: "Owner / Hired from", placeholder: "e.g. HSS Hire" },
         { k: "hours", label: "Hours used", placeholder: "e.g. 6" },
         { k: "condition", label: "Condition", type: "select", options: ["Good", "Fair", "Damaged", "Off hire"] },
+        { k: "breakdown", label: "Breakdown / maintenance", type: "select", options: ["None", "Breakdown reported", "Maintenance due", "Off hire requested"] },
         { k: "notes", label: "Notes" },
       ]}
-      add={() => setData(d => ({ ...d, plant: [...(d.plant || []), { id: crypto.randomUUID(), item: "", owner: "", hours: "", condition: "Good", notes: "" }] }))}
+      add={() => setData(d => ({ ...d, plant: [...(d.plant || []), { id: crypto.randomUUID(), item: "", owner: "", hours: "", condition: "Good", breakdown: "None", notes: "" }] }))}
       upd={(id, p) => setData(d => ({ ...d, plant: d.plant.map(x => x.id === id ? { ...x, ...p } : x) }))}
       del={(id) => setData(d => ({ ...d, plant: d.plant.filter(x => x.id !== id) }))}
     />
@@ -735,11 +766,12 @@ function StepDelays({ data, setData }) {
     <RowEditor testId="sd-delay" title="Delays experienced" list={data.delays || []}
       columns={[
         { k: "category", label: "Category", type: "select", options: DELAY_CATS },
+        { k: "priority", label: "Priority", type: "select", options: ["Low", "Medium", "High", "Critical"] },
         { k: "description", label: "Description", textarea: true, placeholder: "What happened, when, and for how long" },
         { k: "hours", label: "Duration (hrs)" },
         { k: "impact", label: "Impact on programme", textarea: true },
       ]}
-      add={() => setData(d => ({ ...d, delays: [...(d.delays || []), { id: crypto.randomUUID(), category: "", description: "", hours: "", impact: "" }] }))}
+      add={() => setData(d => ({ ...d, delays: [...(d.delays || []), { id: crypto.randomUUID(), category: "", priority: "Medium", description: "", hours: "", impact: "" }] }))}
       upd={(id, p) => setData(d => ({ ...d, delays: d.delays.map(x => x.id === id ? { ...x, ...p } : x) }))}
       del={(id) => setData(d => ({ ...d, delays: d.delays.filter(x => x.id !== id) }))}
     />
@@ -810,7 +842,28 @@ function StepVariations({ data, setData }) {
   </div>;
 }
 
-function StepLinked({ data, setData, docs }) {
+function StepActions({ data, setData }) {
+  return <div data-testid="sd-step-10-actions">
+    <RowEditor testId="sd-action" title="Outstanding actions" list={data.actions || []}
+      columns={[
+        { k: "description", label: "Action", textarea: true, placeholder: "e.g. Chase supplier for missing brackets" },
+        { k: "responsible", label: "Responsible person" },
+        { k: "dueDate", label: "Due date", type: "date" },
+        { k: "priority", label: "Priority", type: "select", options: ["Low", "Medium", "High", "Critical"] },
+        { k: "status", label: "Status", type: "select", options: ["Open", "In progress", "Blocked", "Done"] },
+      ]}
+      add={() => setData(d => ({ ...d, actions: [...(d.actions || []), { id: crypto.randomUUID(), description: "", responsible: "", dueDate: "", priority: "Medium", status: "Open" }] }))}
+      upd={(id, p) => setData(d => ({ ...d, actions: d.actions.map(x => x.id === id ? { ...x, ...p } : x) }))}
+      del={(id) => setData(d => ({ ...d, actions: d.actions.filter(x => x.id !== id) }))}
+    />
+    <div className="mt-4 card-dark p-3 border-l-2 border-[#E8A020] text-xs text-[#A19D94]">
+      <strong className="text-[#E8A020]">Tip:</strong> Actions still marked Open or In progress will surface as outstanding on the dashboard and can be exported into a project-wide action list.
+    </div>
+  </div>;
+}
+
+function StepSignoff({ data, setData, user, previewUrl, onPreview, onSave, saving, onOpenSign, set, docs }) {
+  const opCount = data.totalOperatives || (data.crew || []).length || 0;
   const KINDS = [
     { key: "rams", label: "RAMS", tools: ["rams"] },
     { key: "methodStatement", label: "Method Statement", tools: ["method-statement"] },
@@ -819,79 +872,97 @@ function StepLinked({ data, setData, docs }) {
     { key: "riskRegister", label: "Risk Assessments", tools: ["risk-register"] },
   ];
   const linked = data.linkedDocuments || {};
-  const toggle = (kind, doc) => {
+  const toggleLink = (kind, doc) => {
     const list = linked[kind] || [];
     const on = list.some(d => d.id === doc.id);
     const next = on ? list.filter(d => d.id !== doc.id) : [...list, { id: doc.id, title: doc.title, refNumber: doc.refNumber, toolId: doc.toolId }];
     setData(d => ({ ...d, linkedDocuments: { ...linked, [kind]: next } }));
   };
   return (
-    <div className="space-y-4" data-testid="sd-step-10-linked">
-      {KINDS.map(k => {
-        const avail = docs.filter(d => k.tools.includes(d.toolId));
-        const selected = linked[k.key] || [];
-        return (
-          <div key={k.key}>
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-[10px] uppercase tracking-[0.2em] text-[#E8A020]">{k.label}</div>
-              <div className="text-xs text-[#706D66]">{selected.length} linked · {avail.length} available</div>
-            </div>
-            {avail.length === 0 ? <div className="card-dark p-3 text-xs text-[#706D66]">No {k.label} documents yet.</div> : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {avail.slice(0, 6).map(d => {
-                  const on = selected.some(x => x.id === d.id);
-                  return (
-                    <button key={d.id} onClick={() => toggle(k.key, d)} type="button" className={`card-dark p-3 text-left ${on ? "border-[#E8A020]/60 bg-[#E8A020]/5" : "hover:border-[#E8A020]/40"}`} data-testid={`sd-link-${d.id}`}>
-                      <div className="flex items-start gap-2">
-                        <div className={`mt-1 w-4 h-4 rounded border ${on ? "bg-[#E8A020] border-[#E8A020]" : "border-[#2a2620]"}`}>{on && <CheckCircle2 size={14} className="text-black" />}</div>
-                        <div className="min-w-0 flex-1">
-                          <div className="text-sm text-[#F0EDE8] truncate">{d.title}</div>
-                          <div className="text-[11px] text-[#A19D94]">{d.refNumber || "no ref"} · {(d.createdAt || "").slice(0, 10)}</div>
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function StepReview({ data, user, previewUrl, onPreview, onSave, saving, onOpenSign, set }) {
-  const opCount = data.totalOperatives || (data.crew || []).length || 0;
-  return (
-    <div className="space-y-4" data-testid="sd-step-11-review">
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+    <div className="space-y-5" data-testid="sd-step-11-signoff">
+      {/* Summary counts */}
+      <div className="grid grid-cols-2 md:grid-cols-7 gap-2">
         <div className="card-dark p-3"><Label>Crew</Label><div className="text-2xl text-[#F0EDE8] mt-1">{opCount}</div></div>
         <div className="card-dark p-3"><Label>Deliveries</Label><div className="text-2xl text-[#F0EDE8] mt-1">{(data.deliveries || []).length}</div></div>
         <div className="card-dark p-3"><Label>Plant</Label><div className="text-2xl text-[#F0EDE8] mt-1">{(data.plant || []).length}</div></div>
         <div className="card-dark p-3"><Label>Delays</Label><div className="text-2xl text-[#E8A020] mt-1">{(data.delays || []).length}</div></div>
         <div className="card-dark p-3"><Label>Variations</Label><div className="text-2xl text-[#F0EDE8] mt-1">{(data.variations || []).length}</div></div>
         <div className="card-dark p-3"><Label>Photos</Label><div className="text-2xl text-[#F0EDE8] mt-1">{(data.photos || []).length}</div></div>
+        <div className="card-dark p-3"><Label>Actions</Label><div className="text-2xl text-[#F0EDE8] mt-1">{(data.actions || []).length}</div></div>
       </div>
 
-      <Field label="Additional notes" hint="Anything else worth recording — off-site issues, upcoming client visits, RFI raised."><textarea className={`${inputClass} min-h-[64px]`} value={data.notes} onChange={(e) => set("notes")(e.target.value)} data-testid="sd-notes" /></Field>
+      <Field label="Additional notes" hint="Off-site issues, upcoming client visits, RFI raised."><textarea className={`${inputClass} min-h-[64px]`} value={data.notes} onChange={(e) => set("notes")(e.target.value)} data-testid="sd-notes" /></Field>
 
+      {/* Linked documents (compact section) */}
+      <div>
+        <div className="text-[10px] uppercase tracking-[0.25em] text-[#E8A020] mb-2">Linked documents (optional)</div>
+        <div className="space-y-3">
+          {KINDS.map(k => {
+            const avail = docs.filter(d => k.tools.includes(d.toolId));
+            const selected = linked[k.key] || [];
+            if (avail.length === 0 && selected.length === 0) return null;
+            return (
+              <div key={k.key} data-testid={`sd-linked-${k.key}`}>
+                <div className="flex items-center justify-between mb-1">
+                  <div className="text-xs text-[#A19D94]">{k.label} <span className="text-[#706D66]">· {selected.length} linked · {avail.length} available</span></div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {avail.slice(0, 4).map(d => {
+                    const on = selected.some(x => x.id === d.id);
+                    return (
+                      <button key={d.id} onClick={() => toggleLink(k.key, d)} type="button" className={`card-dark p-2 text-left ${on ? "border-[#E8A020]/60 bg-[#E8A020]/5" : "hover:border-[#E8A020]/40"}`} data-testid={`sd-link-${d.id}`}>
+                        <div className="flex items-start gap-2">
+                          <div className={`mt-1 w-3 h-3 rounded border ${on ? "bg-[#E8A020] border-[#E8A020]" : "border-[#2a2620]"}`}></div>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-xs text-[#F0EDE8] truncate">{d.title}</div>
+                            <div className="text-[10px] text-[#A19D94]">{d.refNumber || "no ref"}</div>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Dual sign-off */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Prepared by"><input className={inputClass} value={data.preparedBy || user?.fullName || ""} onChange={(e) => set("preparedBy")(e.target.value)} data-testid="sd-preparedBy" /></Field>
-        <div>
-          <Label>Signature</Label>
-          <div className="mt-1 flex items-center gap-3">
-            {data.signature ? (
-              <img alt="Signature" src={data.signature} className="h-12 w-40 rounded-md border border-[#2a2620] bg-white" />
-            ) : (
-              <div className="h-12 w-40 rounded-md border border-dashed border-[#2a2620] flex items-center justify-center text-[10px] text-[#706D66]">Not signed</div>
-            )}
-            <button onClick={onOpenSign} className="inline-flex items-center gap-1 px-3 py-2 rounded-md border border-[#2a2620] text-xs text-[#F0EDE8] hover:border-[#E8A020]" data-testid="sd-sign-open"><PenTool size={12} /> {data.signature ? "Re-sign" : "Sign"}</button>
+        <div className="card-dark p-4">
+          <div className="text-[10px] uppercase tracking-[0.25em] text-[#E8A020] mb-3">Completed by</div>
+          <Field label="Name"><input className={inputClass} value={data.completedBy || user?.fullName || ""} onChange={(e) => set("completedBy")(e.target.value)} data-testid="sd-completedBy-2" /></Field>
+          <div className="mt-3">
+            <Label>Signature</Label>
+            <div className="mt-1 flex items-center gap-3">
+              {data.completedSignature ? (
+                <img alt="Signature" src={data.completedSignature} className="h-12 w-40 rounded-md border border-[#2a2620] bg-white" />
+              ) : (
+                <div className="h-12 w-40 rounded-md border border-dashed border-[#2a2620] flex items-center justify-center text-[10px] text-[#706D66]">Not signed</div>
+              )}
+              <button onClick={() => onOpenSign("completed")} className="inline-flex items-center gap-1 px-3 py-2 rounded-md border border-[#2a2620] text-xs text-[#F0EDE8] hover:border-[#E8A020]" data-testid="sd-sign-completed"><PenTool size={12} /> {data.completedSignature ? "Re-sign" : "Sign"}</button>
+            </div>
+          </div>
+        </div>
+        <div className="card-dark p-4">
+          <div className="text-[10px] uppercase tracking-[0.25em] text-[#E8A020] mb-3">Supervisor</div>
+          <Field label="Name"><input className={inputClass} value={data.supervisorName || data.supervisor || ""} onChange={(e) => set("supervisorName")(e.target.value)} data-testid="sd-supervisorName" /></Field>
+          <div className="mt-3">
+            <Label>Signature</Label>
+            <div className="mt-1 flex items-center gap-3">
+              {data.supervisorSignature ? (
+                <img alt="Signature" src={data.supervisorSignature} className="h-12 w-40 rounded-md border border-[#2a2620] bg-white" />
+              ) : (
+                <div className="h-12 w-40 rounded-md border border-dashed border-[#2a2620] flex items-center justify-center text-[10px] text-[#706D66]">Not signed</div>
+              )}
+              <button onClick={() => onOpenSign("supervisor")} className="inline-flex items-center gap-1 px-3 py-2 rounded-md border border-[#2a2620] text-xs text-[#F0EDE8] hover:border-[#E8A020]" data-testid="sd-sign-supervisor"><PenTool size={12} /> {data.supervisorSignature ? "Re-sign" : "Sign"}</button>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         <button onClick={onPreview} className="inline-flex items-center gap-2 px-4 py-2 rounded-md border border-[#2a2620] text-sm text-[#F0EDE8] hover:border-[#E8A020]" data-testid="sd-preview-btn"><RefreshCw size={14} /> {previewUrl ? "Refresh" : "Generate"} preview</button>
         <button onClick={onSave} disabled={saving} className="inline-flex items-center gap-2 px-6 py-2 rounded-md bg-[#E8A020] text-black text-sm font-medium disabled:opacity-60" data-testid="sd-save-btn">
           <Download size={16} /> {saving ? "Saving..." : "Save & Generate PDF"}

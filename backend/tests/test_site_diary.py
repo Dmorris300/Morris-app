@@ -121,6 +121,103 @@ class TestEntries:
         assert r.status_code == 404
 
 
+# ---- Iteration 19: new fields (actions, dual sign-off, priority, breakdown, work details) ----
+class TestIter19Fields:
+    eid = None
+
+    def test_create_with_new_fields(self, h):
+        payload = {
+            "projectName": "TEST_SD19_Project",
+            "date": TODAY,
+            "conditions": "Clear",
+            "completedBy": "Darren Morris",
+            "completedSignature": "data:image/png;base64,AAA",
+            "supervisorName": "Jane Supervisor",
+            "supervisorSignature": "data:image/png;base64,BBB",
+            "worksCompleted": [{"activity": "Cable pull", "details": "Ran 3x SWA from riser to plant room"}],
+            "plant": [{"item": "Genny", "breakdown": "Maintenance due"}],
+            "delays": [{"category": "Weather", "priority": "High", "notes": "Rain"}],
+            "actions": [
+                {"description": "Order more cable", "responsible": "PM", "dueDate": "2026-02-01", "priority": "High", "status": "Open"},
+                {"description": "Close snag", "responsible": "Foreman", "priority": "Low", "status": "Done"},
+                {"description": "Chase RFI", "responsible": "QS", "priority": "Medium", "status": "In Progress"},
+            ],
+        }
+        r = requests.post(f"{BASE_URL}/api/site-diary/entries", json=payload, headers=h, timeout=30)
+        assert r.status_code == 200, r.text
+        d = r.json()
+        assert d["completedBy"] == "Darren Morris"
+        assert d["completedSignature"].startswith("data:image/png")
+        assert d["supervisorName"] == "Jane Supervisor"
+        assert d["supervisorSignature"].startswith("data:image/png")
+        assert d["worksCompleted"][0]["details"].startswith("Ran 3x")
+        assert d["plant"][0]["breakdown"] == "Maintenance due"
+        assert d["delays"][0]["priority"] == "High"
+        assert len(d["actions"]) == 3
+        TestIter19Fields.eid = d["id"]
+
+    def test_get_persists_new_fields(self, h):
+        r = requests.get(f"{BASE_URL}/api/site-diary/entries", headers=h, timeout=30)
+        assert r.status_code == 200
+        row = next((e for e in r.json() if e["id"] == TestIter19Fields.eid), None)
+        assert row is not None
+        assert row["completedBy"] == "Darren Morris"
+        assert row["actions"][0]["priority"] == "High"
+        assert row["plant"][0]["breakdown"] == "Maintenance due"
+
+    def test_patch_new_fields(self, h):
+        r = requests.patch(f"{BASE_URL}/api/site-diary/entries/{TestIter19Fields.eid}",
+                           json={
+                               "completedBy": "Updated Person",
+                               "supervisorName": "Updated Super",
+                               "supervisorSignature": "data:image/png;base64,ZZZ",
+                               "actions": [{"description": "New only", "status": "Open", "priority": "Critical"}],
+                           }, headers=h, timeout=30)
+        assert r.status_code == 200, r.text
+        d = r.json()
+        assert d["completedBy"] == "Updated Person"
+        assert d["supervisorName"] == "Updated Super"
+        assert d["supervisorSignature"].endswith("ZZZ")
+        assert len(d["actions"]) == 1
+        assert d["actions"][0]["priority"] == "Critical"
+
+    def test_stats_outstanding_actions(self, h):
+        r = requests.get(f"{BASE_URL}/api/site-diary/stats", headers=h, timeout=30)
+        assert r.status_code == 200
+        d = r.json()
+        assert "outstandingActions" in d
+        assert isinstance(d["outstandingActions"], int)
+        # After patch above, entry has 1 Open action → outstanding >= 1
+        assert d["outstandingActions"] >= 1
+
+    def test_stats_outstanding_excludes_completed(self, h):
+        # Update to two actions: one Done, one Closed → both excluded
+        requests.patch(f"{BASE_URL}/api/site-diary/entries/{TestIter19Fields.eid}",
+                       json={"actions": [
+                           {"description": "X", "status": "Done", "priority": "Low"},
+                           {"description": "Y", "status": "Closed", "priority": "Low"},
+                       ]}, headers=h, timeout=30)
+        # Baseline: capture count then verify decrement path — outstanding for THIS entry now 0
+        # (Other entries in DB may contribute, so we just assert non-negative and re-add & recount.)
+        r0 = requests.get(f"{BASE_URL}/api/site-diary/stats", headers=h, timeout=30)
+        base = r0.json()["outstandingActions"]
+        # Now add 2 open actions on this entry → outstanding should be base+2
+        requests.patch(f"{BASE_URL}/api/site-diary/entries/{TestIter19Fields.eid}",
+                       json={"actions": [
+                           {"description": "X", "status": "Done", "priority": "Low"},
+                           {"description": "Y", "status": "Closed", "priority": "Low"},
+                           {"description": "A", "status": "Open", "priority": "High"},
+                           {"description": "B", "status": "In Progress", "priority": "Medium"},
+                       ]}, headers=h, timeout=30)
+        r1 = requests.get(f"{BASE_URL}/api/site-diary/stats", headers=h, timeout=30)
+        assert r1.json()["outstandingActions"] == base + 2
+
+    def test_cleanup(self, h):
+        r = requests.delete(f"{BASE_URL}/api/site-diary/entries/{TestIter19Fields.eid}",
+                            headers=h, timeout=30)
+        assert r.status_code == 200
+
+
 # ---- Templates ----
 class TestTemplates:
     tid = None

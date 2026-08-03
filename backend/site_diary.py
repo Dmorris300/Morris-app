@@ -82,13 +82,20 @@ class EntryIn(BaseModel):
     # Step 9 — Photos (Photo Vault)
     photos: Optional[List[Dict[str, Any]]] = []
 
-    # Step 10 — Linked documents
+    # Step 10 — Actions (outstanding actions register)
+    actions: Optional[List[Dict[str, Any]]] = []
+
+    # Step 10 — Linked documents (kept for backwards compatibility, surfaced in sign-off)
     linkedDocuments: Optional[Dict[str, Any]] = {}
 
-    # Step 11 — Review / meta
+    # Step 11 — Sign-off (dual)
     notes: Optional[str] = ""
-    preparedBy: Optional[str] = ""
-    signature: Optional[str] = ""       # base64 PNG data URL
+    completedBy: Optional[str] = ""
+    completedSignature: Optional[str] = ""
+    supervisorName: Optional[str] = ""
+    supervisorSignature: Optional[str] = ""
+    preparedBy: Optional[str] = ""       # retained for backwards compatibility with earlier drafts
+    signature: Optional[str] = ""        # retained (maps to completedSignature)
     isFavourite: Optional[bool] = False
 
 
@@ -124,8 +131,13 @@ class EntryUpdate(BaseModel):
     visitors: Optional[List[Dict[str, Any]]] = None
     variations: Optional[List[Dict[str, Any]]] = None
     photos: Optional[List[Dict[str, Any]]] = None
+    actions: Optional[List[Dict[str, Any]]] = None
     linkedDocuments: Optional[Dict[str, Any]] = None
     notes: Optional[str] = None
+    completedBy: Optional[str] = None
+    completedSignature: Optional[str] = None
+    supervisorName: Optional[str] = None
+    supervisorSignature: Optional[str] = None
     preparedBy: Optional[str] = None
     signature: Optional[str] = None
     isFavourite: Optional[bool] = None
@@ -262,6 +274,7 @@ def build_router(db, get_user):
         entered_today = 0
         this_week = 0
         with_delays = 0
+        outstanding_actions = 0
         recent = []
         for r in rows:
             d = r.get("date") or ""
@@ -271,6 +284,10 @@ def build_router(db, get_user):
                 this_week += 1
             if (r.get("delays") or []):
                 with_delays += 1
+            for a in (r.get("actions") or []):
+                st = (a.get("status") or "Open").lower()
+                if st not in ("done", "complete", "completed", "closed"):
+                    outstanding_actions += 1
             recent.append({
                 "id": r.get("id"), "date": r.get("date"),
                 "projectName": r.get("projectName"), "supervisor": r.get("supervisor"),
@@ -297,6 +314,7 @@ def build_router(db, get_user):
             "thisWeek": this_week,
             "withDelays": with_delays,
             "missingToday": missing_today,
+            "outstandingActions": outstanding_actions,
             "recent": recent[:10],
         }
 

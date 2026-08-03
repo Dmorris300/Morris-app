@@ -70,8 +70,10 @@ export function generateSiteDiaryPdf({ data, user, today }) {
   section(state, "Works Completed Today");
   const works = data.worksCompleted || [];
   if (works.length > 0) {
-    table(state, ["Area / Location", "Activity", "Progress"],
-      works.map(w => [w.location || "—", w.activity || "—", w.progress || ""]));
+    works.forEach((w, i) => {
+      subSection(state, `Activity ${i + 1}: ${w.activity || "Activity"}${w.location ? " — " + w.location : ""}${w.progress ? " (" + w.progress + ")" : ""}`);
+      if (w.details) para(state, w.details);
+    });
   } else {
     para(state, "No works logged.");
   }
@@ -93,8 +95,8 @@ export function generateSiteDiaryPdf({ data, user, today }) {
   const plant = data.plant || [];
   if (plant.length > 0) {
     section(state, "Plant & Equipment on Site");
-    table(state, ["Item", "Owner / Hired From", "Hours Used", "Condition", "Notes"],
-      plant.map(p => [p.item || "—", p.owner || "—", p.hours || "—", p.condition || "—", p.notes || ""]));
+    table(state, ["Item", "Owner / Hired From", "Hours Used", "Condition", "Breakdown / Maintenance", "Notes"],
+      plant.map(p => [p.item || "—", p.owner || "—", p.hours || "—", p.condition || "—", p.breakdown || "None", p.notes || ""]));
   }
 
   // 7. Delays, Issues & Instructions
@@ -108,8 +110,8 @@ export function generateSiteDiaryPdf({ data, user, today }) {
   }
   if (delays.length) {
     subSection(state, "Delays");
-    table(state, ["Category", "Description", "Duration (hrs)", "Impact"],
-      delays.map(d => [d.category || "—", d.description || "—", d.hours || "—", d.impact || ""]));
+    table(state, ["Category", "Priority", "Description", "Duration (hrs)", "Impact"],
+      delays.map(d => [d.category || "—", d.priority || "—", d.description || "—", d.hours || "—", d.impact || ""]));
   }
   if (issues.length) {
     subSection(state, "Issues encountered");
@@ -148,7 +150,15 @@ export function generateSiteDiaryPdf({ data, user, today }) {
     photoGrid(state, photos);
   }
 
-  // 10. Linked documents
+  // 10. Actions
+  const actions = data.actions || [];
+  if (actions.length > 0) {
+    section(state, "Outstanding Actions");
+    table(state, ["Action", "Responsible", "Due Date", "Priority", "Status"],
+      actions.map(a => [a.description || "—", a.responsible || "—", a.dueDate || "—", a.priority || "—", a.status || "Open"]));
+  }
+
+  // Linked documents (optional supporting list)
   const linked = data.linkedDocuments || {};
   const linkedRows = [];
   ["rams", "methodStatement", "coshh", "toolboxTalk", "riskRegister"].forEach(k => {
@@ -160,24 +170,57 @@ export function generateSiteDiaryPdf({ data, user, today }) {
     table(state, ["Type", "Document", "Reference"], linkedRows);
   }
 
-  // 11. Notes & Sign-off
+  // 11. Notes & Sign-off (dual)
   if (data.notes) {
     section(state, "Additional Notes");
     para(state, data.notes);
   }
 
-  section(state, "Prepared by");
-  kvTable(state, [
-    ["Name", data.preparedBy || user?.fullName || "—"],
-    ["Role", user?.signatureRole || "—"],
-    ["Company", company || "—"],
-    ["Date & Time", `${data.date || todayStr}  ${data.endTime || ""}`.trim()],
-  ]);
-  const sig = data.signature || user?.signature;
-  if (sig) {
-    if (state.y + 64 > pageHeight - 70) newPage(state);
-    try { doc.addImage(sig, "PNG", MARGIN, state.y, 150, 56, undefined, "FAST"); state.y += 64; } catch { /* ignore */ }
+  section(state, "Sign-off");
+  const compSig = data.completedSignature || data.signature || user?.signature;
+  const supSig = data.supervisorSignature;
+  const compName = data.completedBy || data.preparedBy || user?.fullName || "—";
+  const supName = data.supervisorName || data.supervisor || "—";
+  const dateStr = `${data.date || todayStr}  ${data.endTime || ""}`.trim();
+  // Two-column layout
+  const usable = state.pageWidth - MARGIN * 2;
+  const halfW = (usable - 20) / 2;
+  ensureRoom(state, 150);
+  const boxTop = state.y;
+  // Left box: Completed by
+  doc.setDrawColor(...BORDER); doc.setLineWidth(0.4);
+  doc.rect(MARGIN, boxTop, halfW, 140);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(9.5); doc.setTextColor(...GOLD);
+  doc.text("COMPLETED BY", MARGIN + 8, boxTop + 16);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(...MUTED);
+  doc.text("Name:", MARGIN + 8, boxTop + 34);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(...INK);
+  doc.text(compName, MARGIN + 8, boxTop + 48);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(...MUTED);
+  doc.text("Date:", MARGIN + 8, boxTop + 68);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(...INK);
+  doc.text(dateStr, MARGIN + 8, boxTop + 82);
+  if (compSig) {
+    try { doc.addImage(compSig, "PNG", MARGIN + 8, boxTop + 90, halfW - 16, 42, undefined, "FAST"); } catch { /* ignore */ }
   }
+  // Right box: Supervisor
+  const rightX = MARGIN + halfW + 20;
+  doc.setDrawColor(...BORDER); doc.setLineWidth(0.4);
+  doc.rect(rightX, boxTop, halfW, 140);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(9.5); doc.setTextColor(...GOLD);
+  doc.text("SUPERVISOR", rightX + 8, boxTop + 16);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(...MUTED);
+  doc.text("Name:", rightX + 8, boxTop + 34);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(...INK);
+  doc.text(supName, rightX + 8, boxTop + 48);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(...MUTED);
+  doc.text("Date:", rightX + 8, boxTop + 68);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(...INK);
+  doc.text(dateStr, rightX + 8, boxTop + 82);
+  if (supSig) {
+    try { doc.addImage(supSig, "PNG", rightX + 8, boxTop + 90, halfW - 16, 42, undefined, "FAST"); } catch { /* ignore */ }
+  }
+  state.y = boxTop + 150;
 
   addFooter(doc, pageWidth, pageHeight, user, ref, todayStr, userName);
   return doc;
