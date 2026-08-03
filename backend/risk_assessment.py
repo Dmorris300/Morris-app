@@ -281,7 +281,7 @@ def build_router(db, get_user):
             rv = r.get("reviewDate") or ""
             if rv and rv <= today and st != "Closed":
                 reviews_due += 1
-            if _has_high_residual(r):
+            if _has_high_residual(r) and st != "Closed":
                 high_risks += 1
             hazards = r.get("hazards") or []
             recent.append({
