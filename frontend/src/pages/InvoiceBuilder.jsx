@@ -407,6 +407,16 @@ function InvoiceWizard({ initial, user, jobs, applications, variations, onClose,
   useEffect(() => { if (user?.fullName && !data.preparedBy) setData(d => ({ ...d, preparedBy: user.fullName })); }, [user?.fullName]);   
   useEffect(() => { if (!data.id) { const t = setTimeout(() => saveDraft(data), 500); return () => clearTimeout(t); } }, [data]);
 
+  // Auto-compute due date from payment terms + invoice date if the field is empty
+  useEffect(() => {
+    if (data.dueDate) return;
+    const days = { "Net 7": 7, "Net 14": 14, "Net 30": 30, "Net 45": 45, "Net 60": 60, "Due on receipt": 0 }[data.paymentTerms];
+    if (days == null || !data.invoiceDate) return;
+    const base = new Date(data.invoiceDate);
+    base.setDate(base.getDate() + days);
+    setData(d => ({ ...d, dueDate: base.toISOString().slice(0, 10) }));
+  }, [data.paymentTerms, data.invoiceDate, data.dueDate]);
+
   const set = (k) => (v) => setData(d => ({ ...d, [k]: v }));
   const totals = useMemo(() => computeTotals(data), [data]);
 

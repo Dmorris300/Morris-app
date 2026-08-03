@@ -51,6 +51,19 @@ remain as audit-trail references only — they are NOT product marketing copy.
 
 ---
 
+### 3 Aug 2026 — Invoice Builder V2 (flagship invoicing system)
+- ✅ **Invoice Builder V2** at `/app/invoice-builder` — commercial trilogy completed (Variation Orders → AFP → Invoice). Dashboard-first: 6 status stat cards (Draft / Sent / Part Paid / Paid / Overdue / Cancelled) + 3 KPI value cards (Outstanding / Overdue / Paid YTD) + a **"Ready to invoice" quick-convert strip** that surfaces Certified AFPs and Approved Variations for one-click conversion + search + filters + templates.
+- ✅ **8-step wizard**: Project & Client → Link source (Certified AFP or Approved Variation, auto-populates line items) → Line Items → CIS & VAT → **Terms & Due Date** (auto-compute due date from Net 7/14/30/45/60) → Review & **Bank** (pre-filled from user profile) → Status & Payments (part-payments supported) → Preview & PDF.
+- ✅ **Backend** `backend/invoice_builder.py` — invoices CRUD + templates + stats + status endpoint + payment endpoint + remind endpoint + AFP/Variation converters. Server-authoritative totals: subtotal, discount, CIS on labour ratio, VAT (5 treatments including **Reverse charge (0%)** and Exempt), total due. **Live-derived status** on read: Sent/Part Paid past due date auto-flip to Overdue; payments ≥ totalDue auto-flip to Paid.
+- ✅ **Auto-numbering** INV-YYYY-NNNN sequential per user.
+- ✅ **Payment tracking**: POST `/invoices/{id}/payment` records part-payments, updates the invoice status, and **increments the linked job's `amountPaid`** so the project workspace outstanding stays in sync.
+- ✅ **AFP → Invoice conversion**: `GET /from-application/{aid}` returns a pre-filled draft with a consolidated "Application for Payment" line item and links to the AFP by reference. **Variation → Invoice** similarly copies all line items and links by reference.
+- ✅ **Command Centre attention** `collect_invoice_attention`: Overdue invoices flagged with `invoice_overdue`; invoices due within 3 days flagged with `invoice_due_soon`; deep-linked to `?open={id}`.
+- ✅ **PDF** `lib/invoice-pdf.js` — cover page + parties (From/Bill To split) + invoice details + itemised charges + full CIS/VAT summary + payments history + payment terms + **remittance details** (bank name, account, sort code, IBAN, payment reference). Reverse charge automatically annotated.
+- ✅ **Routing/redirects**: legacy `/app/tool/cis-invoice` now redirects to V2. Business Hub 'CIS Invoice' tile + Dashboard 'Invoice' quick action updated. Deep-link support: `?fromApplication=<id>` or `?fromVariation=<id>` opens the wizard pre-populated.
+- ✅ **Reverse charge math verified**: £5,000 labour × 20% CIS = £1,000 deduction, VAT £0 (customer accounts to HMRC), total £4,000 ✓
+- ✅ Tested end-to-end (backend pytest 10/10 pass + frontend 8-step wizard walkthrough + row quick-action state transitions). Report: `/app/test_reports/iteration_24.json`. Fixed the flagged action item (auto-compute due date on wizard open).
+
 ### 3 Aug 2026 — Applications for Payment V2 (flagship payment application system)
 - ✅ **Applications for Payment V2** at `/app/applications-for-payment` — commercial flagship replacing the legacy form-based `application-for-payment`. Dashboard-first: 6 status stat cards (Draft / Submitted / Certified / Paid / Overdue / Rejected) + 3 KPI value cards (Outstanding / Overdue / Paid year-to-date) + search + status filter (incl. Overdue) + project filter + templates.
 - ✅ **9-step wizard**: Project → Contract & Client → **Previous Applications & Valuations** (running totals auto-loaded from prior AFPs on the same project) → **Current Valuation** (Labour / Materials / Plant / Preliminaries / Subcontractor / Variations / Other, with **auto-pulled Approved Variation total** from Variation Orders V2) → **Retention / VAT / CIS / Adjustments** (server-authoritative math) → Photos & Docs (Photo Vault picker + supporting refs) → Review & Approval (dual sign-off) → Status Tracking → Preview & Generate PDF.
@@ -558,9 +571,8 @@ Dark-themed construction administration SaaS web application for UK tradespeople
 _None._
 
 ### P1 — High priority
-- **Invoice Builder V2** (next flagship rebuild) — CIS-aware invoicing, payment terms, VAT rules
-- **Extension of Time Claims V2** (flagship rebuild) — contract-aware (JCT / NEC4 / bespoke), evidence schedule, EOT ≠ loss & expense distinction
-- **Commercial Reports V2** (living register redesign)
+- **Extension of Time Claims V2** (next flagship rebuild) — contract-aware (JCT / NEC4 / bespoke), evidence schedule, EOT ≠ loss & expense distinction
+- **Commercial Reports V2** (living register redesign unifying VOs + AFPs + Invoices)
 - **Global Search** (cross-project search endpoint + top-bar UI)
 - **Document Library V2** (filters + search + bulk actions)
 - Replace mock SMS OTP with real Twilio integration
