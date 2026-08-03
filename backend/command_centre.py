@@ -364,6 +364,13 @@ def build_router(db, get_user):
             items = items + vo_items
         except Exception:
             pass
+        # Merge AFP attention (overdue / awaiting certification).
+        try:
+            from applications_for_payment import collect_afp_attention
+            afp_items = await collect_afp_attention(db, user["id"], datetime.now(timezone.utc))
+            items = items + afp_items
+        except Exception:
+            pass
         items.sort(key=lambda x: (SEVERITY_ORDER.get(x.get("severity"), 3), x.get("dueAt") or "9999"))
         return {"items": items, "count": len(items), "computedAt": datetime.now(timezone.utc).isoformat()}
 

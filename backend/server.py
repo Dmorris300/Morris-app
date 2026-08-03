@@ -31,6 +31,7 @@ from incident_report import build_router as build_incident_report_router
 from risk_assessment import build_router as build_risk_assessment_router
 from quote_builder import build_router as build_quote_builder_router
 from variation_orders import build_router as build_variation_orders_router
+from applications_for_payment import build_router as build_afp_router
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -1646,6 +1647,9 @@ app.include_router(build_quote_builder_router(db, get_user))
 
 # Variation Orders V2 (flagship variation management)
 app.include_router(build_variation_orders_router(db, get_user))
+
+# Applications for Payment V2 (flagship payment application system)
+app.include_router(build_afp_router(db, get_user))
 
 app.add_middleware(
     CORSMiddleware,

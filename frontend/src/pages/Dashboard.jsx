@@ -75,7 +75,7 @@ const QUICK_ACTIONS = [
   { id: "toolbox-talk",          label: "Toolbox",     icon: HardHat,      to: "/app/tool/toolbox-talk" },
   { id: "mileage",               label: "Mileage",     icon: Truck,        to: "/app/mileage" },
   { id: "commercial-report",     label: "Report",      icon: FileText,     to: "/app/commercial-report" },
-  { id: "application-for-payment", label: "Application", icon: Receipt,    to: "/app/tool/application-for-payment" },
+  { id: "application-for-payment", label: "Application", icon: Receipt,    to: "/app/applications-for-payment" },
 ];
 
 const SEVERITY_STYLES = {

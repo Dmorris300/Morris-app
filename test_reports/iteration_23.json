@@ -1,0 +1,31 @@
+{
+  "summary": "Applications for Payment V2 tested end-to-end. Backend: 9/9 pytest cases pass — reference dropdowns, full math regression (grossValuation 60000, grossIncludingVariations 65000, thisPeriod 45000, totalRetention 3250, retentionThisPeriod 2250, subtotalNet 42250, labourRatio 0.667, cisDeduction 5633.33, vatAmount 7323.33, totalDue 43940.00), AFP-NNN auto-generated reference (incrementing per user via $inc), full status flow Draft→Submitted→Certified→Paid with Certified auto-stamping certifiedDate + copying totals.totalDue into certifiedAmount, Paid auto-stamping paidDate and incrementing the linked job's amountPaid, Overdue filter returns only past-due Submitted/Certified rows with isOverdue=true enriched flag, Variation Orders V2 auto-pull: when AFP omits approvedVariationsValue and links a project with an Approved VO, backend fills approvedVariationsValue from db.variation_orders (verified £1000 auto-pulled → grossIncludingVariations 3000), Reverse charge VAT yields vatAmount=0 and totalDue = subtotalNet - cisDeduction, template CRUD works. Frontend: dashboard renders all 6 stat cards (Draft/Submitted/Certified/Paid/Overdue/Rejected), 3 value cards (Outstanding/Overdue/Paid year-to-date), search + status filter (with 'Overdue' option) + project filter + New Application CTA, legacy /app/tool/application-for-payment redirects to /app/applications-for-payment, wizard opens & walks all 9 steps (Project→Contract→History→Valuation→Money→Docs→Approval→Status→Generate), Save & Generate PDF closes wizard and shows new row (AFP-014 £5,700.00 Draft), row Submit→Certify→Paid quick actions each update badge and stat cards live (Draft 1→0, Submitted 0→1→0, Certified 0→1→0, Paid 0→1). No console errors. Test rows cleaned up.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_applications_for_payment.py",
+    "/app/test_reports/pytest/afp_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "applications_for_payment.py is well-scoped (~610 lines) with clear separation between totals math, CRUD, status flow, project summary, and templates. _shape() correctly strips ObjectId.",
+    "_compute_totals correctly computes CIS on labour portion only via labourRatio × subtotalNet — matches spec and the £43,940 regression exactly.",
+    "AFP-NNN counter uses find_one_and_update with $inc — atomic and race-safe.",
+    "Auto-pull of approvedVariationsValue only fires when the client omits/0's the value — good idempotency, allows manual override.",
+    "Certified auto-copy of totals.totalDue into certifiedAmount only fires when not explicitly provided; Paid falls back to certifiedAmount then totals.totalDue.",
+    "job amountPaid $inc is wrapped in try/except so an orphaned projectId won't 500 the status change.",
+    "GET /jobs/{id} returns {job, documents} envelope — clients calling this need to unwrap; test updated accordingly.",
+    "ApplicationsForPayment.jsx is ~850 lines and approaching the 700-line guideline — same feedback as VariationOrders.jsx and RiskRegister.jsx: consider splitting the 9 wizard steps into subcomponents for maintainability.",
+    "All interactive elements have afp-* data-testids as specified, including per-line inputs, per-row action buttons, status buttons, and modal steps."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_applications_for_payment.py (new)"
+  ],
+  "success_rate": {"backend": "100% (9/9)", "frontend": "100% of tested flows"},
+  "test_credentials": "darrenhustle300 / hustle1234 (admin) from /app/memory/test_credentials.md",
+  "seed_data_creation": "Backend test file creates TEST_-prefixed AFPs, jobs, one Variation Order, and one template. All are soft-deleted / DELETE'd in the terminal test. UI walkthrough created TEST_UI_AFP Project (AFP-014) and cleaned it up via delete quick action.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend regression at /app/backend/tests/test_applications_for_payment.py runs against public URL (uses REACT_APP_BACKEND_URL env), self-cleans, and covers reference, math regression, ref auto-gen, status flow with job amountPaid $inc, Overdue filter, Variation Orders auto-pull, reverse-charge VAT, and templates. AFP frontend testids all use 'afp-' prefix. PDF generation via jsPDF is a browser download — tested via 'wizard closes + row appears' rather than checking the bytes.",
+  "rca of the issue": "No blocking issues observed."
+}
