@@ -26,6 +26,7 @@ from compliance import build_router as build_compliance_router
 from method_statement import build_router as build_method_statement_router
 from toolbox_talks import build_router as build_toolbox_talks_router
 from coshh import build_router as build_coshh_router
+from site_diary import build_router as build_site_diary_router
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -1626,6 +1627,9 @@ app.include_router(build_toolbox_talks_router(db, get_user))
 
 # COSHH V2 (hazardous substance management)
 app.include_router(build_coshh_router(db, get_user))
+
+# Site Diary V2 (daily site management)
+app.include_router(build_site_diary_router(db, get_user))
 
 app.add_middleware(
     CORSMiddleware,

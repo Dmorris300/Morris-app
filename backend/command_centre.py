@@ -223,9 +223,21 @@ async def compute_attention(db, user: dict) -> List[Dict[str, Any]]:
     # Trigger for active jobs where no diary saved today.
     today_iso = now.date().isoformat()
     active_job_ids = [j["id"] for j in jobs if j.get("status") == "active"]
+    # Fetch today's Site Diary V2 entries so we don't fire a duplicate alert
+    # for the same project already covered by the new tool.
+    sd_today_projects = set()
+    try:
+        sd_today = await db.site_diary_entries.find({
+            "userId": user["id"], "date": today_iso, "isDeleted": {"$ne": True},
+        }).to_list(500)
+        sd_today_projects = {e.get("projectId") for e in sd_today if e.get("projectId")}
+    except Exception:
+        pass
     if active_job_ids and now.hour >= 16:  # 17:00 UK approx (safe range)
         # Look for a site diary draft or saved doc referencing today's date.
         for jid in active_job_ids:
+            if jid in sd_today_projects:
+                continue
             has_today = any(
                 (d.get("toolId") in ("multiuser-site-diary", "site-diary"))
                 and ((d.get("data") or {}).get("diaryDate") == today_iso or (d.get("data") or {}).get("jobId") == jid and _parse_date(d.get("updatedAt")) and _parse_date(d["updatedAt"]).date() == now.date())
@@ -242,7 +254,7 @@ async def compute_attention(db, user: dict) -> List[Dict[str, Any]]:
                 "projectId": jid,
                 "projectName": (job or {}).get("clientName"),
                 "actionLabel": "Open Diary",
-                "actionRoute": f"/app/multiuser-site-diary?jobId={jid}",
+                "actionRoute": f"/app/site-diary?projectId={jid}",
                 "severity": "warning",
                 "dueAt": None,
             })
