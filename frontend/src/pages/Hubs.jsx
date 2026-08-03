@@ -69,7 +69,7 @@ export function BusinessHub() {
       subtitle="Everything you send to clients — quotes, invoices, applications and commercial reports."
       testId="hub-business"
       tiles={[
-        { to: "/app/tool/cis-invoice", label: "CIS Invoice", icon: Receipt, testId: "biz-tile-invoice" },
+        { to: "/app/invoice-builder", label: "CIS Invoice", icon: Receipt, testId: "biz-tile-invoice" },
         { to: "/app/tool/quote-builder", label: "Quote Builder", icon: FileText, testId: "biz-tile-quote" },
         { to: "/app/applications-for-payment", label: "Application for Payment", icon: FileText, testId: "biz-tile-application" },
         { to: "/app/variation-orders", label: "Variation Order", icon: FileText, testId: "biz-tile-variation" },

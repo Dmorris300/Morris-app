@@ -371,6 +371,13 @@ def build_router(db, get_user):
             items = items + afp_items
         except Exception:
             pass
+        # Merge Invoice Builder attention (overdue / due soon).
+        try:
+            from invoice_builder import collect_invoice_attention
+            inv_items = await collect_invoice_attention(db, user["id"], datetime.now(timezone.utc))
+            items = items + inv_items
+        except Exception:
+            pass
         items.sort(key=lambda x: (SEVERITY_ORDER.get(x.get("severity"), 3), x.get("dueAt") or "9999"))
         return {"items": items, "count": len(items), "computedAt": datetime.now(timezone.utc).isoformat()}
 

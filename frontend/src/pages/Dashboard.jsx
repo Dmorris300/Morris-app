@@ -67,7 +67,7 @@ const fGBP = (n) => `£${Number(n || 0).toLocaleString("en-GB", { maximumFractio
 // ---- Quick Actions (curated 10, spec-driven) ----
 const QUICK_ACTIONS = [
   { id: "jobs",                  label: "Jobs",        icon: Briefcase,    to: "/app/jobs" },
-  { id: "cis-invoice",           label: "Invoice",     icon: Receipt,      to: "/app/tool/cis-invoice" },
+  { id: "cis-invoice",           label: "Invoice",     icon: Receipt,      to: "/app/invoice-builder" },
   { id: "quote-builder",         label: "Quote",       icon: FileText,     to: "/app/tool/quote-builder" },
   { id: "variation-letter",      label: "Variation",   icon: FileText,     to: "/app/variation-orders" },
   { id: "rams",                  label: "RAMS",        icon: HardHat,      to: "/app/rams" },

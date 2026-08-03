@@ -1,0 +1,47 @@
+{
+  "summary": "Backend: 10/10 pytest cases pass for Invoice Builder V2 (reference, CRUD+math with subtotal=5000/cis=600/vat=880/total=5280, dueDate=2026-09-02, INV-2026-NNNN ref, reverse charge vat=0/cis=1000/total=4000, Draft→Sent→Part Paid→Paid flow with sentAt/paidAt, live-derived Overdue with isOverdue flag + status filter, remind counter, from-application draft, from-variation draft, template CRUD, stats). Frontend: /app/invoice-builder dashboard renders 6 KPI cards (Draft/Sent/Part Paid/Paid/Overdue/Cancelled), 3 value cards (Outstanding/Overdue/Paid YTD), 'Ready to invoice' quick-convert tile shows Certified AFP, filters + search + New Invoice CTA all present with inv- testids. Legacy /app/tool/cis-invoice redirects correctly to /app/invoice-builder. Row action icons appear as expected (Send/CheckCircle/Bell/edit/copy/delete). 8-step wizard opens and traverses cleanly; Save button present on final step.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "InvoiceBuilder wizard Step 5",
+        "issue": "Selecting paymentTerms='Net 30' does NOT auto-fill the Due Date input in the UI (field remains empty / mm/dd/yyyy). Backend correctly auto-computes dueDate = invoiceDate + 30 days on save, but the wizard does not reflect this live to the user. Review request explicitly asks: 'At step 5 selecting Net 30 auto-fills due date to invoice date + 30 days.'",
+        "selector": "[data-testid=\"inv-dueDate\"]",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "InvoiceBuilder wizard",
+        "issues": ["Benign React hydration warning in console: '<span> cannot be a child of <select>' — one of the shadcn Select components is rendering non-<option> children inside a native <select>. Cosmetic only, no functional impact."]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_invoice_builder.py",
+    "/app/test_reports/pytest/invoice_builder.xml"
+  ],
+  "action_items": [
+    "Frontend: In InvoiceBuilder.jsx wizard Step 5, when paymentTerms changes, compute and set dueDate = invoiceDate + N days (Net 7/14/30/45/60 → +days, Due on receipt → 0) so the user sees the auto-populated due date instead of an empty field.",
+    "Frontend (minor): Investigate the '<span> option cannot be a child of <select>' hydration warning — likely a Select component rendering wrapper spans inside a native select element."
+  ],
+  "critical_code_review_comments": [
+    "invoice_builder.py _compute_totals correctly applies VAT on post-CIS base (HMRC-compliant). Math verified: 5000 gross with 60% labour + 20% CIS = 600 deduction, VAT 20% on £4400 = £880, total £5280. Reverse charge correctly returns VAT=0.",
+    "Status is server-authoritative and live-derived on GET/stats via _resolve_status (Overdue when Sent/Part Paid past dueDate, Paid when payments cover totalDue). Good pattern.",
+    "record_payment uses $inc on jobs.amountPaid — correct integration.",
+    "Auto invoice reference INV-YYYY-NNNN via users.invoiceCounter $inc find_one_and_update — safe & atomic.",
+    "invoice_builder.py is 636 lines — under the 700 threshold but approaching it; consider splitting pdf/math helpers into a separate module in future.",
+    "get_user is called via header parsing everywhere — repetitive; could be a dependency."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_invoice_builder.py (new)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "95%"},
+  "test_credentials": "darrenhustle300 / hustle1234 (admin, unlimited).",
+  "seed_data_creation": "Created several TEST_-prefixed invoices, one Certified AFP, and one variation order via test suite. Not cleaned up — will show as TEST_ rows in dashboard for the admin user.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend endpoints are fully covered by /app/backend/tests/test_invoice_builder.py (10 tests). Note VO endpoint is /api/variation-orders/variation-orders (nested). Wizard flow traversal verified 1→8 with inv- testids. Only outstanding item is the Step-5 UI due-date auto-fill.",
+  "rca of the issue": "Step-5 UI due-date auto-fill: The InvoiceBuilder.jsx wizard likely does not have a useEffect/onChange handler that recomputes wizard.dueDate when paymentTerms or invoiceDate changes. Backend fallback on POST catches it, but the UX gap is visible during the wizard walk-through. Fix: add a derived-value effect in wizard state — when paymentTerms is one of the Net-N options and invoiceDate is set, setDueDate(add(invoiceDate, N days))."
+}
