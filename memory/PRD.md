@@ -51,6 +51,16 @@ remain as audit-trail references only — they are NOT product marketing copy.
 
 ---
 
+### 4 Aug 2026 — Contract Management V2 (flagship contract administration hub)
+- ✅ **Contract Management V2** at `/app/contract-mgmt` — legacy 552-line single-page form replaced with a dashboard-first flagship. Master register of every contract with **6 KPI cards** (Active / Expiring Soon / Under Review / Notices Due / Milestones Overdue / Outstanding Actions) + 3 value cards (Total contracts / Total contract value / Active contract value) + filters (status, type, project) + templates + full audit trail.
+- ✅ **9-step wizard**: Project → Contract Info (19 contract types incl. JCT/NEC4/FIDIC/Bespoke) → Parties (Employer + Contractor) → Dates & Milestones (5 key dates + milestone lifecycle) → Terms & Financials (contract value, retention %/dates, LDs, payment terms, insurance) → Linked Documents (pull variations/applications/invoices from project) → Supporting Docs → Notices & Actions (14 notice types) → Review & PDF (sign-off).
+- ✅ **Backend** `backend/contracts.py` — CRUD + status endpoint + milestones lifecycle + notices lifecycle + stats + project summary + templates. Sequential `CON-YYYY-NNNN` refs per user. Full history entries on every change.
+- ✅ **Live status derivation** `_derive_status`: Active contracts with `completionDate` within 30 days (or overdue) auto-flip to **Expiring Soon** — surfaced in the Expiring Soon KPI and in Command Centre attention.
+- ✅ **Attention items** `collect_contract_attention`: `contract_expiring` (completion date within 30 days), `contract_notice_due` (notice past response due date), `contract_milestone_overdue` (planned date passed, not Completed).
+- ✅ **PDF** `lib/contract-pdf.js` — branded cover + parties (Employer + Contractor two-column) + contract details + key dates + financials & retention + payment/terms + insurance + scope/conditions + milestones + notices + **linked commercial docs (variations / applications / invoices)** + audit trail + dual sign-off.
+- ✅ **Integration**: Global Search V2 gets a new `contracts` scope, Command Centre attention wired in, project-workspace linkage via `linkedVariationIds` / `linkedApplicationIds` / `linkedInvoiceIds`, Document Library gets a summary entry on save.
+- ✅ Tested end-to-end (backend pytest **25/25 pass** including regression on all prior V2 flagship tools). Report: `/app/test_reports/iteration_29.json`.
+
 ### 4 Aug 2026 — Purchase Orders V2 (flagship procurement management system)
 - ✅ **Purchase Orders V2** at `/app/purchase-orders` — full procurement hub replacing the legacy transactional PO tool. Dashboard-first: **8 status stat cards** (Draft / Sent / Approved / Ordered / Part Delivered / Delivered / Awaiting Invoice / Paid) + 3 KPI value cards (Committed / Awaiting Supplier Invoice / Paid) + suppliers panel + project/supplier/status filters + templates.
 - ✅ **9-step wizard**: Project → Supplier (with picker from register) → Order Items (7 categories, product codes, discount, delivery charge, 5 VAT treatments incl. Reverse Charge) → Delivery Details → Review & Approve (contractor signature) → Issue PO → Goods Received (part or full, auto-advances Part Delivered / Delivered) → Match Supplier Invoice → Preview & PDF.
