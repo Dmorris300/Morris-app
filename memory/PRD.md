@@ -51,6 +51,14 @@ remain as audit-trail references only — they are NOT product marketing copy.
 
 ---
 
+### 4 Aug 2026 — Payment Tracker V2 (cash-flow dashboard redesign)
+- ✅ **Payment Tracker V2** at `/app/payment-tracker` — rebuilt from the ground up per the spec. Legacy 550-line form-based page replaced with a **read-only cash-flow dashboard** consuming Invoice Builder V2 as the single source of truth.
+- ✅ **6 KPI cards** (Green / Amber / Red status): Total Outstanding, Overdue, Due This Week, Paid This Month, Outstanding Value, Average Payment Time (auto-computed from paid invoices — days from invoiceDate to first payment).
+- ✅ **Main payment table** with columns: Client/Project · Invoice Ref · Amount (with paid/balance split for part-paids) · Due Date · Days remaining/overdue · Status pill · Quick Actions (View / Open Project / Send Reminder / Mark as Paid).
+- ✅ **Project Summary Panel** (opens when clicking any row's client/project cell): Original Contract Value + Approved Variations (count + £) + Revised Contract + Applications for Payment (certified total) + Invoices Raised + Payments Received + Outstanding Balance. Deep-links to Project Workspace + filtered Invoice Builder.
+- ✅ **Zero charts** — professional Finance dashboard aesthetic that answers "Who owes me money? How much is overdue? What needs my attention today?"
+- ✅ **Tested** end-to-end (backend pytest 10/10 pass + frontend regression + mobile 390×844 with 0px overflow verified after fix). Report: `/app/test_reports/iteration_27.json`. Two bugs found and fixed post-test: inverted Days column direction, and mobile horizontal overflow.
+
 ### 4 Aug 2026 — V1 Release Readiness & Platform Polish
 - ✅ **Comprehensive regression + integration audit** — 48/48 pytest cases pass covering all V2 endpoints, commercial trilogy end-to-end (VO → AFP → INV → payment), Global Search deep-links, Command Centre attention items, multi-user data isolation, 401/403 behaviour, and stats endpoint performance (<160ms). Report: `/app/test_reports/iteration_26.json`. Checklist saved: `/app/memory/RELEASE_READINESS.md`.
 - ✅ **Fixed AFP auto-pull VAT double-count**: `_approved_variations_for()` now returns the **net (subtotal)** of Approved variations instead of the VAT-inclusive total. Prevents VAT being applied twice when the AFP re-VATs its own gross valuation.

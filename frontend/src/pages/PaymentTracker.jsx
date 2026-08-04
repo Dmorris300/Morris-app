@@ -200,7 +200,7 @@ export default function PaymentTracker() {
 
       <div className={`grid gap-4 ${selectedProjectId ? "lg:grid-cols-[1fr_360px]" : ""}`}>
         {/* Main payment table */}
-        <div>
+        <div className="min-w-0">
           {loading ? (
             <div className="card-dark p-8 text-center text-sm text-[#A19D94]">Loading...</div>
           ) : filtered.length === 0 ? (
@@ -211,9 +211,9 @@ export default function PaymentTracker() {
               <Link to="/app/invoice-builder" className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-md bg-[#E8A020] text-black text-sm font-medium">Open Invoice Builder</Link>
             </div>
           ) : (
-            <div className="card-dark overflow-hidden" data-testid="pt-table">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+            <div className="card-dark overflow-hidden max-w-full" data-testid="pt-table">
+              <div className="overflow-x-auto max-w-full">
+                <table className="min-w-[720px] w-full text-sm">
                   <thead className="text-[10px] uppercase tracking-[0.2em] text-[#A19D94] bg-[#0f0d09]">
                     <tr>
                       <th className="text-left p-3">Client / Project</th>
@@ -230,7 +230,8 @@ export default function PaymentTracker() {
                       const total = (inv.totals || {}).totalDue || 0;
                       const paid = inv.paidTotal || 0;
                       const balance = inv.balance ?? Math.max(0, total - paid);
-                      const days = daysBetween(new Date().toISOString().slice(0, 10), inv.dueDate);
+                      // days = dueDate - today. Positive => days remaining, negative => days overdue.
+                      const days = inv.dueDate ? daysBetween(inv.dueDate, isoToday()) : null;
                       const isOverdue = inv.status === "Overdue";
                       return (
                         <tr key={inv.id} className={`border-t border-[#1a1a1a] hover:bg-[#0f0d09] ${isOverdue ? "bg-[#1a0e0e]/40" : ""}`} data-testid={`pt-row-${inv.id}`}>
