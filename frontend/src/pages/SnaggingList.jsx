@@ -1,470 +1,597 @@
-import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { ChevronLeft, FileText, Mail, Download, Copy, Info, Star, X, Plus, Trash2, ClipboardCheck } from "lucide-react";
+// Morris — Snagging Lists V2 (flagship defect & quality management system)
+// Dashboard-first: 6 KPI cards + filters + per-project handover report.
+// Focus on speed for on-site snag raising (mobile-first).
+
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import {
+  Plus, Search, RefreshCw, Trash2, Edit2, X, ChevronLeft, ChevronRight,
+  Camera, MessageSquare, CheckCircle2, RotateCcw, Copy, Star, Save,
+  Download, AlertTriangle, UserPlus, ClipboardCheck, ShieldAlert, FileDown,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../lib/auth";
 import api from "../lib/api";
-import { downloadPdf } from "../lib/pdf";
-import LiveSignatureBlock from "../components/LiveSignatureBlock";
-import AttachMedia, { recordDocMediaUsage } from "../components/AttachMedia";
+import { downloadSnagPdf, snagPdfBlobUrl, downloadSnaggingReportPdf } from "../lib/snagging-pdf";
 
-const TOOL_ID   = "snagging-list";
-const TOOL_NAME = "Snagging List";
-const TOOL_INFO =
-  "A formal snagging list with project, inspection and item-level detail. Used at handover to record every defect that must be put right. The list keeps a live count of high / medium / low severity items open and the overall percentage of snags resolved.";
+const DRAFT_KEY = "morris.tool_draft.snagging";
 
-const isoToday = () => new Date().toISOString().slice(0, 10);
-const isoNowMin = () => {
-  const d = new Date();
-  d.setSeconds(0, 0);
-  const pad = (n) => String(n).padStart(2, "0");
-  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
+const inputClass = "w-full bg-[#0f0d09] border border-[#2a2620] rounded-md px-3 py-2 text-sm text-[#F0EDE8] focus:border-[#E8A020] focus:outline-none";
+const Label = ({ children }) => <label className="text-[10px] uppercase tracking-[0.2em] text-[#A19D94]">{children}</label>;
+const Field = ({ label, children, hint }) => (
+  <div><Label>{label}</Label><div className="mt-1">{children}</div>{hint && <div className="text-[11px] text-[#706D66] mt-1">{hint}</div>}</div>
+);
+
+const PRI_CLASS = {
+  Low: "border-[#68D391]/40 text-[#68D391]",
+  Medium: "border-[#c8b464]/40 text-[#c8b464]",
+  High: "border-[#E8A020]/40 text-[#E8A020]",
+  Critical: "border-[#F27C7C]/40 text-[#F27C7C]",
+};
+const STATUS_CLASS = {
+  Open: "border-[#2a2620] text-[#A19D94]",
+  Assigned: "border-[#c8b464]/40 text-[#c8b464]",
+  "In Progress": "border-[#E8A020]/40 text-[#E8A020]",
+  "Awaiting Verification": "border-[#A0A0F0]/40 text-[#A0A0F0]",
+  Closed: "border-[#68D391]/40 text-[#68D391]",
+  Cancelled: "border-[#2a2620] text-[#706D66]",
 };
 
-function ukDate(iso) {
-  if (!iso || typeof iso !== "string") return "";
-  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (!m) return iso;
-  return `${m[3]}/${m[2]}/${m[1]}`;
-}
-function ukDateTime(iso) {
-  if (!iso || typeof iso !== "string") return "";
-  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
-  if (!m) return iso;
-  return `${m[3]}/${m[2]}/${m[1]} ${m[4]}:${m[5]}`;
-}
+const emptySnag = () => ({
+  projectId: "", projectName: "", projectAddress: "",
+  snagRef: "",
+  title: "",
+  description: "",
+  location: "", area: "",
+  trade: "General Builder", category: "Cosmetic / Finish",
+  priority: "Medium", status: "Open",
+  assignedTo: "", assignedEmail: "", assignedCompany: "",
+  dueDate: "",
+  photosBefore: [], photosAfter: [], supportingDocs: [],
+});
 
-const INSPECTOR_ROLES = [
-  "Client", "Site Manager", "Quantity Surveyor", "Architect",
-  "Building Surveyor", "Building Control", "Contractor", "Subcontractor", "Other",
-];
-
-const SEVERITY_OPTIONS = [
-  "Low — Cosmetic (does not affect function)",
-  "Medium — Functional (affects performance or use)",
-  "High — Urgent Safety (must be rectified immediately)",
-];
-const STATUS_OPTIONS = ["Open", "In Progress", "Closed"];
-
-function severityBand(s) {
-  if (!s) return "—";
-  if (s.startsWith("High")) return "High";
-  if (s.startsWith("Medium")) return "Medium";
-  if (s.startsWith("Low")) return "Low";
-  return s;
-}
-
-function snagRef(i) { return `S-${String(i + 1).padStart(3, "0")}`; }
-function makeSnag() {
-  return {
-    id: crypto.randomUUID(),
-    location: "",
-    item: "",
-    defect: "",
-    severity: "Low — Cosmetic (does not affect function)",
-    status: "Open",
-    target: "",
-    dateClosed: "",
-    notes: "",
-  };
-}
+function saveDraft(d) { try { localStorage.setItem(DRAFT_KEY, JSON.stringify(d)); } catch { /* ignore */ } }
+function loadDraft() { try { const raw = localStorage.getItem(DRAFT_KEY); return raw ? JSON.parse(raw) : null; } catch { return null; } }
 
 export default function SnaggingList() {
-  const { user, refresh } = useAuth();
+  const { user } = useAuth();
+  const [params] = useSearchParams();
+  const openParamId = params.get("open") || "";
+  const projectFilter = params.get("projectId") || "";
+  const [snags, setSnags] = useState([]);
+  const [stats, setStats] = useState(null);
+  const [templates, setTemplates] = useState([]);
+  const [jobs, setJobs] = useState([]);
+  const [reference, setReference] = useState({ priorities: [], statuses: [], trades: [], categories: [], commonAreas: [] });
+  const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
+  const [filterPriority, setFilterPriority] = useState("");
+  const [filterProject, setFilterProject] = useState(projectFilter);
+  const [filterAssigned, setFilterAssigned] = useState("");
+  const [filterOverdue, setFilterOverdue] = useState(false);
+  const [filterMine, setFilterMine] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [wizardOpen, setWizardOpen] = useState(false);
 
-  // EXISTING fields — kept exactly as they are
-  const [projectName, setProjectName]                 = useState("");
-  const [projectAddress, setProjectAddress]           = useState("");
-  const [unitPlotNumber, setUnitPlotNumber]           = useState("");
-  const [inspectionDate, setInspectionDate]           = useState(isoNowMin());
-  const [inspectedByName, setInspectedByName]         = useState(user?.fullName || "");
-  const [inspectedByRole, setInspectedByRole]         = useState("Client");
-  const [contractorRepresentative, setContractorRep]  = useState("");
-
-  // NEW — dynamic snags table (replaces the old textarea)
-  const [snags, setSnags] = useState([makeSnag()]);
-
-  // Photo Vault attachments
-  const [attachedMedia, setAttachedMedia] = useState([]);
-
-  // Output / sign-off
-  const [infoOpen, setInfoOpen]           = useState(false);
-  const [generating, setGenerating]       = useState(false);
-  const [result, setResult]               = useState("");
-  const [refNumber, setRefNumber]         = useState("");
-  const [liveSignature, setLiveSignature] = useState("");
-
-  const isFav = (user?.favourites || []).includes(TOOL_ID);
-  const toggleFav = async () => {
-    const cur = user?.favourites || [];
-    const next = isFav ? cur.filter((x) => x !== TOOL_ID) : [...cur, TOOL_ID];
+  const loadAll = async () => {
+    setLoading(true);
     try {
-      await api.post("/profile/update", { favourites: next });
-      await refresh();
-      toast.success(isFav ? "Removed from favourites" : "Added to favourites");
-    } catch { toast.error("Could not update favourites"); }
+      const [sRes, stRes, tRes, jRes, rRes] = await Promise.allSettled([
+        api.get("/snagging/snags"),
+        api.get("/snagging/stats"),
+        api.get("/snagging/templates"),
+        api.get("/jobs"),
+        api.get("/snagging/reference"),
+      ]);
+      if (sRes.status === "fulfilled") setSnags(sRes.value.data);
+      if (stRes.status === "fulfilled") setStats(stRes.value.data);
+      if (tRes.status === "fulfilled") setTemplates(tRes.value.data);
+      if (jRes.status === "fulfilled") setJobs(jRes.value.data);
+      if (rRes.status === "fulfilled") setReference(rRes.value.data);
+    } finally { setLoading(false); }
   };
-
-  const updateSnag = (id, field, value) =>
-    setSnags((rs) => rs.map((r) => (r.id === id ? { ...r, [field]: value } : r)));
-  const removeSnag = (id) =>
-    setSnags((rs) => rs.filter((r) => r.id !== id));
-  const addSnag = () => setSnags((rs) => [...rs, makeSnag()]);
-
-  const decorated = useMemo(
-    () => snags.map((s, i) => ({ ...s, ref: snagRef(i), band: severityBand(s.severity) })),
-    [snags]
-  );
-
-  // Live summary
-  const summary = useMemo(() => {
-    const populated = decorated.filter((r) => (r.defect || "").trim() || (r.location || "").trim() || (r.item || "").trim());
-    let highOpen = 0, mediumOpen = 0, lowOpen = 0, closed = 0;
-    for (const r of populated) {
-      const open = r.status !== "Closed";
-      if (open) {
-        if (r.band === "High") highOpen += 1;
-        else if (r.band === "Medium") mediumOpen += 1;
-        else if (r.band === "Low") lowOpen += 1;
-      } else {
-        closed += 1;
-      }
+  useEffect(() => { loadAll(); }, []);
+  useEffect(() => {
+    if (openParamId && snags.length > 0 && !wizardOpen) {
+      const s = snags.find(x => x.id === openParamId);
+      if (s) openEdit(s);
     }
-    const total = populated.length;
-    const percent = total > 0 ? Math.round((closed / total) * 100) : 0;
-    return { total, highOpen, mediumOpen, lowOpen, closed, percent };
-  }, [decorated]);
+  }, [openParamId, snags]);
 
-  const onGenerate = async () => {
-    if (!projectName.trim()) { toast.error("Add the project name"); return; }
-    if (!inspectedByName.trim()) { toast.error("Add the inspector name"); return; }
-    const populated = decorated.filter((r) => (r.defect || "").trim());
-    if (populated.length === 0) { toast.error("Add at least one snag item with a defect description"); return; }
-
-    setGenerating(true); setResult(""); setRefNumber("");
-
-    const snagsBlock = populated.map((r) => {
-      const closedBit = r.status === "Closed" && r.dateClosed
-        ? ` | Date Closed: ${ukDate(r.dateClosed)}`
-        : "";
-      return [
-        `Snag ${r.ref}`,
-        `Location: ${r.location || "—"}`,
-        `Item / Element: ${r.item || "—"}`,
-        `Defect Description: ${r.defect}`,
-        `Severity: ${r.severity}`,
-        `Status: ${r.status}`,
-        `Target Completion Date: ${ukDate(r.target) || "—"}${closedBit}`,
-        `Notes / Photo Reference: ${r.notes || "—"}`,
-      ].join(" | ");
-    }).join("\n");
-
-    const promptTemplate = `Produce a formal UK SNAGGING LIST. Plain direct construction English. No padding. No banned consultant words. Formal inspection record used at handover.
-
-1. HEADER — DOCUMENT REFERENCE (use SNG-NNN format taken from the document reference), DATE.
-
-2. TITLE — exactly: 'SNAGGING LIST — {projectName} — {inspectionDate}'.
-
-3. INSPECTION DETAILS — list on separate lines:
-   Project Name: {projectName}
-   Project Address: {projectAddress}
-   Unit / Plot Number: {unitPlotNumber}
-   Inspection Date and Time: {inspectionDate}
-   Inspected by: {inspectedByName}
-   Inspector Role: {inspectedByRole}
-   Contractor Representative: {contractorRepresentative}
-
-4. SNAG ITEMS — print this header line then each snag verbatim on its own line, preserving the pipe-delimited structure exactly as supplied. Keep the auto-generated Snag Number prefix:
-{snagsBlock}
-
-5. SEVERITY KEY — print verbatim on its own line:
-   SEVERITY KEY: Low — Cosmetic (does not affect function). Medium — Functional (affects performance or use). High — Urgent Safety (must be rectified immediately).
-
-6. SUMMARY — print on separate lines (use values supplied — never recalculate):
-   Total snags raised: {totalCount}
-   High severity snags open: {highOpen}
-   Medium severity snags open: {mediumOpen}
-   Low severity snags open: {lowOpen}
-   Snags closed / completed: {closedCount}
-   Percentage complete: {percent}% of snags resolved
-
-7. STATEMENT — print verbatim on its own line in capitals:
-   THIS SNAGGING LIST IS AN OFFICIAL INSPECTION RECORD AND MUST BE ACTIONED WITHIN THE AGREED TIMESCALES.
-
-8. NEXT ACTIONS — print verbatim as one paragraph:
-   The contractor representative shall update the Status column upon completion of each item and re-issue the list to the inspector. Each closed snag must be supported by photographic evidence or a witnessed sign-off.
-
-9. INSPECTED BY — sign-off block:
-   Inspector: {inspectedByName}
-   Role: {inspectedByRole}
-   Date: {inspectionDate}
-   Signature: (auto-insert user's saved signature if held; otherwise leave a signature line)
-
-10. CONTRACTOR REPRESENTATIVE ACKNOWLEDGEMENT — block:
-    Name: {contractorRepresentative}
-    Signed: __________________________
-    Date: __________________________
-
-Rules:
-- Use DD/MM/YYYY for every date in the document body. Never YYYY-MM-DD.
-- Never invent snag items. Use only the supplied rows.
-- Never use abbreviations such as 'N/A', 'TBC' or '&'. Write words in full.
-- Skip blank optional fields cleanly. Use '—' only where supplied.
-- No banned words: 'kinetic', 'utilise', 'endeavour', 'facilitate', 'prior to', 'operatives are advised', 'in order to'.
-- Short sentences. Confident. Direct.`;
-
+  const openNew = (fromTemplate = null) => {
+    let base = emptySnag();
+    if (fromTemplate) base = { ...base, ...(fromTemplate.payload || {}), id: undefined, status: "Open", snagRef: "" };
+    else { const d = loadDraft(); if (d && !d.id) base = { ...base, ...d, id: undefined }; }
+    if (filterProject && !base.projectId) {
+      const j = jobs.find(x => x.id === filterProject);
+      if (j) { base.projectId = j.id; base.projectName = j.projectName || j.clientName || ""; base.projectAddress = j.address || ""; }
+    }
+    setEditing(base); setWizardOpen(true);
+  };
+  const openEdit = async (s) => {
     try {
-      const r = await api.post("/generate", {
-        toolId: TOOL_ID,
-        toolName: TOOL_NAME,
-        promptTemplate,
-        userInputs: {
-          projectName,
-          projectAddress: projectAddress || "—",
-          unitPlotNumber: unitPlotNumber || "—",
-          inspectionDate: ukDateTime(inspectionDate),
-          inspectedByName,
-          inspectedByRole,
-          contractorRepresentative: contractorRepresentative || "—",
-          snagsBlock,
-          totalCount: String(summary.total),
-          highOpen: String(summary.highOpen),
-          mediumOpen: String(summary.mediumOpen),
-          lowOpen: String(summary.lowOpen),
-          closedCount: String(summary.closed),
-          percent: String(summary.percent),
-        },
-        trade: user?.trade,
-        companyName: user?.companyName,
-        fullName: user?.fullName,
+      const r = await api.get(`/snagging/snags/${s.id}`);
+      setEditing({ ...emptySnag(), ...r.data });
+    } catch { setEditing({ ...emptySnag(), ...s }); }
+    setWizardOpen(true);
+  };
+  const duplicate = (s) => {
+    const copy = { ...s }; delete copy.id; delete copy.createdAt; delete copy.updatedAt; delete copy._id;
+    copy.snagRef = ""; copy.status = "Open"; copy.verifiedAt = ""; copy.closedAt = ""; copy.completionDate = "";
+    copy.photosBefore = []; copy.photosAfter = []; copy.comments = []; copy.history = [];
+    setEditing({ ...emptySnag(), ...copy }); setWizardOpen(true);
+  };
+  const del = async (s) => {
+    if (!window.confirm(`Delete snag ${s.snagRef || s.title}?`)) return;
+    try { await api.delete(`/snagging/snags/${s.id}`); toast.success("Deleted"); await loadAll(); }
+    catch { toast.error("Delete failed"); }
+  };
+  const setStatus = async (s, status) => {
+    try { await api.post(`/snagging/snags/${s.id}/status`, { status }); toast.success(`${status}`); await loadAll(); }
+    catch { toast.error("Failed"); }
+  };
+  const verify = async (s) => {
+    try { await api.post(`/snagging/snags/${s.id}/verify`, {}); toast.success("Verified & closed"); await loadAll(); }
+    catch { toast.error("Failed"); }
+  };
+
+  const filtered = useMemo(() => {
+    const s = query.trim().toLowerCase();
+    return snags.filter(x => {
+      if (s) {
+        const hay = `${x.title || ""} ${x.description || ""} ${x.snagRef || ""} ${x.projectName || ""} ${x.area || ""} ${x.location || ""} ${x.assignedTo || ""} ${x.trade || ""}`.toLowerCase();
+        if (!hay.includes(s)) return false;
+      }
+      if (filterStatus && (x.status || "Open") !== filterStatus) return false;
+      if (filterPriority && (x.priority || "Medium") !== filterPriority) return false;
+      if (filterProject && x.projectId !== filterProject) return false;
+      if (filterAssigned && (x.assignedTo || "").toLowerCase() !== filterAssigned.toLowerCase()) return false;
+      if (filterOverdue && !x.isOverdue) return false;
+      if (filterMine) {
+        const me = (user?.fullName || user?.username || "").toLowerCase();
+        if ((x.assignedTo || "").toLowerCase() !== me) return false;
+      }
+      return true;
+    });
+  }, [snags, query, filterStatus, filterPriority, filterProject, filterAssigned, filterOverdue, filterMine, user]);
+
+  const uniqueAssignees = useMemo(() => Array.from(new Set(snags.map(s => s.assignedTo).filter(Boolean))).sort(), [snags]);
+
+  const generateProjectReport = async () => {
+    if (!filterProject) return toast.error("Filter by a project first to generate its handover report");
+    try {
+      const r = await api.get(`/snagging/project/${filterProject}/summary`);
+      const project = jobs.find(j => j.id === filterProject);
+      downloadSnaggingReportPdf({
+        project: { projectName: project?.projectName || project?.clientName || "Project", projectAddress: project?.address || "" },
+        snags: r.data.snags || [],
+        summary: r.data,
+        user,
+        today: new Date().toLocaleDateString("en-GB"),
       });
-      setResult(r.data.content);
-      setRefNumber(r.data.refNumber || "");
-      const recent = [TOOL_ID, ...(user?.recentlyUsed || []).filter((x) => x !== TOOL_ID)].slice(0, 5);
-      try { await api.post("/profile/update", { recentlyUsed: recent }); await refresh(); } catch { /* ignore */ }
-      toast.success("Snagging List generated. Saved to your Vault.");
-    } catch (err) {
-      const d = err?.response?.data?.detail;
-      toast.error(typeof d === "string" ? d : "Could not generate. Try again.");
-    } finally { setGenerating(false); }
-  };
-
-  const onCopy = () => { navigator.clipboard.writeText(result); toast.success("Copied"); };
-  const onDownload = () => {
-    const userWithSig = { ...(user || {}), signature: liveSignature || user?.signature };
-    downloadPdf({ title: `Snagging List — ${projectName || "project"}`, content: result, user: userWithSig });
-    toast.success("PDF downloaded");
+      toast.success("Snagging report generated");
+    } catch (e) { toast.error(e?.response?.data?.detail || "Report failed"); }
   };
 
   return (
-    <div className="p-6 md:p-10 max-w-7xl mx-auto" data-testid="page-snagging-list">
-      <Link to="/app" className="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-[#A19D94] hover:text-[#E8A020] mb-4">
-        <ChevronLeft size={14}/> Back to dashboard
-      </Link>
+    <div className="p-4 md:p-8 max-w-7xl mx-auto" data-testid="snagging-page">
+      <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="text-[10px] uppercase tracking-[0.25em] text-[#E8A020] mb-2">Quality Control</div>
+          <h1 className="font-display text-3xl sm:text-4xl text-[#F0EDE8]">Snagging Lists</h1>
+          <p className="text-sm text-[#A19D94] mt-2 max-w-2xl">Record, assign, verify and close every defect through to sign-off. Every action is timestamped and every photo is stored — so the handover pack builds itself.</p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <button onClick={loadAll} className="text-xs text-[#A19D94] hover:text-[#E8A020] flex items-center gap-1" data-testid="snag-refresh"><RefreshCw size={12} className={loading ? "animate-spin" : ""} /> Refresh</button>
+          <button onClick={generateProjectReport} disabled={!filterProject} className="inline-flex items-center gap-2 px-3 py-2 rounded-md border border-[#2a2620] text-sm text-[#F0EDE8] hover:border-[#E8A020] disabled:opacity-40" data-testid="snag-report-btn"><FileDown size={14} /> Project report</button>
+          <button onClick={() => openNew()} className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-[#E8A020] text-black text-sm font-medium hover:bg-[#f0b040]" data-testid="snag-new-btn"><Plus size={14} /> New Snag</button>
+        </div>
+      </header>
 
-      <div className="mb-6 flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <div className="text-[#E8A020] text-xs uppercase tracking-widest mb-2">Site Tools</div>
-          <h1 className="font-display text-4xl md:text-5xl">Snagging List</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <button onClick={() => setInfoOpen(true)} className="btn-secondary flex items-center gap-2" data-testid="snag-info-btn"><Info size={14}/> Info</button>
-          <button onClick={toggleFav} className={`btn-secondary flex items-center gap-2 ${isFav ? "text-[#E8A020] border-[#E8A020]/40" : ""}`} data-testid="snag-fav-btn"><Star size={14} fill={isFav ? "#E8A020" : "none"}/> Favourite</button>
-        </div>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+        <StatCard label="Open snags" value={stats?.open ?? 0} tone="gold" testId="snag-stat-open" />
+        <StatCard label="High / Critical" value={stats?.highPriority ?? 0} tone="red" icon={ShieldAlert} testId="snag-stat-high" />
+        <StatCard label="Overdue" value={stats?.overdue ?? 0} tone="red" icon={AlertTriangle} testId="snag-stat-overdue" />
+        <StatCard label="Closed today" value={stats?.closedToday ?? 0} tone="green" icon={CheckCircle2} testId="snag-stat-today" />
+        <StatCard label="Assigned to me" value={stats?.assignedToMe ?? 0} tone="amber" icon={UserPlus} testId="snag-stat-mine" />
+        <StatCard label="Closed total" value={stats?.closed ?? 0} tone="green" testId="snag-stat-closed" />
       </div>
 
-      {infoOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)" }} onClick={() => setInfoOpen(false)}>
-          <div onClick={(e) => e.stopPropagation()} className="card-dark max-w-xl w-full p-6" style={{ borderColor: "#E8A020" }}>
-            <div className="flex justify-between items-start mb-3">
-              <h3 className="font-display text-2xl text-[#F0EDE8]">About this tool</h3>
-              <button onClick={() => setInfoOpen(false)} className="text-[#A19D94]"><X size={18}/></button>
-            </div>
-            <p className="text-sm text-[#A19D94] leading-relaxed">{TOOL_INFO}</p>
+      {templates.length > 0 && (
+        <div className="mb-4">
+          <div className="text-[10px] uppercase tracking-[0.25em] text-[#E8A020] mb-2">Templates</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+            {templates.map(t => (
+              <div key={t.id} className="card-dark p-3 flex items-start justify-between gap-2" data-testid={`snag-template-${t.id}`}>
+                <button onClick={() => openNew(t)} className="text-left flex-1 min-w-0">
+                  <div className="text-sm text-[#F0EDE8] truncate">{t.name}</div>
+                  <div className="text-[11px] text-[#A19D94] truncate">Snag template</div>
+                </button>
+                <button onClick={async () => { if (!window.confirm("Delete template?")) return; try { await api.delete(`/snagging/templates/${t.id}`); setTemplates(templates.filter(x => x.id !== t.id)); } catch { toast.error("Failed"); } }} className="text-[#706D66] hover:text-[#F27C7C] p-1"><Trash2 size={12} /></button>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
-      {/* SECTION 1 — INSPECTION DETAILS (existing fields, unchanged) */}
-      <Section title="Inspection Details" testId="snag-section-1" icon={<ClipboardCheck size={14}/>}>
-        <Grid>
-          <Inp label="Project Name" value={projectName} onChange={setProjectName} testId="snag-project" />
-          <Inp label="Project Address" value={projectAddress} onChange={setProjectAddress} testId="snag-address" />
-          <Inp label="Unit / Plot Number" value={unitPlotNumber} onChange={setUnitPlotNumber} testId="snag-unit" />
-          <Inp label="Inspection Date and Time" value={inspectionDate} onChange={setInspectionDate} type="datetime-local" testId="snag-date" />
-          <Inp label="Inspected by (Name)" value={inspectedByName} onChange={setInspectedByName} testId="snag-inspector" />
-          <Drop label="Inspector Role" value={inspectedByRole} onChange={setInspectedByRole} options={INSPECTOR_ROLES} testId="snag-role" />
-          <Inp label="Contractor Representative (full name + company)" value={contractorRepresentative} onChange={setContractorRep} testId="snag-contractor" />
-        </Grid>
-      </Section>
-
-      {/* SECTION 2 — SNAG ITEMS TABLE (replaces the old textarea) */}
-      <Section title="Snag Items" testId="snag-section-2">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm" style={{ minWidth: 1400 }}>
-            <thead className="text-[10px] uppercase tracking-widest text-[#706D66]">
-              <tr>
-                <th className="text-left py-2 pr-2 whitespace-nowrap">Snag Number</th>
-                <th className="text-left pr-2">Location</th>
-                <th className="text-left pr-2">Item / Element</th>
-                <th className="text-left pr-2">Defect Description</th>
-                <th className="text-left pr-2">Severity</th>
-                <th className="text-left pr-2">Status</th>
-                <th className="text-left pr-2 whitespace-nowrap">Target Completion Date</th>
-                <th className="text-left pr-2 whitespace-nowrap">Date Closed</th>
-                <th className="text-left pr-2">Notes / Photo Reference</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {decorated.map((r, idx) => (
-                <tr key={r.id} className="border-t border-[#F0EDE8]/5 align-top" data-testid={`snag-row-${idx}`}>
-                  <td className="py-1 pr-2 text-[#E8A020] text-xs font-mono whitespace-nowrap" data-testid={`snag-row-${idx}-ref`}>{r.ref}</td>
-                  <td className="pr-2">
-                    <input className="input-base !py-1 !text-sm" placeholder={`e.g. "Kitchen ceiling"`} value={r.location} onChange={(e) => updateSnag(r.id, "location", e.target.value)} data-testid={`snag-row-${idx}-location`} />
-                  </td>
-                  <td className="pr-2">
-                    <input className="input-base !py-1 !text-sm" placeholder={`e.g. "Ductwork joint"`} value={r.item} onChange={(e) => updateSnag(r.id, "item", e.target.value)} data-testid={`snag-row-${idx}-item`} />
-                  </td>
-                  <td className="pr-2">
-                    <textarea rows={2} className="input-base !py-1 !text-sm" placeholder="Describe the defect clearly and specifically" value={r.defect} onChange={(e) => updateSnag(r.id, "defect", e.target.value)} data-testid={`snag-row-${idx}-defect`} />
-                  </td>
-                  <td className="pr-2">
-                    <select className="input-base !py-1 !text-sm" value={r.severity} onChange={(e) => updateSnag(r.id, "severity", e.target.value)} data-testid={`snag-row-${idx}-severity`}>
-                      {SEVERITY_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
-                    </select>
-                  </td>
-                  <td className="pr-2">
-                    <select className="input-base !py-1 !text-sm" value={r.status} onChange={(e) => updateSnag(r.id, "status", e.target.value)} data-testid={`snag-row-${idx}-status`}>
-                      {STATUS_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
-                    </select>
-                  </td>
-                  <td className="pr-2">
-                    <input type="date" className="input-base !py-1 !text-sm" value={r.target} onChange={(e) => updateSnag(r.id, "target", e.target.value)} data-testid={`snag-row-${idx}-target`} />
-                  </td>
-                  <td className="pr-2">
-                    {r.status === "Closed" ? (
-                      <input type="date" className="input-base !py-1 !text-sm" value={r.dateClosed} onChange={(e) => updateSnag(r.id, "dateClosed", e.target.value)} data-testid={`snag-row-${idx}-closed`} />
-                    ) : (
-                      <div className="text-[10px] text-[#706D66] py-2">Available once Closed</div>
-                    )}
-                  </td>
-                  <td className="pr-2">
-                    <input className="input-base !py-1 !text-sm" placeholder={`e.g. "Photo 3, see attached"`} value={r.notes} onChange={(e) => updateSnag(r.id, "notes", e.target.value)} data-testid={`snag-row-${idx}-notes`} />
-                  </td>
-                  <td className="text-right">
-                    <button onClick={() => removeSnag(r.id)} className="text-[#706D66] hover:text-red-400" data-testid={`snag-row-${idx}-remove`}><Trash2 size={14}/></button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <div className="card-dark p-4 mb-4" data-testid="snag-filters">
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+          <div className="relative md:col-span-2">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#706D66]" />
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search snag ref, title, area, assignee…" className={`${inputClass} pl-9`} data-testid="snag-search" />
+          </div>
+          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className={inputClass} data-testid="snag-filter-status">
+            <option value="">All status</option>
+            {(reference.statuses || []).map(x => <option key={x} value={x}>{x}</option>)}
+          </select>
+          <select value={filterPriority} onChange={(e) => setFilterPriority(e.target.value)} className={inputClass} data-testid="snag-filter-priority">
+            <option value="">All priority</option>
+            {(reference.priorities || []).map(x => <option key={x} value={x}>{x}</option>)}
+          </select>
+          <select value={filterProject} onChange={(e) => setFilterProject(e.target.value)} className={inputClass} data-testid="snag-filter-project">
+            <option value="">All projects</option>
+            {jobs.map(j => <option key={j.id} value={j.id}>{j.projectName || j.clientName}</option>)}
+          </select>
+          <select value={filterAssigned} onChange={(e) => setFilterAssigned(e.target.value)} className={inputClass} data-testid="snag-filter-assignee">
+            <option value="">All assignees</option>
+            {uniqueAssignees.map(a => <option key={a} value={a}>{a}</option>)}
+          </select>
         </div>
-        <button onClick={addSnag} className="btn-secondary flex items-center gap-2 text-xs mt-3" data-testid="snag-add-row">
-          <Plus size={12}/> Add Snag
-        </button>
-      </Section>
-
-      {/* SECTION 3 — SUMMARY */}
-      <Section title="Snag Summary" testId="snag-section-3">
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          <Stat label="Total snags raised" value={String(summary.total)} testId="snag-sum-total" />
-          <Stat label="High severity snags open" value={String(summary.highOpen)} danger={summary.highOpen > 0} testId="snag-sum-high" />
-          <Stat label="Medium severity snags open" value={String(summary.mediumOpen)} warn={summary.mediumOpen > 0} testId="snag-sum-medium" />
-          <Stat label="Low severity snags open" value={String(summary.lowOpen)} testId="snag-sum-low" />
-          <Stat label="Snags closed / completed" value={String(summary.closed)} testId="snag-sum-closed" />
-          <Stat
-            label="Percentage complete"
-            value={`${summary.percent}% of snags resolved`}
-            highlight={summary.total > 0 && summary.percent === 100}
-            testId="snag-sum-percent"
-          />
+        <div className="flex items-center gap-3 mt-3 text-xs">
+          <label className="inline-flex items-center gap-2 text-[#A19D94] cursor-pointer" data-testid="snag-filter-overdue-toggle"><input type="checkbox" checked={filterOverdue} onChange={(e) => setFilterOverdue(e.target.checked)} className="accent-[#E8A020]" /> Overdue only</label>
+          <label className="inline-flex items-center gap-2 text-[#A19D94] cursor-pointer" data-testid="snag-filter-mine-toggle"><input type="checkbox" checked={filterMine} onChange={(e) => setFilterMine(e.target.checked)} className="accent-[#E8A020]" /> Assigned to me</label>
         </div>
-      </Section>
+      </div>
 
-      {/* SIGN OFF */}
-      <Section title="Sign Off" testId="snag-section-signoff">
-        <AttachMedia toolId="snagging-list" toolLabel="Snagging List" category="Snagging" value={attachedMedia} onChange={setAttachedMedia} testIdPrefix="snag-media" />
-        <LiveSignatureBlock
-          label="Inspector signature"
-          subtitle="Your signature is stamped on the generated PDF"
-          value={liveSignature}
-          onChange={setLiveSignature}
-          savedSignature={user?.signature}
-          testIdPrefix="snag-sig"
+      {loading ? (
+        <div className="card-dark p-8 text-center text-sm text-[#A19D94]">Loading…</div>
+      ) : filtered.length === 0 ? (
+        <div className="card-dark p-10 text-center" data-testid="snag-empty">
+          <ClipboardCheck size={28} className="mx-auto text-[#E8A020] mb-3" />
+          <div className="text-base text-[#F0EDE8]">{snags.length === 0 ? "No snags raised yet" : "No snags match your filters"}</div>
+          <p className="text-xs text-[#A19D94] mt-2 max-w-md mx-auto">Walk the site with your phone, snap a photo of every defect and raise it here. Assign it to the trade responsible and Morris keeps the audit trail so nothing slips through handover.</p>
+          <button onClick={() => openNew()} className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-md bg-[#E8A020] text-black text-sm font-medium" data-testid="snag-empty-new"><Plus size={14} /> Raise your first snag</button>
+        </div>
+      ) : (
+        <div className="space-y-2">{filtered.map(s => <SnagRow key={s.id} s={s} onEdit={() => openEdit(s)} onDelete={() => del(s)} onDuplicate={() => duplicate(s)} onStatus={(x) => setStatus(s, x)} onVerify={() => verify(s)} />)}</div>
+      )}
+
+      {wizardOpen && editing && (
+        <SnagWizard initial={editing} user={user} jobs={jobs} reference={reference}
+          onClose={() => { setWizardOpen(false); setEditing(null); }}
+          onSaved={async () => { await loadAll(); setWizardOpen(false); setEditing(null); }}
+          onTemplatesChanged={setTemplates}
         />
-        <div className="mt-3 text-xs text-[#706D66]" data-testid="snag-sig-date">
-          Inspection Date and Time: {ukDateTime(inspectionDate) || "—"}
-        </div>
-      </Section>
-
-      <button onClick={onGenerate} disabled={generating} className="btn-primary w-full flex items-center justify-center gap-2 mt-5" data-testid="snag-generate">
-        {generating ? "Generating…" : <><FileText size={14}/> Generate Snagging List</>}
-      </button>
-
-      {result && (
-        <div className="card-dark p-6 mt-6" data-testid="snag-output-block">
-          <div className="text-xs uppercase tracking-widest text-[#E8A020] mb-3">Generated snagging list</div>
-          <div className="flex gap-2 mb-3 flex-wrap">
-            <button onClick={onCopy} className="btn-secondary flex items-center gap-2 text-xs"><Copy size={12}/> Copy</button>
-            <button onClick={onDownload} className="btn-secondary flex items-center gap-2 text-xs"><Download size={12}/> PDF</button>
-            <a href={`mailto:?subject=${encodeURIComponent(`Snagging List — ${projectName}`)}&body=${encodeURIComponent(result)}`} className="btn-secondary flex items-center gap-2 text-xs"><Mail size={12}/> Email</a>
-          </div>
-          {refNumber && <div className="text-[10px] text-[#706D66] mb-2">Ref: {refNumber}</div>}
-          <pre className="text-sm text-[#F0EDE8] whitespace-pre-wrap font-sans leading-relaxed" data-testid="snag-output">{result}</pre>
-        </div>
       )}
     </div>
   );
 }
 
-// ---------- bits ----------
-function Section({ title, children, testId, icon }) {
+function StatCard({ label, value, tone, icon: Icon, testId }) {
+  const t = tone === "red" ? "text-[#F27C7C]" : tone === "green" ? "text-[#68D391]" : tone === "gold" ? "text-[#E8A020]" : tone === "amber" ? "text-[#c8b464]" : "text-[#F0EDE8]";
   return (
-    <div className="card-dark p-6 mb-5" data-testid={testId}>
-      <div className="text-xs uppercase tracking-widest text-[#E8A020] mb-4 flex items-center gap-2">
-        {icon}{title}
-      </div>
-      {children}
+    <div className="card-dark p-3" data-testid={testId}>
+      <div className="flex items-center justify-between mb-1"><Label>{label}</Label>{Icon ? <Icon size={12} className="text-[#706D66]" /> : null}</div>
+      <div className={`mt-1 font-display text-2xl ${t}`}>{value}</div>
     </div>
   );
 }
-function Grid({ children }) {
-  return <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">{children}</div>;
-}
-function Inp({ label, value, onChange, type = "text", testId, placeholder }) {
+
+function SnagRow({ s, onEdit, onDelete, onDuplicate, onStatus, onVerify }) {
+  const status = s.status || "Open";
+  const priority = s.priority || "Medium";
+  const priCls = PRI_CLASS[priority] || PRI_CLASS.Medium;
+  const stCls = STATUS_CLASS[status] || STATUS_CLASS.Open;
   return (
-    <label className="block">
-      <div className="text-xs uppercase tracking-widest text-[#A19D94] mb-1">{label}</div>
-      <input type={type} value={value || ""} onChange={(e) => onChange(e.target.value)} className="input-base" placeholder={placeholder} data-testid={testId} />
-    </label>
+    <div className="card-dark p-4 flex items-start gap-3" data-testid={`snag-row-${s.id}`}>
+      <div className={`w-1.5 self-stretch rounded-full ${priority === "Critical" ? "bg-[#F27C7C]" : priority === "High" ? "bg-[#E8A020]" : priority === "Low" ? "bg-[#68D391]" : "bg-[#c8b464]"}`} />
+      <button onClick={onEdit} className="text-left flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-base text-[#F0EDE8] font-medium truncate">{s.title || "Untitled snag"}</span>
+          <span className={`text-[10px] px-2 py-0.5 rounded-full border ${priCls}`}>{priority}</span>
+          <span className={`text-[10px] px-2 py-0.5 rounded-full border ${stCls}`}>{status}</span>
+          <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#2a2620] text-[#A19D94]">{s.snagRef || "no ref"}</span>
+          {s.isOverdue && <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#F27C7C]/40 text-[#F27C7C]">Overdue</span>}
+          {(s.photosBeforeCount || 0) + (s.photosAfterCount || 0) > 0 && <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#2a2620] text-[#A19D94]">📷 {(s.photosBeforeCount || 0) + (s.photosAfterCount || 0)}</span>}
+        </div>
+        <div className="text-xs text-[#A19D94] mt-1 truncate">
+          {[s.projectName, s.area, s.location, s.assignedTo ? `→ ${s.assignedTo}` : ""].filter(Boolean).join(" · ") || "—"}
+          {s.dueDate ? ` · Due ${s.dueDate}` : ""}
+        </div>
+      </button>
+      <div className="flex gap-1 shrink-0">
+        {(status === "Open" || status === "Assigned") && <button onClick={() => onStatus("In Progress")} className="p-2 text-[#A19D94] hover:text-[#E8A020]" title="Start work" data-testid={`snag-row-progress-${s.id}`}><RotateCcw size={14} /></button>}
+        {status === "In Progress" && <button onClick={() => onStatus("Awaiting Verification")} className="p-2 text-[#A19D94] hover:text-[#A0A0F0]" title="Ready for verification" data-testid={`snag-row-await-${s.id}`}><ClipboardCheck size={14} /></button>}
+        {status === "Awaiting Verification" && <button onClick={onVerify} className="p-2 text-[#A19D94] hover:text-[#68D391]" title="Verify & close" data-testid={`snag-row-verify-${s.id}`}><CheckCircle2 size={14} /></button>}
+        <button onClick={onEdit} className="p-2 text-[#A19D94] hover:text-[#E8A020]" data-testid={`snag-row-edit-${s.id}`}><Edit2 size={14} /></button>
+        <button onClick={onDuplicate} className="p-2 text-[#A19D94] hover:text-[#E8A020]" data-testid={`snag-row-dup-${s.id}`}><Copy size={14} /></button>
+        <button onClick={onDelete} className="p-2 text-[#A19D94] hover:text-[#F27C7C]" data-testid={`snag-row-delete-${s.id}`}><Trash2 size={14} /></button>
+      </div>
+    </div>
   );
 }
-function Drop({ label, value, onChange, options, testId }) {
+
+// ================================================================
+// WIZARD
+// ================================================================
+function SnagWizard({ initial, user, jobs, reference, onClose, onSaved, onTemplatesChanged }) {
+  const [data, setData] = useState(initial);
+  const [saving, setSaving] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [tplModalOpen, setTplModalOpen] = useState(false);
+  const [tplName, setTplName] = useState("");
+  const [commentText, setCommentText] = useState("");
+  const [photoDraft, setPhotoDraft] = useState(null);
+
+  useEffect(() => { if (!data.id) { const t = setTimeout(() => saveDraft(data), 500); return () => clearTimeout(t); } }, [data]);
+
+  const set = (k) => (v) => setData(d => ({ ...d, [k]: v }));
+  const pickProject = (id) => {
+    const j = jobs.find(x => x.id === id); if (!j) return;
+    setData(d => ({ ...d, projectId: j.id, projectName: j.projectName || j.clientName || d.projectName, projectAddress: j.address || d.projectAddress }));
+  };
+
+  const generatePreview = () => {
+    try { setPreviewUrl(snagPdfBlobUrl({ data, user, today: new Date().toLocaleDateString("en-GB") })); }
+    catch { toast.error("Preview failed"); }
+  };
+
+  const saveEntry = async ({ downloadAfter = true } = {}) => {
+    if (!data.projectName && !data.projectId) { toast.error("Project is required"); return; }
+    if (!data.title.trim()) { toast.error("Snag title is required"); return; }
+    setSaving(true);
+    try {
+      let saved;
+      const payload = { ...data };
+      delete payload.isOverdue; delete payload.photosBeforeCount; delete payload.photosAfterCount; delete payload.commentsCount;
+      delete payload.history; delete payload.comments;
+      if (data.id) { const r = await api.patch(`/snagging/snags/${data.id}`, payload); saved = r.data; }
+      else { const r = await api.post("/snagging/snags", payload); saved = r.data; }
+      try {
+        await api.post("/documents/save", {
+          title: `Snag — ${data.title}`,
+          toolId: "snagging", refNumber: saved.snagRef, jobId: data.projectId || null,
+          content: `SNAG ${saved.snagRef}\n${saved.title}\nProject: ${saved.projectName || "—"}\nArea: ${saved.area || "—"}\nPriority: ${saved.priority}\nStatus: ${saved.status}\nAssigned: ${saved.assignedTo || "—"}\n\n${saved.description || ""}`,
+          metadata: { ...saved },
+        });
+      } catch { /* soft-fail */ }
+      if (downloadAfter) {
+        downloadSnagPdf({ data: saved, user, today: new Date().toLocaleDateString("en-GB") });
+      }
+      try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+      toast.success("Snag saved");
+      setData({ ...data, ...saved });
+      if (downloadAfter) onSaved();
+    } catch (e) { toast.error(e?.response?.data?.detail || "Save failed"); }
+    finally { setSaving(false); }
+  };
+
+  const addComment = async () => {
+    if (!data.id) return toast.error("Save the snag first");
+    if (!commentText.trim()) return;
+    try {
+      const r = await api.post(`/snagging/snags/${data.id}/comment`, { text: commentText });
+      setData(d => ({ ...d, ...r.data }));
+      setCommentText("");
+    } catch { toast.error("Failed"); }
+  };
+  const addPhoto = async () => {
+    if (!photoDraft) return;
+    if (!data.id) { await saveEntry({ downloadAfter: false }); }
+    const id = data.id;
+    if (!id) return;
+    try {
+      const r = await api.post(`/snagging/snags/${id}/photos`, photoDraft);
+      setData(d => ({ ...d, ...r.data }));
+      setPhotoDraft(null);
+      toast.success("Photo attached");
+    } catch { toast.error("Failed"); }
+  };
+  const delPhoto = async (pid) => {
+    if (!data.id) return;
+    try { const r = await api.delete(`/snagging/snags/${data.id}/photos/${pid}`); setData(d => ({ ...d, ...r.data })); }
+    catch { toast.error("Failed"); }
+  };
+  const changeStatus = async (status) => {
+    if (!data.id) return toast.error("Save the snag first");
+    try { const r = await api.post(`/snagging/snags/${data.id}/status`, { status }); setData(d => ({ ...d, ...r.data })); toast.success(status); }
+    catch { toast.error("Failed"); }
+  };
+  const verifyAndClose = async () => {
+    if (!data.id) return toast.error("Save the snag first");
+    try { const r = await api.post(`/snagging/snags/${data.id}/verify`, {}); setData(d => ({ ...d, ...r.data })); toast.success("Verified & closed"); }
+    catch { toast.error("Failed"); }
+  };
+
+  const saveAsTemplate = async () => {
+    if (!tplName.trim()) return toast.error("Template name required");
+    try {
+      const payload = { ...data, id: undefined, snagRef: undefined, status: "Open", photosBefore: [], photosAfter: [], comments: [], history: undefined };
+      delete payload.isOverdue; delete payload.photosBeforeCount; delete payload.photosAfterCount;
+      await api.post("/snagging/templates", { name: tplName.trim(), payload });
+      toast.success("Template saved");
+      setTplModalOpen(false); setTplName("");
+      const lst = await api.get("/snagging/templates"); onTemplatesChanged(lst.data);
+    } catch (e) { toast.error(e?.response?.data?.detail || "Failed"); }
+  };
+
+  const priCls = PRI_CLASS[data.priority || "Medium"];
+  const stCls = STATUS_CLASS[data.status || "Open"];
+
   return (
-    <label className="block">
-      <div className="text-xs uppercase tracking-widest text-[#A19D94] mb-1">{label}</div>
-      <select value={value || ""} onChange={(e) => onChange(e.target.value)} className="input-base" data-testid={testId}>
-        {options.map((o) => <option key={o} value={o}>{o}</option>)}
-      </select>
-    </label>
+    <div className="fixed inset-0 bg-black/80 z-50 overflow-y-auto" data-testid="snag-wizard">
+      <div className="min-h-screen p-4 md:p-8">
+        <div className="max-w-4xl mx-auto card-dark p-5 md:p-6">
+          <div className="flex items-start justify-between mb-4">
+            <div className="min-w-0">
+              <div className="text-[10px] uppercase tracking-[0.25em] text-[#E8A020] mb-1">{data.id ? `Edit ${data.snagRef || "Snag"}` : "New Snag"}</div>
+              <h2 className="font-display text-2xl text-[#F0EDE8] truncate">{data.title || "Untitled snag"}</h2>
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                <span className={`text-[10px] px-2 py-0.5 rounded-full border ${priCls}`}>{data.priority || "Medium"}</span>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full border ${stCls}`}>{data.status || "Open"}</span>
+                {data.isOverdue && <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#F27C7C]/40 text-[#F27C7C]">Overdue</span>}
+              </div>
+            </div>
+            <button onClick={onClose} className="text-[#A19D94] hover:text-[#F0EDE8]" data-testid="snag-wizard-close"><X size={20} /></button>
+          </div>
+
+          {data.id && (
+            <div className="flex flex-wrap gap-2 mb-4" data-testid="snag-quick-actions">
+              {(data.status === "Open" || data.status === "Assigned") && <button onClick={() => changeStatus("In Progress")} className="text-xs px-3 py-1.5 rounded-md border border-[#2a2620] text-[#F0EDE8] hover:border-[#E8A020]" data-testid="snag-qa-progress">Mark In Progress</button>}
+              {data.status === "In Progress" && <button onClick={() => changeStatus("Awaiting Verification")} className="text-xs px-3 py-1.5 rounded-md border border-[#2a2620] text-[#F0EDE8] hover:border-[#A0A0F0]" data-testid="snag-qa-await">Ready for verification</button>}
+              {data.status !== "Closed" && <button onClick={verifyAndClose} className="text-xs px-3 py-1.5 rounded-md border border-[#68D391]/40 text-[#68D391] hover:bg-[#68D391]/10" data-testid="snag-qa-verify">Verify &amp; close</button>}
+              {data.status === "Closed" && <button onClick={() => changeStatus("Open")} className="text-xs px-3 py-1.5 rounded-md border border-[#2a2620] text-[#F0EDE8] hover:border-[#E8A020]" data-testid="snag-qa-reopen">Re-open</button>}
+              <button onClick={() => setTplModalOpen(true)} className="text-xs px-3 py-1.5 rounded-md border border-[#2a2620] text-[#F0EDE8] hover:border-[#E8A020] inline-flex items-center gap-1" data-testid="snag-save-template-btn"><Save size={12} /> Save as template</button>
+            </div>
+          )}
+
+          <div className="space-y-5">
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.2em] text-[#E8A020] mb-2">Snag details</div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <Field label="Title / short description (required)"><input className={inputClass} value={data.title} onChange={(e) => set("title")(e.target.value)} placeholder="e.g. Chip in kitchen worktop" data-testid="snag-title" /></Field>
+                <Field label="Project">
+                  {jobs.length > 0 ? (
+                    <select value={data.projectId} onChange={(e) => pickProject(e.target.value)} className={inputClass} data-testid="snag-project">
+                      <option value="">Select a project</option>
+                      {jobs.map(j => <option key={j.id} value={j.id}>{j.projectName || j.clientName}</option>)}
+                    </select>
+                  ) : (
+                    <input className={inputClass} value={data.projectName} onChange={(e) => set("projectName")(e.target.value)} data-testid="snag-projectName" />
+                  )}
+                </Field>
+                <Field label="Area / room">
+                  <input className={inputClass} value={data.area} onChange={(e) => set("area")(e.target.value)} list="snag-area-list" placeholder="e.g. Kitchen, Bedroom 1" data-testid="snag-area" />
+                  <datalist id="snag-area-list">{(reference.commonAreas || []).map(a => <option key={a} value={a} />)}</datalist>
+                </Field>
+                <Field label="Location detail" hint="Where exactly in the room"><input className={inputClass} value={data.location} onChange={(e) => set("location")(e.target.value)} placeholder="e.g. Underside of window sill" data-testid="snag-location" /></Field>
+                <Field label="Trade">
+                  <select className={inputClass} value={data.trade} onChange={(e) => set("trade")(e.target.value)} data-testid="snag-trade">
+                    {(reference.trades || []).map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </Field>
+                <Field label="Category">
+                  <select className={inputClass} value={data.category} onChange={(e) => set("category")(e.target.value)}>
+                    {(reference.categories || []).map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </Field>
+                <div className="md:col-span-2"><Field label="Full description"><textarea className={`${inputClass} min-h-[80px]`} value={data.description} onChange={(e) => set("description")(e.target.value)} placeholder="Describe the defect in enough detail that the trade can put it right without asking questions." data-testid="snag-description" /></Field></div>
+              </div>
+            </div>
+
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.2em] text-[#E8A020] mb-2">Priority, status &amp; assignment</div>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <Field label="Priority">
+                  <select className={inputClass} value={data.priority} onChange={(e) => set("priority")(e.target.value)} data-testid="snag-priority">
+                    {(reference.priorities || []).map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                </Field>
+                <Field label="Status">
+                  <select className={inputClass} value={data.status} onChange={(e) => set("status")(e.target.value)} data-testid="snag-status">
+                    {(reference.statuses || []).map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </Field>
+                <Field label="Assigned to"><input className={inputClass} value={data.assignedTo} onChange={(e) => set("assignedTo")(e.target.value)} placeholder="Name of person responsible" data-testid="snag-assignedTo" /></Field>
+                <Field label="Assigned company"><input className={inputClass} value={data.assignedCompany} onChange={(e) => set("assignedCompany")(e.target.value)} /></Field>
+                <Field label="Assignee email"><input type="email" className={inputClass} value={data.assignedEmail} onChange={(e) => set("assignedEmail")(e.target.value)} /></Field>
+                <Field label="Due date"><input type="date" className={inputClass} value={data.dueDate} onChange={(e) => set("dueDate")(e.target.value)} data-testid="snag-dueDate" /></Field>
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-[10px] uppercase tracking-[0.2em] text-[#E8A020]">Photo evidence · {((data.photosBefore || []).length + (data.photosAfter || []).length)}</div>
+                <div className="flex gap-1">
+                  <button onClick={() => setPhotoDraft({ kind: "before", url: "", caption: "" })} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md border border-[#2a2620] text-xs text-[#F0EDE8] hover:border-[#E8A020]" data-testid="snag-add-before-btn"><Camera size={12} /> Add before</button>
+                  <button onClick={() => setPhotoDraft({ kind: "after", url: "", caption: "" })} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md border border-[#2a2620] text-xs text-[#F0EDE8] hover:border-[#68D391]" data-testid="snag-add-after-btn"><Camera size={12} /> Add after</button>
+                </div>
+              </div>
+              <PhotoGrid title="Before" photos={data.photosBefore || []} onDelete={delPhoto} />
+              <PhotoGrid title="After" photos={data.photosAfter || []} onDelete={delPhoto} />
+            </div>
+
+            {data.id && (
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.2em] text-[#E8A020] mb-2">Comments · {(data.comments || []).length}</div>
+                <div className="space-y-2 mb-2 max-h-[240px] overflow-y-auto">
+                  {(data.comments || []).map(c => (
+                    <div key={c.id} className="card-dark p-3">
+                      <div className="text-[11px] text-[#A19D94]">{c.by || "—"} · {(c.at || "").slice(0, 16).replace("T", " ")}</div>
+                      <div className="text-sm text-[#F0EDE8] mt-1 whitespace-pre-wrap">{c.text}</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input value={commentText} onChange={(e) => setCommentText(e.target.value)} placeholder="Add a comment…" className={inputClass} data-testid="snag-comment-input" onKeyDown={(e) => { if (e.key === "Enter") addComment(); }} />
+                  <button onClick={addComment} className="px-4 py-2 rounded-md bg-[#E8A020] text-black text-sm font-medium inline-flex items-center gap-1" data-testid="snag-comment-add"><MessageSquare size={14} /> Post</button>
+                </div>
+              </div>
+            )}
+
+            {data.id && (data.history || []).length > 0 && (
+              <details className="card-dark p-3" data-testid="snag-history">
+                <summary className="cursor-pointer text-xs text-[#A19D94]">Audit trail ({(data.history || []).length} events)</summary>
+                <div className="mt-2 space-y-1 text-[11px] text-[#A19D94] max-h-[240px] overflow-y-auto">
+                  {(data.history || []).slice().reverse().map(h => (
+                    <div key={h.id}>{(h.at || "").slice(0, 16).replace("T", " ")} · {h.by} · <span className="text-[#F0EDE8]">{(h.kind || "").replace(/_/g, " ")}</span>{h.note ? ` — ${h.note}` : ""}</div>
+                  ))}
+                </div>
+              </details>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 mt-6 pt-4 border-t border-[#2a2620]">
+            <button onClick={generatePreview} className="inline-flex items-center gap-2 px-3 py-2 rounded-md border border-[#2a2620] text-sm text-[#F0EDE8] hover:border-[#E8A020]" data-testid="snag-preview-btn"><RefreshCw size={14} /> {previewUrl ? "Refresh" : "Preview"} PDF</button>
+            <button onClick={() => saveEntry()} disabled={saving} className="inline-flex items-center gap-2 px-6 py-2 rounded-md bg-[#E8A020] text-black text-sm font-medium disabled:opacity-60 ml-auto" data-testid="snag-save-btn"><Download size={16} /> {saving ? "Saving..." : "Save & Generate PDF"}</button>
+          </div>
+          {previewUrl && <iframe title="Snag Preview" src={previewUrl} className="w-full h-[400px] mt-3 rounded-md border border-[#2a2620] bg-white" data-testid="snag-preview-iframe" />}
+        </div>
+
+        {tplModalOpen && (
+          <div className="fixed inset-0 bg-black/70 z-[60] flex items-center justify-center p-4" data-testid="snag-template-modal">
+            <div className="card-dark p-6 max-w-md w-full">
+              <div className="flex items-start justify-between mb-3"><h3 className="font-display text-2xl text-[#F0EDE8]">Save as template</h3><button onClick={() => setTplModalOpen(false)} className="text-[#A19D94]"><X size={18} /></button></div>
+              <Field label="Template name"><input className={inputClass} value={tplName} onChange={(e) => setTplName(e.target.value)} placeholder="e.g. Standard tiling snag" data-testid="snag-template-name" /></Field>
+              <div className="flex gap-2 mt-4"><button onClick={() => setTplModalOpen(false)} className="flex-1 py-2 rounded-md border border-[#2a2620] text-sm text-[#A19D94]">Cancel</button><button onClick={saveAsTemplate} className="flex-1 py-2 rounded-md bg-[#E8A020] text-black text-sm font-medium" data-testid="snag-template-save">Save</button></div>
+            </div>
+          </div>
+        )}
+
+        {photoDraft && (
+          <div className="fixed inset-0 bg-black/70 z-[60] flex items-center justify-center p-4" data-testid="snag-photo-modal">
+            <div className="card-dark p-5 max-w-lg w-full">
+              <div className="flex items-start justify-between mb-3">
+                <h3 className="font-display text-xl text-[#F0EDE8]">Attach {photoDraft.kind} photo</h3>
+                <button onClick={() => setPhotoDraft(null)} className="text-[#A19D94]"><X size={18} /></button>
+              </div>
+              <div className="text-[11px] text-[#A19D94] mb-3">Paste a photo URL from Photo Vault or an external hosted image.</div>
+              <Field label="Photo URL"><input className={inputClass} value={photoDraft.url} onChange={(e) => setPhotoDraft({ ...photoDraft, url: e.target.value })} data-testid="snag-photo-url" /></Field>
+              <div className="mt-3"><Field label="Caption (optional)"><input className={inputClass} value={photoDraft.caption} onChange={(e) => setPhotoDraft({ ...photoDraft, caption: e.target.value })} data-testid="snag-photo-caption" /></Field></div>
+              <div className="flex gap-2 mt-4"><button onClick={() => setPhotoDraft(null)} className="flex-1 py-2 rounded-md border border-[#2a2620] text-sm text-[#A19D94]">Cancel</button><button onClick={addPhoto} className="flex-1 py-2 rounded-md bg-[#E8A020] text-black text-sm font-medium" data-testid="snag-photo-save">Attach</button></div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
-function Stat({ label, value, testId, warn, danger, highlight }) {
-  let color = "#F0EDE8";
-  let border = "rgba(160,157,148,0.18)";
-  let bg = "rgba(15,15,15,0.6)";
-  if (warn)      { color = "#E8A020"; border = "#E8A020"; bg = "rgba(232,160,32,0.10)"; }
-  if (danger)    { color = "#FF6B6B"; border = "#FF6B6B"; bg = "rgba(255,107,107,0.10)"; }
-  if (highlight) { color = "#7FE08A"; border = "#7FE08A"; bg = "rgba(127,224,138,0.10)"; }
+
+function PhotoGrid({ title, photos, onDelete }) {
+  if (!photos || photos.length === 0) return null;
   return (
-    <div
-      data-testid={testId}
-      className="p-4 rounded"
-      style={{ background: bg, border: `1px solid ${border}` }}
-    >
-      <div className="text-[10px] uppercase tracking-widest text-[#706D66] mb-1">{label}</div>
-      <div className="font-display text-2xl" style={{ color }}>{value}</div>
+    <div className="mb-3">
+      <div className="text-[10px] uppercase tracking-[0.2em] text-[#A19D94] mb-2">{title} · {photos.length}</div>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+        {photos.map(p => (
+          <div key={p.id} className="relative group" data-testid={`snag-photo-${p.id}`}>
+            <img src={p.thumbnailUrl || p.url} alt={p.caption || title} className="w-full h-24 object-cover rounded-md border border-[#2a2620]" />
+            <button onClick={() => onDelete(p.id)} className="absolute top-1 right-1 p-1 rounded-md bg-black/60 text-[#F27C7C] opacity-0 group-hover:opacity-100"><X size={12} /></button>
+            {p.caption && <div className="text-[10px] text-[#A19D94] mt-1 truncate">{p.caption}</div>}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

@@ -1,0 +1,34 @@
+{
+  "summary": "Backend-only testing for Snagging Lists V2. Wrote /app/backend/tests/test_snagging_v2.py (38 tests) covering reference, create/validate, filters (project/status/priority/assignedTo/overdue/assignedToMe/q), PATCH/DELETE (soft), full lifecycle (assign/status/comment/photos/verify/close/reopen with audit history + closedAt/completionDate semantics), stats, per-project summary, templates roundtrip, global search by snagRef, /api/attention (snag_overdue + snag_critical kinds present), cross-user isolation vs sparky01, and regression on contracts/purchase-orders/invoice-builder/applications-for-payment/variation-orders /reference and /stats endpoints. All 38 tests PASS (100%).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "DELETE /api/snagging/snags/{id}/photos/{pid}", "issue": "Deleting a non-existent photo id returns 200 (idempotent). Not a defect per spec but worth confirming whether a 404 was intended for parity with comment deletion (comment delete also returns 200 idempotently)."},
+      {"endpoint": "DELETE /api/snagging/snags/{id}/comment/{cid}", "issue": "Same idempotent 200 behaviour for unknown comment id."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_snagging_v2.py",
+    "/app/test_reports/pytest/snagging_v2.xml"
+  ],
+  "action_items": [
+    "Optional: decide whether DELETE of unknown photo/comment id should return 404 for consistency with other resource-level 404s (currently 200)."
+  ],
+  "critical_code_review_comments": [
+    "snagging.py is ~610 lines — approaching the 700-line split threshold; consider splitting lifecycle endpoints, templates, and attention/collectors into separate modules soon.",
+    "get_user(token) is called with `authorization.replace('Bearer ', '')` at the top of every endpoint (25+ times). Extract a shared dependency (fastapi.Depends) to remove duplication and centralise auth error handling.",
+    "list_snags applies `q`, `overdue`, `assignedToMe` filters in Python after loading up to 2000 rows — fine for now, but should push to Mongo query as volume grows.",
+    "assignedToMe logic has Python operator-precedence ambiguity: `(a).lower()==me or (b).lower()==my_email and my_email!=''` — works but relies on `and` binding tighter than `or`; add explicit parentheses for readability.",
+    "Auto-move Open→Assigned on create only checks `doc.get('status')=='Open'`; if caller explicitly sends another status alongside assignedTo, no history entry is created. Acceptable, but document behaviour.",
+    "closedAt is stored as a full ISO string, but `closed_at.startswith(today)` for closedToday is UTC-only; users in other timezones may see off-by-one. Consider storing/comparing with a project timezone."
+  ],
+  "updated_files": ["/app/backend/tests/test_snagging_v2.py"],
+  "success_rate": {"backend": "100% (38/38)", "frontend": "n/a"},
+  "test_credentials": "darrenhustle300 / hustle1234 (admin), sparky01 / test1234 (isolation)",
+  "seed_data_creation": "All test data prefixed 'TEST ' and soft-deleted in test_zzz_cleanup.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Snagging Lists V2 module fully covered in test_snagging_v2.py. Regression tests hit /api/contracts/*, /api/purchase-orders/*, /api/invoice-builder/*, /api/applications-for-payment/*, /api/variation-orders/* (note: contracts prefix is /api/contracts, not /api/contract-mgmt). BASE_URL is auto-loaded from /app/frontend/.env if REACT_APP_BACKEND_URL env is not set.",
+  "rca of the issue": "n/a — no bugs found."
+}

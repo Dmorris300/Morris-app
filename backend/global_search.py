@@ -242,6 +242,15 @@ def build_router(db, get_user):
             lambda r: [r.get("title"), r.get("contractRef"), r.get("contractNumber"), r.get("employerName"), r.get("employerCompany"), r.get("projectName"), r.get("contractType"), r.get("scopeSummary")],
         )
 
+    async def _search_snags(uid, q, limit):
+        return await _v2_collection_search(
+            "snags", "snag", "/app/snagging-list", uid, q, limit,
+            lambda r: r.get("title") or r.get("snagRef") or "Snag",
+            lambda r: " · ".join(filter(None, [r.get("snagRef"), r.get("projectName"), r.get("area"), r.get("priority"), r.get("status"), r.get("assignedTo")])),
+            lambda r: r.get("status") or "",
+            lambda r: [r.get("title"), r.get("snagRef"), r.get("description"), r.get("projectName"), r.get("area"), r.get("location"), r.get("assignedTo"), r.get("trade")],
+        )
+
     async def _search_diaries(uid, q, limit):
         return await _v2_collection_search(
             "site_diary_entries", "site-diary", "/app/site-diary", uid, q, limit,
@@ -305,6 +314,7 @@ def build_router(db, get_user):
             ("invoice-builder", "Invoice Builder", "/app/invoice-builder", "tool"),
             ("purchase-orders", "Purchase Orders", "/app/purchase-orders", "tool"),
             ("contract-mgmt", "Contract Management", "/app/contract-mgmt", "tool"),
+            ("snagging-list", "Snagging Lists", "/app/snagging-list", "tool"),
             ("site-diary", "Site Diary", "/app/site-diary", "tool"),
             ("incident-report", "Incident Report", "/app/incident-report", "tool"),
             ("risk-register", "Risk Register", "/app/risk-register", "tool"),
@@ -348,6 +358,7 @@ def build_router(db, get_user):
             "invoices":     _search_invoices,
             "purchase-orders": _search_purchase_orders,
             "contracts":    _search_contracts,
+            "snags":        _search_snags,
             "site-diary":   _search_diaries,
             "incidents":    _search_incidents,
             "risks":        _search_risks,
