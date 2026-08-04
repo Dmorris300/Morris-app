@@ -1,0 +1,44 @@
+{
+  "summary": "Payment Tracker V2 backend + frontend regression pass. Wrote /app/backend/tests/test_payment_tracker_v2.py — 10/10 pytest passing (list, live-derived Overdue, Paid balance=0, sent invoice projectId, remind endpoint, mark-as-paid via /payment, jobs/{id}/stats, VO project summary, AFP project summary, invoices?projectId filter). Frontend Playwright (desktop 1920 + mobile 390): seeded 1 project + Sent £1000 + Paid £500 + Overdue £750 via API, then verified the redesigned dashboard. ALL SUCCESS CRITERIA VERIFIED except for two bugs: (1) 'Days' column display logic is INVERTED — the overdue invoice due yesterday shows plain gray '1d' while the Sent invoice due in +3 days incorrectly shows red '3d over'; (2) Mobile viewport (390x844) has 301px horizontal overflow (scrollWidth-clientWidth). KPIs computed CORRECTLY: Total Outstanding £1,750 (2), Overdue £750 (1) red, Due This Week £1,000, Paid This Month £500, Avg Payment Time 5 days. Zero charts/canvases on page. All 6 KPI testids, 3 filter testids, 4 quick-action testids per row (view/project/remind/paid) present. Project Summary Panel opens with Original £10,000, Revised £10,000, AFP (0) £0, Invoices (3) £2,250, Payments £500 green, Outstanding £1,750; both bottom links (pt-open-project, pt-open-invoices-project) render. Panel close (pt-project-close) hides panel. Search 'TEST_PT' narrows to 3; Status=Paid narrows to 1; Project filter narrows to 3. Send Reminder shows toast 'Reminder #1 logged'. Mark-as-Paid on Sent invoice flips status to Paid immediately after refresh. Deep-link hrefs correct: /app/invoice-builder?open=<id> and /app/jobs/<projectId>. All seed data cleaned up.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "PaymentTracker Days column", "issue": "INVERTED days display: arguments to daysBetween are swapped. For a truly-overdue invoice (dueDate=yesterday) the cell shows plain gray '1d' with no 'over' marker; for a Sent invoice due in +3 days the cell shows red '3d over' as if it were overdue. Fix line 233: use daysBetween(inv.dueDate, todayIso) OR flip the days<0/days>0 branches. Status badge is unaffected (derived server-side), but the days column contradicts the badge visually.", "selector": "/app/frontend/src/pages/PaymentTracker.jsx line 233 and 250-256", "priority": "HIGH"},
+      {"component": "PaymentTracker mobile viewport", "issue": "Horizontal overflow 301px at 390x844 (scrollWidth 691 vs clientWidth 390). KPI cards do stack 2-wide correctly, so overflow is likely coming from the header block (flex-wrap items-start justify-between with two CTAs), from the max-w-7xl container padding, or from a wide element inside .card-dark. Same class of overflow bug reported previously on incident-report/variation-orders/applications-for-payment dashboards.", "selector": "/app/frontend/src/pages/PaymentTracker.jsx", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Payment Tracker mobile 390x844", "issues": ["Whole page scrolls horizontally by ~301px. Consider adding overflow-x-hidden to the container or reducing header/CTA width at sm breakpoint."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_payment_tracker_v2.py",
+    "/app/test_reports/pytest/payment_tracker_v2.xml"
+  ],
+  "action_items": [
+    "Fix inverted Days column in PaymentTracker.jsx — arguments to daysBetween on line 233 are swapped (or the negative/positive branches at lines 250-256 are inverted). The overdue row must show red 'Xd over' and the future-due row must show gray 'Xd'.",
+    "Investigate and fix ~301px mobile horizontal overflow on /app/payment-tracker (390x844)."
+  ],
+  "critical_code_review_comments": [
+    "PaymentTracker.jsx line 233 daysBetween(today, dueDate) yields (today - dueDate). Positive means dueDate is in the past (overdue) but line 250 renders 'over' only when days < 0. Semantics are reversed — this is a functional bug that made it through review because the KPI Overdue value uses server-derived status, so the KPI reads correctly even when the row display is wrong.",
+    "PaymentTracker.jsx lines 175 and 179 both use kpis.outstanding — the 'Total Outstanding' KPI and the 'Outstanding Value' KPI show identical numbers. Per the spec these are supposed to be distinct (Outstanding Payments = count of outstanding invoices, Total Outstanding Value = sum). Currently both display the same £ value with different sublines. Consider showing count on one and £ on the other.",
+    "PaymentTracker.jsx toneFor('outstanding') always returns 'amber' whenever value > 0 — so 'Total Outstanding' can never be red. Given the spec asks for Green/Amber/Red status, consider a red tier when outstanding is above a threshold or overdue count > 0.",
+    "Project Summary Panel loads on click but keeps the panel visible when the same project is selected across successive filter changes — no bug, just noting the UX is fine."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_payment_tracker_v2.py"
+  ],
+  "success_rate": {
+    "backend": "100% (10/10)",
+    "frontend": "85% — all functional flows pass (KPIs, filters, actions, panel, deep-links, toast, mark-paid); 1 HIGH bug (inverted Days display) + 1 MEDIUM bug (mobile horizontal overflow)."
+  },
+  "test_credentials": "darrenhustle300 / hustle1234 (admin)",
+  "seed_data_creation": "Fixture creates one TEST_PT job + 3 TEST_PT invoices (Sent £1000, Paid £500, Overdue £750). All cleaned up via /tmp/cleanup_pt.py at end. No residual data.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Payment Tracker V2 is purely a frontend redesign — no new backend endpoints. All data comes from Invoice Builder V2 GET /invoices (which live-derives Overdue), Jobs /jobs/{id}/stats, VO /variation-orders/project/{id}/summary, AFP /applications-for-payment/project/{id}/summary. Quick action testids are pt-view-<id>, pt-project-<id>, pt-remind-<id>, pt-paid-<id>. Draft & Cancelled invoices are excluded from the visible table by design (they aren't outstanding). Backend tests are pure-integration and clean up after themselves. Two known bugs to retest after main-agent fix: inverted Days display and 301px mobile overflow.",
+  "rca_of_the_issue": "Days column: PaymentTracker.jsx:233 computes days = daysBetween(todayIso, inv.dueDate) which returns (today - dueDate) in days. When dueDate is in the past (invoice overdue), (today - dueDate) is positive so the code takes the 'days > 0 → gray Xd' branch instead of the 'days < 0 → red Xd over' branch. Fix: swap the arguments to daysBetween(inv.dueDate, todayIso) so that a past due date yields a negative number and triggers the 'Xd over' red display, matching the sign convention the code was written for."
+}
