@@ -51,6 +51,17 @@ remain as audit-trail references only — they are NOT product marketing copy.
 
 ---
 
+### 4 Aug 2026 — Team Management V2 (flagship workforce management hub)
+- ✅ **Team Management V2** at `/app/team` — rebuilt as a dashboard-first workforce hub layered on top of the existing invite/seat system. **6 KPI cards** (Total Employees / Active Users / Site Teams / Managers / Pending Invitations / Expiring Certs) + inline invite panel + pending-invites list + filters (trade, job role, availability, free-text search) + per-member editor (5 tabs).
+- ✅ **16 job roles** (Administrator/Director/PM/Site Manager/Supervisor/QS/Estimator/Foreman/H&S Officer/Office Staff/Bookkeeper/Operative/Apprentice/Sub-contractor/Consultant/Other) — distinct from the 4 access roles (owner/admin/manager/member).
+- ✅ **23 trades**, **6 availability states** (Available / On Site / On Leave / Sick / Training / Unavailable), **26 certification types** (CSCS, SMSTS, SSSTS, IPAF, First Aid, Gas Safe, NICEIC, Public Liability Insurance, DBS, Trade Qualification, etc.).
+- ✅ **Backend** `backend/team_management.py` — layers a `teamProfile` sub-document on users with: personal data (phone, address, NI/UTR, emergency contact), hourly/day rate, job role, trade, availability window, certifications register (with live expired/expiring_soon computation), and project allocations. Preserves the existing `/api/team/*` invite/seat/role endpoints untouched.
+- ✅ **Certifications tracker**: every entry carries type, number, issuer, issued/expiry dates, document URL, notes. Live status flips to **Expiring** (≤30 days) or **Expired** (past today) automatically; the totals feed the "Expiring Certs" KPI.
+- ✅ **Attention items** `collect_team_attention`: `team_cert_expiring` (30-day window, warning) and `team_cert_expired` (already expired, critical) surface in the Command Centre.
+- ✅ **Project allocations**: `POST /members/{mid}/projects` allocates by project id (must belong to the account owner) with role/from/to; upsert semantics (allocating same project updates rather than duplicates). Deep-links via `?open=<memberId>`.
+- ✅ **Access rules**: profile/certifications/availability editable by the person themselves OR any owner/admin; job-role and project-allocations require owner/admin. Cross-user isolation verified.
+- ✅ Tested end-to-end (backend pytest **43/43 pass** including regression on all prior V2 flagship tools + existing `/api/team/*` invite endpoints). Report: `/app/test_reports/iteration_31.json`.
+
 ### 4 Aug 2026 — Snagging Lists V2 (flagship defect & quality management system)
 - ✅ **Snagging Lists V2** at `/app/snagging-list` — legacy 470-line single-page form replaced with a dashboard-first quality-control hub. **6 KPI cards** (Open / High-Critical / Overdue / Closed Today / Assigned to Me / Closed) + universal search + filters (status, priority, project, assignee, overdue-only, mine-only) + templates + **per-project handover report** PDF.
 - ✅ **Fast on-site snag flow** designed for mobile: title → project → area → priority → assign → save. Auto-flips Open → Assigned when a snag is created with an assignee. Every action is timestamped in the audit trail (created, assigned, status, comment, photo_added, verified, closed, reopened).
