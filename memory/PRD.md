@@ -51,6 +51,18 @@ remain as audit-trail references only — they are NOT product marketing copy.
 
 ---
 
+### 4 Aug 2026 — Purchase Orders V2 (flagship procurement management system)
+- ✅ **Purchase Orders V2** at `/app/purchase-orders` — full procurement hub replacing the legacy transactional PO tool. Dashboard-first: **8 status stat cards** (Draft / Sent / Approved / Ordered / Part Delivered / Delivered / Awaiting Invoice / Paid) + 3 KPI value cards (Committed / Awaiting Supplier Invoice / Paid) + suppliers panel + project/supplier/status filters + templates.
+- ✅ **9-step wizard**: Project → Supplier (with picker from register) → Order Items (7 categories, product codes, discount, delivery charge, 5 VAT treatments incl. Reverse Charge) → Delivery Details → Review & Approve (contractor signature) → Issue PO → Goods Received (part or full, auto-advances Part Delivered / Delivered) → Match Supplier Invoice → Preview & PDF.
+- ✅ **Backend** `backend/purchase_orders.py` — CRUD + goods-received log + invoice matching + supplier register + templates + stats + project summary. Server-authoritative totals (subtotal, discount, delivery, VAT, total). Sequential PO ref `PO-YYYY-NNNN`. Audit-trail history entries on every status change and receipt.
+- ✅ **Supplier invoice matching** (auto-draft workflow): `POST /purchase-orders/{id}/match-invoice` creates a **Draft** entry in the new `supplier_invoices` collection permanently linked to the PO. User reviews and approves via `POST /matched-invoices/{sid}/approve` before it becomes live; `POST /matched-invoices/{sid}/pay` marks it paid. **matchStatus** auto-computes: Unmatched / Partially Matched / Fully Matched. When fully matched + paid the PO auto-advances to **Paid**. This avoids duplicate data entry while maintaining a complete audit trail.
+- ✅ **Supplier register** `/purchase-orders/suppliers` — auto-tracks every supplier used on a PO with total spend, PO count, outstanding POs + value, last PO ref. Manual add/edit/delete via dedicated Suppliers panel accessible from the dashboard header.
+- ✅ **PDF** `lib/purchase-order-pdf.js` — branded cover + supplier + PO details + delivery instructions + itemised order + category subtotals + full VAT summary + goods received log + matched invoices + terms + prepared/approved sign-off.
+- ✅ **Command Centre attention** `collect_purchase_order_attention`: PO delivery overdue (`po_late`), delivered PO with no matched invoice for 14+ days (`po_awaiting_invoice`), approved supplier invoice past due (`supplier_invoice_overdue`).
+- ✅ **Global Search V2**: new `purchase-orders` scope added; POs surface across the platform search with deep-links.
+- ✅ **Routing**: legacy `tool/purchase-order` redirects to `/app/purchase-orders`; Business Hub tile added.
+- ✅ Tested end-to-end (backend pytest **33/33 pass**). Report: `/app/test_reports/iteration_28.json`. Full lifecycle verified: create → send → approve → part-deliver → deliver → match partial invoice → match remainder (Fully Matched, auto-Awaiting Invoice) → approve → pay → auto-advance to Paid.
+
 ### 4 Aug 2026 — Payment Tracker V2 (cash-flow dashboard redesign)
 - ✅ **Payment Tracker V2** at `/app/payment-tracker` — rebuilt from the ground up per the spec. Legacy 550-line form-based page replaced with a **read-only cash-flow dashboard** consuming Invoice Builder V2 as the single source of truth.
 - ✅ **6 KPI cards** (Green / Amber / Red status): Total Outstanding, Overdue, Due This Week, Paid This Month, Outstanding Value, Average Payment Time (auto-computed from paid invoices — days from invoiceDate to first payment).
