@@ -73,6 +73,7 @@ export default function SiteDiaryV2() {
   const { user } = useAuth();
   const [params] = useSearchParams();
   const initialProjectId = params.get("projectId") || "";
+  const openParamId = params.get("open") || "";
 
   const [entries, setEntries] = useState([]);
   const [stats, setStats] = useState(null);
@@ -104,6 +105,14 @@ export default function SiteDiaryV2() {
     } finally { setLoading(false); }
   };
   useEffect(() => { loadAll(); }, []);
+
+  // Deep-link support: /app/site-diary?open=<id> auto-opens the entry (used by Global Search)
+  useEffect(() => {
+    if (openParamId && entries.length > 0 && !wizardOpen) {
+      const e = entries.find(x => x.id === openParamId);
+      if (e) openEdit(e);
+    }
+  }, [openParamId, entries]);   
 
   const openNew = (fromTemplate = null) => {
     let base = emptyEntry();

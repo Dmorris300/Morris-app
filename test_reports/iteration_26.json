@@ -1,0 +1,49 @@
+{
+  "summary": "Morris V1 Release Readiness regression + integration pass. Wrote /app/backend/tests/test_release_readiness.py — 48/48 pytest tests pass. Covers: (a) 33 regression endpoint checks across all 7 V2 flagships + /search + /attention + /jobs + /documents, (b) full commercial trilogy VO→AFP→INV→Payment end-to-end (project auto-linked, approvedVariationsValue auto-pulls from approved VO, AFP certify→invoice draft pre-fill, invoice payment flips to Paid AND job.amountPaid increments), (c) Global Search deep-link verification (route contains ?open=<id> for VO/AFP/Invoice), (d) Command Centre surfaces backdated Submitted variation as attention item with correct /app/variation-orders?open=<id> route, (e) multi-user isolation (sparky01 cannot see any of admin's TEST_RR-prefixed jobs/variations/invoices/search results), (f) 401/403 without auth token on protected endpoints (not 500), (g) stats endpoint perf all <160ms. Frontend mobile (390x844) smoke-tested all 7 V2 dashboards — all load with correct H1 + New CTA + no console errors (except one pre-existing React hydration warning on RiskRegister). Cleanup fixture removes all TEST_RR- data.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/applications-for-payment (create)", "issue": "approvedVariationsValue auto-pull uses VO totals.total (VAT-inclusive). Not incorrect but worth documenting — some finance workflows expect net (ex-VAT) since the AFP recomputes its own VAT. Verify this matches product intent."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "IncidentReport dashboard", "issue": "Horizontal overflow on mobile 390x844 (scrollWidth > innerWidth). Likely a wide row/stat card grid not wrapping.", "selector": "/app/incident-report", "priority": "MEDIUM"},
+      {"component": "VariationOrders dashboard", "issue": "Horizontal overflow on mobile 390x844.", "selector": "/app/variation-orders", "priority": "MEDIUM"},
+      {"component": "ApplicationsForPayment dashboard", "issue": "Horizontal overflow on mobile 390x844.", "selector": "/app/applications-for-payment", "priority": "MEDIUM"},
+      {"component": "RiskRegister", "issue": "React hydration warning: '<span> cannot be a child of <option>'. Options at line 285 wrap dynamic text in <span> which is invalid HTML. Not a functional bug but produces console noise on every visit.", "selector": "/app/frontend/src/pages/RiskRegister.jsx:285", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Mobile 390x844 for incident-report / variation-orders / applications-for-payment", "issues": ["Horizontal scroll present — likely stat card row, filter row, or ValueCards grid not collapsing to single column at sm breakpoint. Compare to site-diary/quote-builder/invoice-builder which are clean."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_release_readiness.py",
+    "/app/test_reports/pytest/release_readiness.xml"
+  ],
+  "action_items": [
+    "Fix mobile horizontal overflow on IncidentReport, VariationOrders, and ApplicationsForPayment dashboards (make top-row cards/filters wrap at 390px like SiteDiary/QuoteBuilder/InvoiceBuilder do).",
+    "RiskRegister.jsx:285 — remove <span> wrapper inside <option> to eliminate hydration warning (invalid HTML per spec).",
+    "Confirm AFP approvedVariationsValue auto-pull should include VO VAT (currently pulls totals.total, VAT-inclusive). If it should be net, change to totals.subtotal in applications_for_payment._approved_variations_for()."
+  ],
+  "critical_code_review_comments": [
+    "AFP auto-pull uses VAT-inclusive VO total — potential double-VAT if the AFP then applies VAT on top of a value that already includes VAT. Worth a sanity check by product/dev.",
+    "Attention item comparison uses string sort on ISO date (`updated < seven_days_ago`) — this works only because ISO 8601 is lexicographically sortable, but any doc with a non-ISO or missing updatedAt slips through the filter silently. Consider parsing to datetime.",
+    "Multiple V2 modules duplicate the same auth pattern `authorization.replace('Bearer ', '')` + `get_user(token)` — could be refactored into a FastAPI dependency.",
+    "server.py is 1698 lines — exceeds 700-line guideline. Consider splitting jobs/documents/auth into modules like the other V2 tools."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_release_readiness.py"
+  ],
+  "success_rate": {
+    "backend": "100% (48/48)",
+    "frontend": "82% — 7/7 dashboards load & function on desktop and mobile-viewport smoke test, but 3/7 have horizontal overflow on 390px mobile and 1 has a React hydration warning"
+  },
+  "test_credentials": "darrenhustle300 / hustle1234 (admin), sparky01 / test1234 (isolation)",
+  "seed_data_creation": "Fixture creates TEST_RR-prefixed job + VO + AFP + invoice for the commercial trilogy; a second TEST_RR CC job + Submitted VO for the Command Centre backdate test. All are deleted in teardown. No leftover data.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend release-readiness test at /app/backend/tests/test_release_readiness.py — 48 tests: 33 endpoint parametrized + trilogy + search deep-links + attention + isolation + 4 unauth + 7 perf. All pass. Mobile-overflow issues are dashboard-CSS-only (no data/API impact). RiskRegister <span>-in-<option> hydration warning is unrelated to functionality. Job schema uses clientName/projectName (NOT client/project). AFP auto-pull uses VO totals.total (VAT-inclusive).",
+  "rca_of_the_issue": "N/A — no blocking bugs found. Three mobile overflow issues are CSS-only and non-blocking. AFP-pulls-with-VAT is a product decision, not a bug."
+}
