@@ -51,6 +51,17 @@ remain as audit-trail references only — they are NOT product marketing copy.
 
 ---
 
+### 4 Aug 2026 — Snagging Lists V2 (flagship defect & quality management system)
+- ✅ **Snagging Lists V2** at `/app/snagging-list` — legacy 470-line single-page form replaced with a dashboard-first quality-control hub. **6 KPI cards** (Open / High-Critical / Overdue / Closed Today / Assigned to Me / Closed) + universal search + filters (status, priority, project, assignee, overdue-only, mine-only) + templates + **per-project handover report** PDF.
+- ✅ **Fast on-site snag flow** designed for mobile: title → project → area → priority → assign → save. Auto-flips Open → Assigned when a snag is created with an assignee. Every action is timestamped in the audit trail (created, assigned, status, comment, photo_added, verified, closed, reopened).
+- ✅ **Backend** `backend/snagging.py` — CRUD + assign + status + verify + close + reopen + comments + before/after photos + stats + project summary + templates. Sequential `SNG-YYYY-NNNN` refs per user. **21 trades**, **12 categories**, **30 common areas** (autocomplete), **4 priorities** (Low/Medium/High/Critical with colour-coded pills).
+- ✅ **Verification workflow**: Open → Assigned → In Progress → Awaiting Verification → Closed. Quick-action buttons on the row and inside the wizard advance the state one click at a time. Verified snags carry `verifiedBy`, `verifiedAt`, `completionDate` for the handover pack.
+- ✅ **Photo evidence**: before/after arrays with `uploadedAt` + `uploadedBy` on every attachment. Photo Vault URLs supported directly; grids in the wizard let the user paste, caption, and delete inline.
+- ✅ **Attention items** `collect_snagging_attention`: `snag_overdue` (dueDate past + not closed), `snag_critical` (Critical priority still open), `snag_awaiting_verification` (7+ days in Awaiting Verification).
+- ✅ **PDFs** `lib/snagging-pdf.js` — TWO renderers: (1) **Single Snag Sheet** (cover + priority/status pills + details + before/after photo grid + comments + audit trail); (2) **Per-project Snagging Report** (cover + summary KPIs + by-priority + by-area + snag register table + one full detail page per snag). Generated via `Project report` button when a project filter is active.
+- ✅ **Integration**: Global Search V2 gets a `snags` scope, Command Centre attention wired in, Document Library auto-saves a summary entry on every save, deep-linkable via `?open=<id>`.
+- ✅ Tested end-to-end (backend pytest **38/38 pass** including regression on all prior V2 flagship tools). Report: `/app/test_reports/iteration_30.json`.
+
 ### 4 Aug 2026 — Contract Management V2 (flagship contract administration hub)
 - ✅ **Contract Management V2** at `/app/contract-mgmt` — legacy 552-line single-page form replaced with a dashboard-first flagship. Master register of every contract with **6 KPI cards** (Active / Expiring Soon / Under Review / Notices Due / Milestones Overdue / Outstanding Actions) + 3 value cards (Total contracts / Total contract value / Active contract value) + filters (status, type, project) + templates + full audit trail.
 - ✅ **9-step wizard**: Project → Contract Info (19 contract types incl. JCT/NEC4/FIDIC/Bespoke) → Parties (Employer + Contractor) → Dates & Milestones (5 key dates + milestone lifecycle) → Terms & Financials (contract value, retention %/dates, LDs, payment terms, insurance) → Linked Documents (pull variations/applications/invoices from project) → Supporting Docs → Notices & Actions (14 notice types) → Review & PDF (sign-off).
