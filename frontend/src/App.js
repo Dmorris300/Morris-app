@@ -31,6 +31,7 @@ import QuoteBuilder from "./pages/QuoteBuilder";import Drafts from "./pages/Draf
 import VariationOrders from "./pages/VariationOrders";
 import ApplicationsForPayment from "./pages/ApplicationsForPayment";
 import InvoiceBuilder from "./pages/InvoiceBuilder";
+import PurchaseOrders from "./pages/PurchaseOrders";
 import CISRefundPredictor from "./pages/CISRefundPredictor";
 import MileageTracker from "./pages/MileageTracker";
 import PaymentChaser from "./pages/PaymentChaser";
@@ -216,6 +217,7 @@ function App() {
             <Route path="variation-orders" element={<ProfileGate><VariationOrders /></ProfileGate>} />
             <Route path="applications-for-payment" element={<ProfileGate><ApplicationsForPayment /></ProfileGate>} />
             <Route path="invoice-builder" element={<ProfileGate><InvoiceBuilder /></ProfileGate>} />
+            <Route path="purchase-orders" element={<ProfileGate><PurchaseOrders /></ProfileGate>} />
             <Route path="company-checker" element={<ProfileGate><CompanyChecker /></ProfileGate>} />
             <Route path="offline-mode" element={<OfflineMode />} />
             <Route path="team" element={<TeamManagement />} />

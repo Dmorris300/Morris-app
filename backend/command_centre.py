@@ -378,6 +378,13 @@ def build_router(db, get_user):
             items = items + inv_items
         except Exception:
             pass
+        # Merge Purchase Orders attention (delivery overdue / awaiting invoice / supplier invoice overdue).
+        try:
+            from purchase_orders import collect_purchase_order_attention
+            po_items = await collect_purchase_order_attention(db, user["id"], datetime.now(timezone.utc))
+            items = items + po_items
+        except Exception:
+            pass
         items.sort(key=lambda x: (SEVERITY_ORDER.get(x.get("severity"), 3), x.get("dueAt") or "9999"))
         return {"items": items, "count": len(items), "computedAt": datetime.now(timezone.utc).isoformat()}
 

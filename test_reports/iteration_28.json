@@ -1,0 +1,34 @@
+{
+  "summary": "Backend testing of Morris Purchase Orders V2 (new /api/purchase-orders module). Executed 33 pytest cases covering reference, CRUD, filters/search, totals recompute, status transitions + audit history, goods-received (part→full), invoice matching (partial → full auto-advance to Awaiting Invoice → approve → pay → auto-advance to Paid), unlink invoice, invalid inputs (missing project/supplier, zero/negative invoice amounts, invalid status, empty receipt lines), stats + project summary, supplier register aggregation + CRUD, templates roundtrip, cross-user isolation, global search PO hit, /api/attention po_late kind, and regression checks for variation-orders / applications-for-payment / invoice-builder reference+stats. All 33/33 tests PASS.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/attention (purchase_orders merge)", "issue": "Merge is wrapped in try/except that silently swallows exceptions; a bug in collect_purchase_order_attention would be invisible. Consider logging exceptions."},
+      {"endpoint": "/api/purchase-orders/purchase-orders (create)", "issue": "poRef sequence uses users.purchaseOrderCounter via find_one_and_update but without upsert. Works because user doc exists, but pattern is fragile if user counter field missing on first call — currently returns seq=1 which is fine."},
+      {"endpoint": "collect_purchase_order_attention", "issue": "po_late filter excludes status Draft — that's intentional per spec, but users who forget to send a PO will never see it on attention feed. Confirm expected behaviour."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_purchase_orders_v2.py",
+    "/app/test_reports/pytest/purchase_orders_v2.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "purchase_orders.py is 918 lines — approaching the 700-line split guideline. Consider splitting supplier register + attention collector into separate modules.",
+    "command_centre.py merges use blanket try/except with silent pass — errors in downstream collectors go unnoticed. At minimum log the exception.",
+    "_seq_ref uses find_one_and_update without upsert=True; safe today because admin user exists, but flag if code is ever reused before user record is created.",
+    "MATCH_STATUSES / STATUSES module-level lists are duplicated conceptually with those in supplier_invoices — no single source of truth. Low priority.",
+    "match-invoice creates supplier_invoices docs but there is no endpoint to edit the invoice amount / due date after creation (only approve or pay). PATCH may be desirable."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_purchase_orders_v2.py (created)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "n/a"},
+  "test_credentials": "darrenhustle300 / hustle1234 (admin, unlimited); sparky01 / test1234 (used for cross-user isolation)",
+  "seed_data_creation": "Multiple TEST_-prefixed POs, supplier invoices, suppliers, templates were created under the darrenhustle300 account for lifecycle testing. Not cleaned up — safe to leave as they are prefixed TEST_. Suggest a global TEST_ cleanup pass later.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Full pytest suite for Purchase Orders V2 lives at /app/backend/tests/test_purchase_orders_v2.py. Command Centre attention endpoint is at GET /api/attention (NOT /api/command-centre/attention). collect_purchase_order_attention only surfaces POs whose status is in Sent/Approved/Ordered/Part Delivered/Delivered/Awaiting Invoice — Draft POs never appear even if requiredDate is in the past.",
+  "rca of the issue": "No open bugs. During test authoring, one test initially failed because it hit the wrong attention route and also created the PO in Draft (which is excluded from po_late by design). Fixed by advancing status to Sent before asserting."
+}

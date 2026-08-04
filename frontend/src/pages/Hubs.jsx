@@ -73,6 +73,7 @@ export function BusinessHub() {
         { to: "/app/tool/quote-builder", label: "Quote Builder", icon: FileText, testId: "biz-tile-quote" },
         { to: "/app/applications-for-payment", label: "Application for Payment", icon: FileText, testId: "biz-tile-application" },
         { to: "/app/variation-orders", label: "Variation Order", icon: FileText, testId: "biz-tile-variation" },
+        { to: "/app/purchase-orders", label: "Purchase Orders", icon: FileText, testId: "biz-tile-purchase-orders" },
         { to: "/app/payment-chaser", label: "Payment Chaser", icon: Receipt, testId: "biz-tile-chaser" },
         { to: "/app/commercial-report", label: "Commercial Report", icon: FileText, testId: "biz-tile-report" },
         { to: "/app/tool/eot-claim", label: "Extension of Time", icon: FileText, testId: "biz-tile-eot" },

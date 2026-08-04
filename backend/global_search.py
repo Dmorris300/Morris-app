@@ -224,6 +224,15 @@ def build_router(db, get_user):
             lambda r: [r.get("invoiceRef"), r.get("projectName"), r.get("clientName"), r.get("clientCompany"), r.get("poNumber"), r.get("notes")],
         )
 
+    async def _search_purchase_orders(uid, q, limit):
+        return await _v2_collection_search(
+            "purchase_orders", "purchase-order", "/app/purchase-orders", uid, q, limit,
+            lambda r: r.get("poRef") or "Purchase Order",
+            lambda r: " · ".join(filter(None, [r.get("supplierName") or r.get("supplierCompany"), r.get("projectName"), r.get("status")])),
+            lambda r: r.get("status") or "",
+            lambda r: [r.get("poRef"), r.get("supplierName"), r.get("supplierCompany"), r.get("projectName"), r.get("reference"), r.get("notes")],
+        )
+
     async def _search_diaries(uid, q, limit):
         return await _v2_collection_search(
             "site_diary_entries", "site-diary", "/app/site-diary", uid, q, limit,
@@ -285,6 +294,7 @@ def build_router(db, get_user):
             ("variation-orders", "Variation Orders", "/app/variation-orders", "tool"),
             ("applications-for-payment", "Applications for Payment", "/app/applications-for-payment", "tool"),
             ("invoice-builder", "Invoice Builder", "/app/invoice-builder", "tool"),
+            ("purchase-orders", "Purchase Orders", "/app/purchase-orders", "tool"),
             ("site-diary", "Site Diary", "/app/site-diary", "tool"),
             ("incident-report", "Incident Report", "/app/incident-report", "tool"),
             ("risk-register", "Risk Register", "/app/risk-register", "tool"),
@@ -326,6 +336,7 @@ def build_router(db, get_user):
             "variations":   _search_variations,
             "applications": _search_applications,
             "invoices":     _search_invoices,
+            "purchase-orders": _search_purchase_orders,
             "site-diary":   _search_diaries,
             "incidents":    _search_incidents,
             "risks":        _search_risks,
