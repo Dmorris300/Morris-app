@@ -51,6 +51,13 @@ remain as audit-trail references only — they are NOT product marketing copy.
 
 ---
 
+### 4 Aug 2026 — Global Search V2 (universal cross-tool search)
+- ✅ **Global Search V2** — Cmd/Ctrl+K opens a platform-wide search palette that instantly finds Projects, Clients, Documents, Drafts, Photos, Quotes, Variations, Applications, Invoices, Site Diaries, Incidents, Risks, Tasks, and Tools across the whole Morris platform.
+- ✅ **Backend** `backend/global_search.py` — `GET /api/search?q=<term>&scope=<optional>&limit=<int>` scans every V2 collection + jobs + drafts + documents + media + tasks + static tool catalogue. Per-scope filtering (all / projects / clients / documents / photos / quotes / variations / applications / invoices / site-diary / incidents / risks / tasks / drafts / tools). Custom ranking: reference/title exact match > title contains > subtitle contains, tiebroken by `updatedAt` descending.
+- ✅ **Frontend** `components/CommandPalette.jsx` — upgraded to hit the backend with a 220ms debounce. Scope chips row (14 scopes) with `Tab / Shift+Tab` cycling. Results grouped by kind with kind-specific icons + colour badges. Keyboard nav (↑↓/Enter/Esc). Recent searches persisted in `localStorage`. Deep-link routes: each result opens the correct V2 dashboard with `?open={id}`.
+- ✅ **Security**: search filters by `userId` on every query — no cross-user data leakage (verified).
+- ✅ Tested end-to-end (backend pytest 22/22 pass + frontend keyboard nav + scope switching + mobile viewport). Testing agent fixed a sort-key TypeError. Report: `/app/test_reports/iteration_25.json`.
+
 ### 3 Aug 2026 — Invoice Builder V2 (flagship invoicing system)
 - ✅ **Invoice Builder V2** at `/app/invoice-builder` — commercial trilogy completed (Variation Orders → AFP → Invoice). Dashboard-first: 6 status stat cards (Draft / Sent / Part Paid / Paid / Overdue / Cancelled) + 3 KPI value cards (Outstanding / Overdue / Paid YTD) + a **"Ready to invoice" quick-convert strip** that surfaces Certified AFPs and Approved Variations for one-click conversion + search + filters + templates.
 - ✅ **8-step wizard**: Project & Client → Link source (Certified AFP or Approved Variation, auto-populates line items) → Line Items → CIS & VAT → **Terms & Due Date** (auto-compute due date from Net 7/14/30/45/60) → Review & **Bank** (pre-filled from user profile) → Status & Payments (part-payments supported) → Preview & PDF.
@@ -573,6 +580,7 @@ _None._
 ### P1 — High priority
 - **Extension of Time Claims V2** (next flagship rebuild) — contract-aware (JCT / NEC4 / bespoke), evidence schedule, EOT ≠ loss & expense distinction
 - **Commercial Reports V2** (living register redesign unifying VOs + AFPs + Invoices)
+- **Document Library V2** (filters + search + bulk actions)
 - **Global Search** (cross-project search endpoint + top-bar UI)
 - **Document Library V2** (filters + search + bulk actions)
 - Replace mock SMS OTP with real Twilio integration
