@@ -266,13 +266,17 @@ def build_router(db, get_user):
         return f"AFP-{seq:03d}"
 
     async def _approved_variations_for(user_id: str, project_id: str) -> float:
+        # Returns the NET total of Approved variations (subtotal only, no VAT) because
+        # the AFP applies its own VAT/CIS at the whole-valuation level — using gross
+        # here would double-count VAT.
         if not project_id:
             return 0.0
         total = 0.0
         async for r in db.variation_orders.find({
             "userId": user_id, "projectId": project_id, "status": "Approved", "isDeleted": {"$ne": True},
         }):
-            total += float(((r.get("totals") or {}).get("total")) or 0)
+            totals = r.get("totals") or {}
+            total += float(totals.get("subtotal") or totals.get("total") or 0)
         return round(total, 2)
 
     @router.get("/reference")

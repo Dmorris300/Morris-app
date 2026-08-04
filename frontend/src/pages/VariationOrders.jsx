@@ -195,13 +195,13 @@ export default function VariationOrders() {
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto" data-testid="variation-orders-page">
-      <header className="mb-6 flex items-start justify-between gap-4">
-        <div>
+      <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
           <div className="text-[10px] uppercase tracking-[0.25em] text-[#E8A020] mb-2">Commercial</div>
           <h1 className="font-display text-3xl sm:text-4xl text-[#F0EDE8]">Variation Orders</h1>
           <p className="text-sm text-[#A19D94] mt-2 max-w-2xl">Protect yourself from carrying out extra work without proper approval, valuation and record. Every variation from instruction through approval to payment — in one place.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <button onClick={loadAll} className="text-xs text-[#A19D94] hover:text-[#E8A020] flex items-center gap-1" data-testid="vo-refresh"><RefreshCw size={12} className={loading ? "animate-spin" : ""} /> Refresh</button>
           <button onClick={() => openNew()} className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-[#E8A020] text-black text-sm font-medium hover:bg-[#f0b040]" data-testid="vo-new-btn"><Plus size={14} /> New Variation</button>
         </div>

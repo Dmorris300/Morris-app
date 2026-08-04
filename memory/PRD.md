@@ -51,6 +51,13 @@ remain as audit-trail references only — they are NOT product marketing copy.
 
 ---
 
+### 4 Aug 2026 — V1 Release Readiness & Platform Polish
+- ✅ **Comprehensive regression + integration audit** — 48/48 pytest cases pass covering all V2 endpoints, commercial trilogy end-to-end (VO → AFP → INV → payment), Global Search deep-links, Command Centre attention items, multi-user data isolation, 401/403 behaviour, and stats endpoint performance (<160ms). Report: `/app/test_reports/iteration_26.json`. Checklist saved: `/app/memory/RELEASE_READINESS.md`.
+- ✅ **Fixed AFP auto-pull VAT double-count**: `_approved_variations_for()` now returns the **net (subtotal)** of Approved variations instead of the VAT-inclusive total. Prevents VAT being applied twice when the AFP re-VATs its own gross valuation.
+- ✅ **Fixed mobile header overflow** on Variation Orders, Applications for Payment, and Incident Report dashboards — headers now use `flex flex-wrap` so the refresh + New CTA wrap under the title on narrow viewports.
+- ✅ **Fixed Site Diary deep-link**: `/app/site-diary?open=<id>` now auto-opens the wizard on the specified entry (matching the pattern used by every other V2 dashboard, essential for Global Search).
+- ✅ **Cleaned up TEST_ prefixed test data** left by regression testing.
+
 ### 4 Aug 2026 — Global Search V2 (universal cross-tool search)
 - ✅ **Global Search V2** — Cmd/Ctrl+K opens a platform-wide search palette that instantly finds Projects, Clients, Documents, Drafts, Photos, Quotes, Variations, Applications, Invoices, Site Diaries, Incidents, Risks, Tasks, and Tools across the whole Morris platform.
 - ✅ **Backend** `backend/global_search.py` — `GET /api/search?q=<term>&scope=<optional>&limit=<int>` scans every V2 collection + jobs + drafts + documents + media + tasks + static tool catalogue. Per-scope filtering (all / projects / clients / documents / photos / quotes / variations / applications / invoices / site-diary / incidents / risks / tasks / drafts / tools). Custom ranking: reference/title exact match > title contains > subtitle contains, tiebroken by `updatedAt` descending.
