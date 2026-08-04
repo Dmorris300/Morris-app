@@ -34,6 +34,7 @@ from variation_orders import build_router as build_variation_orders_router
 from applications_for_payment import build_router as build_afp_router
 from invoice_builder import build_router as build_invoice_router
 from purchase_orders import build_router as build_purchase_orders_router
+from contracts import build_router as build_contracts_router
 from global_search import build_router as build_search_router
 
 ROOT_DIR = Path(__file__).parent
@@ -1659,6 +1660,9 @@ app.include_router(build_invoice_router(db, get_user))
 
 # Purchase Orders V2 (flagship procurement management)
 app.include_router(build_purchase_orders_router(db, get_user))
+
+# Contract Management V2 (flagship contract administration hub)
+app.include_router(build_contracts_router(db, get_user))
 
 # Global Search V2 (universal cross-tool search)
 app.include_router(build_search_router(db, get_user))

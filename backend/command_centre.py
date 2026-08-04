@@ -385,6 +385,13 @@ def build_router(db, get_user):
             items = items + po_items
         except Exception:
             pass
+        # Merge Contract Management attention (expiring / notices due / milestones overdue).
+        try:
+            from contracts import collect_contract_attention
+            ct_items = await collect_contract_attention(db, user["id"], datetime.now(timezone.utc))
+            items = items + ct_items
+        except Exception:
+            pass
         items.sort(key=lambda x: (SEVERITY_ORDER.get(x.get("severity"), 3), x.get("dueAt") or "9999"))
         return {"items": items, "count": len(items), "computedAt": datetime.now(timezone.utc).isoformat()}
 

@@ -1,0 +1,34 @@
+{
+  "summary": "Backend testing of Contract Management V2 flagship module. Created /app/backend/tests/test_contracts_v2.py with 25 pytest cases covering reference lists, CRUD, status lifecycle + audit trail, milestones and notices lifecycle with overdue/due counts, stats + project summary, templates roundtrip, live status derivation ('Expiring Soon' within 30 days AND overdue), global search by contractRef, Command Centre attention (contract_expiring, contract_notice_due, contract_milestone_overdue), cross-user isolation, invalid input 400s, unknown id 404s, and regression on the other V2 flagship tools (purchase-orders / invoice-builder / applications-for-payment / variation-orders) for their /reference and /stats endpoints. All 25 tests passed in 11.23s.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/contracts/contracts/{id}/notices/{nid} DELETE", "issue": "No history entry is appended when milestones/notices are updated or deleted (only POST-add appends history). Not blocking, but audit trail is incomplete for edits/deletes."},
+      {"endpoint": "/api/contracts/contracts (POST)", "issue": "NOTICE_TYPES contains both 'Pay Less Notice' and 'Payless Notice' (duplicate concept, different spellings). Consider dedupe — spec asks for 14 notice types total, so this may be intentional but worth confirming."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_contracts_v2.py",
+    "/app/test_reports/pytest/contracts_v2.xml"
+  ],
+  "action_items": [
+    "Consider appending history entries on milestone/notice update and delete (currently only creation is logged). Non-blocking.",
+    "Confirm intent of both 'Pay Less Notice' and 'Payless Notice' entries in NOTICE_TYPES."
+  ],
+  "critical_code_review_comments": [
+    "contracts.py is 740 lines and self-contained; large but organized. Could be split (reference / crud / lifecycle / attention) if it grows further.",
+    "_seq_ref uses find_one_and_update with $inc but does not set an upsert — depends on user doc already existing (safe in current auth flow).",
+    "Milestone/Notice update endpoints reuse the *In model as full-replacement payloads with exclude_none merge; this works but 'type' being required on NoticeIn means PATCH callers must always resend 'type'. Consider a NoticeUpdate model with all-optional fields to mirror ContractUpdate pattern.",
+    "History audit trail lacks entries for edits/deletes of milestones and notices — audit-trail claim in module docstring is partially incomplete.",
+    "MongoDB _id is properly excluded via _shape."
+  ],
+  "updated_files": ["/app/backend/tests/test_contracts_v2.py"],
+  "success_rate": {"backend": "100% (25/25)", "frontend": "not tested (backend only)"},
+  "test_credentials": "darrenhustle300 / hustle1234 (admin) + generated isolation user via /api/auth/signup",
+  "seed_data_creation": "One contract (TEST_Contract Alpha, project TEST_PROJ_ALPHA) + one template, both soft-deleted at end of run. Contract counter on admin user was incremented by 1.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "test_contracts_v2.py covers the full Contract Management V2 backend surface. Includes regression checks for /reference and /stats on the other four V2 flagship tools. Re-run with: pytest /app/backend/tests/test_contracts_v2.py -v",
+  "rca of the issue": "No issues to RCA — all requested features work as specified. Two minor observations flagged in backend_issues.minor above."
+}

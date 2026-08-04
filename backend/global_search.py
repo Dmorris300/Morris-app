@@ -233,6 +233,15 @@ def build_router(db, get_user):
             lambda r: [r.get("poRef"), r.get("supplierName"), r.get("supplierCompany"), r.get("projectName"), r.get("reference"), r.get("notes")],
         )
 
+    async def _search_contracts(uid, q, limit):
+        return await _v2_collection_search(
+            "contracts", "contract", "/app/contract-mgmt", uid, q, limit,
+            lambda r: r.get("title") or r.get("contractRef") or "Contract",
+            lambda r: " · ".join(filter(None, [r.get("contractRef"), r.get("employerName") or r.get("employerCompany"), r.get("projectName"), r.get("contractType"), r.get("status")])),
+            lambda r: r.get("status") or "",
+            lambda r: [r.get("title"), r.get("contractRef"), r.get("contractNumber"), r.get("employerName"), r.get("employerCompany"), r.get("projectName"), r.get("contractType"), r.get("scopeSummary")],
+        )
+
     async def _search_diaries(uid, q, limit):
         return await _v2_collection_search(
             "site_diary_entries", "site-diary", "/app/site-diary", uid, q, limit,
@@ -295,6 +304,7 @@ def build_router(db, get_user):
             ("applications-for-payment", "Applications for Payment", "/app/applications-for-payment", "tool"),
             ("invoice-builder", "Invoice Builder", "/app/invoice-builder", "tool"),
             ("purchase-orders", "Purchase Orders", "/app/purchase-orders", "tool"),
+            ("contract-mgmt", "Contract Management", "/app/contract-mgmt", "tool"),
             ("site-diary", "Site Diary", "/app/site-diary", "tool"),
             ("incident-report", "Incident Report", "/app/incident-report", "tool"),
             ("risk-register", "Risk Register", "/app/risk-register", "tool"),
@@ -337,6 +347,7 @@ def build_router(db, get_user):
             "applications": _search_applications,
             "invoices":     _search_invoices,
             "purchase-orders": _search_purchase_orders,
+            "contracts":    _search_contracts,
             "site-diary":   _search_diaries,
             "incidents":    _search_incidents,
             "risks":        _search_risks,
