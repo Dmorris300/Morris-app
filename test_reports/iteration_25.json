@@ -1,0 +1,40 @@
+{
+  "summary": "Tested Morris V2 Global Search backend (/api/search) and frontend CommandPalette. 22/22 backend pytest tests pass after fixing one critical sort-key TypeError in /app/backend/global_search.py. Frontend palette verified: opens on Ctrl+K, all 14 scope chips present with correct data-testids, close button works, Esc closes, ArrowDown/Enter navigate, scope switching triggers re-fetch, results grouped by kind, mobile viewport works.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_global_search.py",
+    "/app/test_reports/pytest/global_search.xml"
+  ],
+  "action_items": [
+    "None — testing agent already fixed the one critical bug found (sort TypeError). Please confirm the fix in /app/backend/global_search.py (lines ~352-357) is acceptable."
+  ],
+  "critical_code_review_comments": [
+    "FIXED: global_search.py `results.sort(key=_key, reverse=False)` blew up with TypeError comparing datetime to str when mixing collections (some rows store `updatedAt`/`createdAt` as datetime, some as isoformat str). Every `scope=all` request with results from mixed collections (including the default UX path used by the palette) returned 500. Coerced updatedAt to string before sorting.",
+    "Minor: /api/search does not enforce/validate `limit` upper-bound — a malicious caller could pass limit=10000. Consider clamping to <=100.",
+    "Minor: `_search_clients` aggregates by clientName|company lower-cased pipe key — two clients with same name at different companies with empty company field could collide. Not a bug today but worth noting.",
+    "Minor: `scope=drafts` filter is included but the list of SCOPES in the frontend does not expose a 'Drafts' chip. Backend supports it, UI doesn't. Either add the chip or document the omission.",
+    "Minor: Frontend debounce is 220ms — spec asks for 300ms. Not a bug, just an off-spec value."
+  ],
+  "updated_files": [
+    "/app/backend/global_search.py",
+    "/app/backend/tests/test_global_search.py"
+  ],
+  "success_rate": {
+    "backend": "100% (22/22 after fix)",
+    "frontend": "100% for verified interactions (palette open/close, scopes, keyboard, mobile)"
+  },
+  "test_credentials": "darrenhustle300 / hustle1234 (admin), sparky01 / test1234 (second user, isolation test)",
+  "seed_data_creation": "Backend test creates a temp job (client='Alice Contractor TESTGS', project='Search Test Project TESTGS') + linked invoice via /api/invoice-builder/invoices under admin. Both are deleted in fixture teardown. No lingering data.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend tests live at /app/backend/tests/test_global_search.py; 22 tests including cross-collection ('alice' returns client+project+invoice), ranking, all scopes with empty q, tools catalogue, missing-token 401, and user isolation via sparky01. Frontend palette data-testids confirmed: cmdk-palette, cmdk-input, cmdk-scopes, cmdk-scope-<14 ids>, cmdk-close, cmdk-recent, cmdk-item-<kind>-<id>. Bug fix applied to global_search.py sort key.",
+  "rca_of_the_issue": "RCA: `results.sort(key=lambda r: r.get('updatedAt') or '', reverse=True)` in global_search.py failed with TypeError('<' not supported between instances of 'datetime.datetime' and 'str'). Some documents were auto-saved by /api/generate at server.py line ~949 using raw `datetime.now(timezone.utc)` (datetime object), while newer collections store isoformat strings. Mixing produced a mixed-type sort key. Fix: coerce updatedAt to str before sort. Reproduction: GET /api/search?q=&scope=all as admin user with any auto-saved documents → 500. After fix → 200 with results."
+}

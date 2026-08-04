@@ -33,6 +33,7 @@ from quote_builder import build_router as build_quote_builder_router
 from variation_orders import build_router as build_variation_orders_router
 from applications_for_payment import build_router as build_afp_router
 from invoice_builder import build_router as build_invoice_router
+from global_search import build_router as build_search_router
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -1654,6 +1655,9 @@ app.include_router(build_afp_router(db, get_user))
 
 # Invoice Builder V2 (flagship invoicing system)
 app.include_router(build_invoice_router(db, get_user))
+
+# Global Search V2 (universal cross-tool search)
+app.include_router(build_search_router(db, get_user))
 
 app.add_middleware(
     CORSMiddleware,
