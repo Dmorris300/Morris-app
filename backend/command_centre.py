@@ -399,6 +399,13 @@ def build_router(db, get_user):
             items = items + sn_items
         except Exception:
             pass
+        # Merge Team Management attention (certifications expiring / expired).
+        try:
+            from team_management import collect_team_attention
+            tm_items = await collect_team_attention(db, user["id"], datetime.now(timezone.utc))
+            items = items + tm_items
+        except Exception:
+            pass
         items.sort(key=lambda x: (SEVERITY_ORDER.get(x.get("severity"), 3), x.get("dueAt") or "9999"))
         return {"items": items, "count": len(items), "computedAt": datetime.now(timezone.utc).isoformat()}
 

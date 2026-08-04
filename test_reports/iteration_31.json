@@ -1,0 +1,46 @@
+{
+  "summary": "Backend-only testing for Team Management V2 module. Created /app/backend/tests/test_team_management_v2.py (43 tests) covering: /reference counts, /dashboard KPI shape, /members list + filters (q/trade/availability), /members/{mid} rich profile, PATCH /profile persistence, PATCH /job-role (valid+invalid), PATCH /availability (valid+invalid+self), certification CRUD (add expiring flips certificationsExpiringSoon, add expired flips certificationsExpired, PATCH update, DELETE, unknown cid → 404, missing type → 400), project allocation (POST creates via real /api/jobs, upsert does not duplicate, unknown projectId → 404, DELETE removes), Command Centre /api/attention exposes both team_cert_expiring and team_cert_expired kinds, cross-user isolation (sparky01 gets 404/403 for admin member GET/PATCH profile/PATCH job-role), regression on existing /api/team/members list + /api/team/invite validation, and regression on all V2 flagship /reference and /stats endpoints (snagging, contracts, purchase-orders, invoice-builder, applications-for-payment, variation-orders). All 43 tests PASS (100%).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "PATCH /api/team-management/members/{mid}/certifications/{cid}",
+        "issue": "CertificationIn.type is required at the Pydantic level, so PATCH bodies must include type even when only updating unrelated fields (number, notes, etc). Consider making all fields optional on update to allow partial patches without echoing the type."
+      },
+      {
+        "endpoint": "POST /api/team-management/members/{mid}/certifications",
+        "issue": "Certification type is not validated against the CERT_TYPES enum (spec lists 26 types). Any non-empty string is accepted. Not a functional bug — spec allows 'Other' — but the reference list is not enforced. If validation was intended, add an allowlist check."
+      },
+      {
+        "endpoint": "PATCH /api/team-management/members/{mid}/profile",
+        "issue": "No validation that trade is one of the 23 reference TRADES; free-form string is accepted."
+      }
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_team_management_v2.py",
+    "/app/test_reports/pytest/team_management_v2.xml"
+  ],
+  "action_items": [
+    "Optional: relax PATCH /certifications/{cid} body so 'type' is not required (currently must be resent on partial updates).",
+    "Optional: validate trade + certification.type against reference enums for consistency with jobRole/availability behaviour."
+  ],
+  "critical_code_review_comments": [
+    "team_management.py duplicates the `token = authorization.replace('Bearer ', '') if authorization else None; user = await get_user(token)` prelude in every endpoint (12+ times). Extract a FastAPI Depends(current_user) helper to remove boilerplate and centralise 401 handling — same review point flagged on snagging.py.",
+    "_load_members loads up to 500 users per request and _load_jobs_by_id loads up to 500 jobs; both run on every /dashboard and /members hit. Consider projecting only needed fields ({id, teamProfile, teamRole, ...}) to reduce payload from Mongo, and cap at a sensible page size when team sizes grow.",
+    "PATCH /profile writes back the merged teamProfile dict but returns _member_shape without re-loading jobs_by_id, so any projectAllocations returned in the response for that specific handler will not have projectName resolved from jobs. All other write handlers hit `_load_jobs_by_id` — inconsistency worth aligning.",
+    "CertificationIn requires `type` (no default), so PATCH updates must include type; either make it Optional or introduce a CertificationUpdate model to support true partial updates.",
+    "`_cert_status` compares ISO date strings lexicographically (`exp < today`). Works for YYYY-MM-DD but silently fails for any other format (e.g. dd/mm/yyyy); enforce the format at input or parse with datetime before comparison.",
+    "collect_team_attention has no dedupe/limit per member and honours `limit` only at the very end (slice items[:limit]); with a large team the list could exceed 15 before slicing, wasting work — acceptable at current scale.",
+    "Availability state 'On Site' is counted as availableNow alongside 'Available', which conflicts with a natural reading of 'available now' (someone on site is not free to be assigned). Confirm with product whether this is intentional."
+  ],
+  "updated_files": ["/app/backend/tests/test_team_management_v2.py"],
+  "success_rate": {"backend": "100% (43/43)", "frontend": "n/a"},
+  "test_credentials": "darrenhustle300 / hustle1234 (admin), sparky01 / test1234 (cross-user isolation)",
+  "seed_data_creation": "Ephemeral: creates 2 certifications (deleted in same suite), 1 job/project via /api/jobs (deleted in TestZZZCleanup), and mutates admin profile fields (fullName/phone/trade/etc). Availability is reset to Available at end. Note: admin's jobRole is left as 'Director' and profile fields (fullName='Darren Morris', trade='Electrician', hourlyRate=45.5, bio='TEST bio', etc) are left in place — these are consistent with credentials file so should be safe.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Team Management V2 module fully covered in /app/backend/tests/test_team_management_v2.py. All 43 tests pass. The test file leaves admin's teamProfile populated with TEST-prefixed values (bio='TEST bio', emergencyContactName='TEST EC', address='1 Test Street', etc) — if these leak into UI screenshots for demos, reset via PATCH /profile. Command Centre /api/attention returns items in the shape {items:[...]} with kind team_cert_expiring/team_cert_expired working correctly.",
+  "rca of the issue": "n/a — no bugs found. All spec-listed endpoints behave as described, KPIs flip correctly on cert expiry windows, upsert works on duplicate project allocations, cross-user isolation returns 404, regression on /api/team/* and other V2 modules is green."
+}
