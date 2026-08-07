@@ -226,8 +226,9 @@ function addFooter(doc, pageWidth, pageHeight) {
   doc.line(48, pageHeight - 46, pageWidth - 48, pageHeight - 46);
   doc.setTextColor(110, 110, 110);
   doc.setFontSize(8);
-  doc.text("Trade profile shared via Morris  •  morrisapp.co.uk  •  Built by a tradesman. For tradesmen.", 48, pageHeight - 28);
-  doc.text("Morris Construction Tech Ltd  •  ICO C1923529", pageWidth - 48, pageHeight - 28, { align: "right" });
+  // Contractor identity only — Morris operates invisibly on customer-facing docs.
+  const contractorLine = [user?.companyName, user?.fullName, user?.email, user?.phone].filter(Boolean).join("  •  ");
+  if (contractorLine) doc.text(contractorLine, 48, pageHeight - 28);
 }
 
 export function downloadProfilePdf(user) {
