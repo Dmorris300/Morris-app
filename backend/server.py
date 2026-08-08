@@ -37,6 +37,7 @@ from purchase_orders import build_router as build_purchase_orders_router
 from contracts import build_router as build_contracts_router
 from snagging import build_router as build_snagging_router
 from team_management import build_router as build_team_management_router
+from signature_vault import build_router as build_signature_vault_router
 from global_search import build_router as build_search_router
 
 ROOT_DIR = Path(__file__).parent
@@ -1671,6 +1672,9 @@ app.include_router(build_snagging_router(db, get_user))
 
 # Team Management V2 (workforce hub — profiles, certs, availability, projects)
 app.include_router(build_team_management_router(db, get_user))
+
+# Signature Vault (save + reuse signatures across every signable document)
+app.include_router(build_signature_vault_router(db, get_user))
 
 # Global Search V2 (universal cross-tool search)
 app.include_router(build_search_router(db, get_user))

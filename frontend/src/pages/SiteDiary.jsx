@@ -378,6 +378,7 @@ function DiaryWizard({ initial, user, jobs, onClose, onSaved, onTemplatesChanged
   useEffect(() => { api.get("/documents").then(r => setDocs(Array.isArray(r.data) ? r.data : [])).catch(() => {}); }, []);
   useEffect(() => { if (user?.fullName && !data.supervisor) setData(d => ({ ...d, supervisor: user.fullName })); }, [user?.fullName]);
   useEffect(() => { if (user?.fullName && !data.preparedBy) setData(d => ({ ...d, preparedBy: user.fullName })); }, [user?.fullName]);
+  useEffect(() => { if (user?.fullName && !data.completedBy) setData(d => ({ ...d, completedBy: user.fullName })); }, [user?.fullName]);
   // Autosave a "new entry" draft (only for unsaved entries) — resumes on next visit.
   useEffect(() => { if (!data.id) { const t = setTimeout(() => saveDraft(data), 500); return () => clearTimeout(t); } }, [data]);
 
@@ -563,7 +564,7 @@ function StepProject({ data, setData, pickProject, jobs, user, set }) {
         <Field label="Date *"><input type="date" className={inputClass} value={data.date} onChange={(e) => set("date")(e.target.value)} data-testid="sd-date" /></Field>
         <Field label="Start time"><input type="time" className={inputClass} value={data.startTime} onChange={(e) => set("startTime")(e.target.value)} data-testid="sd-startTime" /></Field>
         <Field label="Finish time"><input type="time" className={inputClass} value={data.endTime} onChange={(e) => set("endTime")(e.target.value)} data-testid="sd-endTime" /></Field>
-        <Field label="Person completing diary" hint="Signs at step 11."><input className={inputClass} value={data.completedBy || user?.fullName || ""} onChange={(e) => set("completedBy")(e.target.value)} data-testid="sd-completedBy" /></Field>
+        <Field label="Person completing diary" hint="Editable — override if signing on behalf of someone else. Signs at step 11."><input className={inputClass} value={data.completedBy || ""} onChange={(e) => set("completedBy")(e.target.value)} data-testid="sd-completedBy" /></Field>
       </div>
     </div>
   );
@@ -614,7 +615,7 @@ function StepCrew({ data, setData, autoTotal }) {
   return (
     <div className="space-y-5" data-testid="sd-step-3-crew">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Site supervisor on the day"><input className={inputClass} value={data.supervisor} onChange={(e) => set("supervisor")(e.target.value)} data-testid="sd-supervisor" /></Field>
+        <Field label="Site supervisor on the day" hint="Editable — pre-filled with your name; change if another person is supervising."><input className={inputClass} value={data.supervisor} onChange={(e) => set("supervisor")(e.target.value)} data-testid="sd-supervisor" /></Field>
         <Field label="Total operatives on site" hint="Auto-computed from your crew and subbies."><input className={inputClass} type="number" value={data.totalOperatives || autoTotal} readOnly data-testid="sd-totalOps" /></Field>
       </div>
 
