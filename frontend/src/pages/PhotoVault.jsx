@@ -123,6 +123,8 @@ export default function PhotoVault() {
         const meta = {};
         if (job) {
           meta.jobId = job.id;
+          const projName = job.projectName || job.clientName;
+          if (projName) meta.project = projName;
           if (job.clientName) meta.client = job.clientName;
           if (job.address) meta.site = job.address;
         }
@@ -164,7 +166,8 @@ export default function PhotoVault() {
     } catch { toast.error("Delete failed"); }
   };
 
-  const projectsList = useMemo(() => jobs.slice().sort((a, b) => (a.clientName || "").localeCompare(b.clientName || "")), [jobs]);
+  const projectLabel = (j) => j?.projectName || j?.clientName || j?.ref || "Untitled";
+  const projectsList = useMemo(() => jobs.slice().sort((a, b) => projectLabel(a).localeCompare(projectLabel(b))), [jobs]);
 
   return (
     <div className="p-6 md:p-10 max-w-7xl mx-auto" data-testid="page-photo-vault">
@@ -264,8 +267,8 @@ export default function PhotoVault() {
                     onClick={() => setSelectedJob(j.id)}
                     className={`w-full text-left px-3 py-1.5 rounded text-xs truncate ${selectedJob === j.id ? "bg-[#1e1a12] text-[#E8A020]" : "text-[#A19D94] hover:bg-[#141414]"}`}
                     data-testid={`vault-project-${j.id}`}
-                    title={`${j.ref || ""} — ${j.clientName || ""}`}
-                  >{j.clientName || j.ref || "Untitled"}</button>
+                    title={`${j.ref || ""} — ${projectLabel(j)}${j.clientName && j.clientName !== projectLabel(j) ? ` (${j.clientName})` : ""}`}
+                  >{projectLabel(j)}</button>
                 ))}
               </div>
             </div>
@@ -446,10 +449,11 @@ function MediaDetail({ media, jobs, onClose, onUpdated, onDelete }) {
     setSaving(true);
     try {
       const patch = { ...f };
-      // If job selected, auto-fill client/site.
+      // If job selected, auto-fill client/site and project name.
       if (f.jobId) {
         const j = jobs.find((x) => x.id === f.jobId);
         if (j) {
+          patch.project = patch.project || j.projectName || j.clientName || "";
           patch.client = patch.client || j.clientName || "";
           patch.site = patch.site || j.address || "";
         }
@@ -529,7 +533,7 @@ function MediaDetail({ media, jobs, onClose, onUpdated, onDelete }) {
               >
                 <option value="">— Unassigned —</option>
                 <option value="__new__">+ Create new project…</option>
-                {jobs.map((j) => <option key={j.id} value={j.id}>{j.clientName || j.ref}</option>)}
+                {jobs.map((j) => <option key={j.id} value={j.id}>{j.projectName || j.clientName || j.ref}</option>)}
               </select>
             </div>
           </Field>
