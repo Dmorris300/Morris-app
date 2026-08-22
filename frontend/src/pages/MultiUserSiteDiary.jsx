@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { useAuth } from "../lib/auth";
 import api from "../lib/api";
 import { downloadPdf } from "../lib/pdf";
+import { mediaListToPdfPhotos } from "../lib/media";
 import LiveSignatureBlock from "../components/LiveSignatureBlock";
 import AttachMedia, { recordDocMediaUsage } from "../components/AttachMedia";
 import DraftSaveButton from "../components/DraftSaveButton";
@@ -276,6 +277,16 @@ Rules:
       });
       setResult(r.data.content);
       setRefNumber(r.data.refNumber || "");
+      // Record which Photo Vault items were used in this document so the
+      // Vault can surface "Referenced by" back to the user. Mirrors the
+      // exact pattern used in GenericToolPage.jsx (line 240-246).
+      if (attachedMedia.length > 0 && r.data.refNumber) {
+        recordDocMediaUsage(attachedMedia, {
+          docId: r.data.refNumber,
+          docType: TOOL_ID,
+          docTitle: `${TOOL_NAME} — ${r.data.refNumber}`,
+        }).catch(() => {});
+      }
       const recent = [TOOL_ID, ...(user?.recentlyUsed || []).filter((x) => x !== TOOL_ID)].slice(0, 5);
       try { await api.post("/profile/update", { recentlyUsed: recent }); await refresh(); } catch { /* ignore */ }
       toast.success("Multi-User Site Diary generated. Saved to your Vault.");
@@ -286,9 +297,19 @@ Rules:
   };
 
   const onCopy = () => { navigator.clipboard.writeText(result); toast.success("Copied"); };
-  const onDownload = () => {
+  const onDownload = async () => {
     const userWithSig = { ...(user || {}), signature: liveSignature || user?.signature };
-    downloadPdf({ title: `Multi-User Site Diary — ${project || "project"} — ${ukDate(diaryDate)}`, content: result, user: userWithSig });
+    const title = `Multi-User Site Diary — ${project || "project"} — ${ukDate(diaryDate)}`;
+    // Convert attached Vault/uploaded media into the {dataUrl,note,ukDate,location}[]
+    // shape downloadPdf's `photos` parameter expects. Uses the existing
+    // mediaListToPdfPhotos() helper; safely returns [] for empty/broken items.
+    let photos = [];
+    if (Array.isArray(attachedMedia) && attachedMedia.length > 0) {
+      try {
+        photos = await mediaListToPdfPhotos(attachedMedia);
+      } catch { photos = []; }  // fail-open: still download the text-only PDF
+    }
+    downloadPdf({ title, content: result, user: userWithSig, photos, refNumber });
     toast.success("PDF downloaded");
   };
 
