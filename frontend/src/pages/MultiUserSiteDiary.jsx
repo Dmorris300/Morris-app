@@ -123,6 +123,7 @@ export default function MultiUserSiteDiary() {
   const getDraftData = () => ({
     jobId, project, siteAddress, diaryDate, weather, siteStatus, gangs,
     visitors, instructions, overallNotes, result, refNumber, liveSignature,
+    attachedMedia,
   });
   useToolDraft(TOOL_ID, (p) => {
     if (p.jobId !== undefined) setJobId(p.jobId);
@@ -138,6 +139,7 @@ export default function MultiUserSiteDiary() {
     if (p.result !== undefined) setResult(p.result);
     if (p.refNumber !== undefined) setRefNumber(p.refNumber);
     if (p.liveSignature !== undefined) setLiveSignature(p.liveSignature);
+    if (Array.isArray(p.attachedMedia)) setAttachedMedia(p.attachedMedia);
   });
 
   const isFav = (user?.favourites || []).includes(TOOL_ID);
