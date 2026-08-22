@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronLeft, FileText, Mail, Download, Copy, Info, Star, X, Plus, Trash2, Users, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
@@ -74,11 +74,32 @@ export default function MultiUserSiteDiary() {
   const { user, refresh } = useAuth();
 
   // SECTION 1 — SITE DETAILS
+  const [jobs, setJobs]               = useState([]);
+  const [jobId, setJobId]             = useState("");
   const [project, setProject]         = useState("");
   const [siteAddress, setSiteAddress] = useState("");
   const [diaryDate, setDiaryDate]     = useState(isoToday());
   const [weather, setWeather]         = useState("Fine");
   const [siteStatus, setSiteStatus]   = useState("Full operation");
+
+  // Load existing Job Tracker projects — read-only, reuses the same endpoint
+  // Job Tracker and Photo Vault already trust. Never creates or modifies jobs.
+  useEffect(() => {
+    api.get("/jobs").then((r) => setJobs(Array.isArray(r.data) ? r.data : [])).catch(() => setJobs([]));
+  }, []);
+
+  // When the user picks a job, populate project + site address from the
+  // existing record. Keeps fields editable as overrides — same UX as
+  // SiteDiary.jsx. Choosing "— Unlinked —" clears jobId only, so any typed
+  // overrides remain untouched (users on ad-hoc sites keep the old behaviour).
+  const onSelectJob = (id) => {
+    setJobId(id);
+    if (!id) return;
+    const j = jobs.find((x) => x.id === id);
+    if (!j) return;
+    setProject(j.projectName || j.clientName || "");
+    setSiteAddress(j.address || "");
+  };
 
   // Photo Vault attachments
   const [attachedMedia, setAttachedMedia] = useState([]);
@@ -100,10 +121,11 @@ export default function MultiUserSiteDiary() {
 
   // ---------- Draft save/resume ----------
   const getDraftData = () => ({
-    project, siteAddress, diaryDate, weather, siteStatus, gangs,
+    jobId, project, siteAddress, diaryDate, weather, siteStatus, gangs,
     visitors, instructions, overallNotes, result, refNumber, liveSignature,
   });
   useToolDraft(TOOL_ID, (p) => {
+    if (p.jobId !== undefined) setJobId(p.jobId);
     if (p.project !== undefined) setProject(p.project);
     if (p.siteAddress !== undefined) setSiteAddress(p.siteAddress);
     if (p.diaryDate !== undefined) setDiaryDate(p.diaryDate);
@@ -233,6 +255,7 @@ Rules:
         promptTemplate,
         userInputs: {
           diaryDateUk: ukDate(diaryDate),
+          jobId: jobId || null,
           project,
           siteAddress: siteAddress || "—",
           companyName: user?.companyName || "—",
@@ -299,6 +322,32 @@ Rules:
 
       {/* SECTION 1 — SITE DETAILS */}
       <Section title="Site Details" testId="msd-section-1" icon={<ClipboardList size={14}/>}>
+        {/* Link to an existing Job Tracker project — reuses the same jobs
+            the Photo Vault filters by. Selecting a job pre-fills project +
+            site address; the fields below remain editable as overrides.
+            "— Unlinked —" keeps the free-text behaviour for ad-hoc sites. */}
+        <div className="mb-4">
+          <label className="block">
+            <div className="text-xs uppercase tracking-widest text-[#A19D94] mb-1">Link to Job / Project</div>
+            <select
+              value={jobId}
+              onChange={(e) => onSelectJob(e.target.value)}
+              className="input-base"
+              data-testid="msd-job-select"
+            >
+              <option value="">— Unlinked —</option>
+              {jobs.map((j) => (
+                <option key={j.id} value={j.id}>
+                  {(j.projectName || j.clientName || j.ref || "Untitled")}
+                  {j.address ? ` — ${j.address}` : ""}
+                </option>
+              ))}
+            </select>
+            <div className="text-[10px] text-[#706D66] mt-1">
+              Optional. Linking uses your existing Job Tracker project and shows its Vault photos below.
+            </div>
+          </label>
+        </div>
         <Grid>
           <Inp label="Project Name" value={project} onChange={setProject} testId="msd-project" />
           <Inp label="Site Address" value={siteAddress} onChange={setSiteAddress} testId="msd-site" />
@@ -422,7 +471,7 @@ Rules:
 
       {/* SIGN OFF */}
       <Section title="Diary completed by — Sign Off" testId="msd-section-5">
-        <AttachMedia toolId="multiuser-site-diary" toolLabel="Site Diary" category="Progress" value={attachedMedia} onChange={setAttachedMedia} testIdPrefix="msd-media" />
+        <AttachMedia toolId="multiuser-site-diary" toolLabel="Site Diary" jobId={jobId || null} category="Progress" value={attachedMedia} onChange={setAttachedMedia} testIdPrefix="msd-media" />
         <LiveSignatureBlock
           label="Diary completed by"
           subtitle="Your signature is stamped on the generated PDF"
