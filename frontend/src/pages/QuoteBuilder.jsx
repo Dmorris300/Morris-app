@@ -321,12 +321,36 @@ function QuoteWizard({ initial, user, clients, jobs, onClose, onSaved, onClients
     const list = d.stagePayments.map(x => {
       if (x.id !== id) return x;
       const next = { ...x, ...patch };
-      if ("percentage" in patch) next.amount = Math.round((Number(patch.percentage) || 0) * totals.total / 100 * 100) / 100;
+      const total = totals.total || 0;
+      // Bidirectional %↔£ conversion. Whichever field the user typed becomes
+      // the source of truth for this row; the other is derived from live totals.
+      if ("percentage" in patch) {
+        next.amount = total > 0 ? Math.round((Number(patch.percentage) || 0) * total / 100 * 100) / 100 : 0;
+      } else if ("amount" in patch) {
+        next.percentage = total > 0 ? Math.round(((Number(patch.amount) || 0) / total) * 10000) / 100 : 0;
+      }
       return next;
     });
     return { ...d, stagePayments: list };
   });
   const delStage = (id) => setData(d => ({ ...d, stagePayments: d.stagePayments.filter(x => x.id !== id) }));
+
+  // Live-recalc: whenever the quote total changes (line items, VAT, discount,
+  // provisional sums), refresh every stage payment amount from its percentage
+  // so the schedule never goes stale. Only touches rows where percentage is
+  // the source of truth (rounded compare guards against float drift).
+  useEffect(() => {
+    if (!(data.stagePayments || []).length) return;
+    const total = totals.total || 0;
+    const updated = data.stagePayments.map(s => {
+      const pct = Number(s.percentage) || 0;
+      const derivedAmt = total > 0 ? Math.round(pct * total / 100 * 100) / 100 : 0;
+      return derivedAmt !== Number(s.amount) ? { ...s, amount: derivedAmt } : s;
+    });
+    if (updated.some((s, i) => s !== data.stagePayments[i])) {
+      setData(d => ({ ...d, stagePayments: updated }));
+    }
+  }, [totals.total]);
 
   const generatePreview = () => {
     try { setPreviewUrl(quotePdfBlobUrl({ data: { ...data, totals }, user, today: new Date().toLocaleDateString("en-GB") })); }
@@ -335,6 +359,12 @@ function QuoteWizard({ initial, user, clients, jobs, onClose, onSaved, onClients
 
   const saveEntry = async () => {
     if (!data.clientName && !data.clientCompany) { toast.error("Client name or company is required"); setStep(1); return; }
+    // £0 quote confirmation — protects against sending a zero-value quote by
+    // accident (e.g. line items entered before pricing was worked out).
+    if ((totals.total || 0) === 0) {
+      const proceed = window.confirm("This quote totals £0.00. Are you sure you want to save and generate the PDF?");
+      if (!proceed) return;
+    }
     setSaving(true);
     try {
       let saved;
@@ -480,13 +510,13 @@ function QuoteWizard({ initial, user, clients, jobs, onClose, onSaved, onClients
                       </select>
                     </Field>
                     <div className="md:col-span-2"><Field label="Description"><input className={inputClass} value={it.description} onChange={(e) => updLine(it.id, { description: e.target.value })} data-testid={`qb-line-desc-${i + 1}`} /></Field></div>
-                    <Field label="Qty"><input type="number" step="0.01" className={inputClass} value={it.qty} onChange={(e) => updLine(it.id, { qty: e.target.value })} data-testid={`qb-line-qty-${i + 1}`} /></Field>
+                    <Field label="Qty"><input type="number" min="0" step="0.01" className={inputClass} value={it.qty} onChange={(e) => updLine(it.id, { qty: e.target.value })} data-testid={`qb-line-qty-${i + 1}`} /></Field>
                     <Field label="Unit">
                       <select className={inputClass} value={it.unit} onChange={(e) => updLine(it.id, { unit: e.target.value })}>
                         {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                       </select>
                     </Field>
-                    <Field label="Unit price (£)"><input type="number" step="0.01" className={inputClass} value={it.unitPrice} onChange={(e) => updLine(it.id, { unitPrice: e.target.value })} data-testid={`qb-line-price-${i + 1}`} /></Field>
+                    <Field label="Unit price (£)"><input type="number" min="0" step="0.01" className={inputClass} value={it.unitPrice} onChange={(e) => updLine(it.id, { unitPrice: e.target.value })} data-testid={`qb-line-price-${i + 1}`} /></Field>
                   </div>
                 </div>
               ))}
@@ -514,7 +544,7 @@ function QuoteWizard({ initial, user, clients, jobs, onClose, onSaved, onClients
                   <div key={p.id} className="card-dark p-3 mb-2" data-testid={`qb-prov-${i + 1}`}>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-2 items-end">
                       <div className="md:col-span-2"><Field label="Description"><input className={inputClass} value={p.description} onChange={(e) => updProv(p.id, { description: e.target.value })} data-testid={`qb-prov-desc-${i + 1}`} /></Field></div>
-                      <div className="flex gap-2 items-end"><Field label="Amount (£)"><input type="number" step="0.01" className={inputClass} value={p.amount} onChange={(e) => updProv(p.id, { amount: e.target.value })} data-testid={`qb-prov-amt-${i + 1}`} /></Field><button onClick={() => delProv(p.id)} className="pb-2 text-[#F27C7C]"><Trash2 size={14} /></button></div>
+                      <div className="flex gap-2 items-end"><Field label="Amount (£)"><input type="number" min="0" step="0.01" className={inputClass} value={p.amount} onChange={(e) => updProv(p.id, { amount: e.target.value })} data-testid={`qb-prov-amt-${i + 1}`} /></Field><button onClick={() => delProv(p.id)} className="pb-2 text-[#F27C7C]"><Trash2 size={14} /></button></div>
                     </div>
                   </div>
                 ))}
@@ -534,8 +564,8 @@ function QuoteWizard({ initial, user, clients, jobs, onClose, onSaved, onClients
                   <div className="grid grid-cols-1 md:grid-cols-5 gap-2 items-end">
                     <div className="md:col-span-2"><Field label="Milestone / trigger"><input className={inputClass} value={s.milestone} onChange={(e) => updStage(s.id, { milestone: e.target.value })} placeholder="e.g. On acceptance of quote" data-testid={`qb-stage-milestone-${i + 1}`} /></Field></div>
                     <Field label="Due on"><input className={inputClass} value={s.dueOn} onChange={(e) => updStage(s.id, { dueOn: e.target.value })} placeholder="e.g. Week 1" /></Field>
-                    <Field label="%"><input type="number" className={inputClass} value={s.percentage} onChange={(e) => updStage(s.id, { percentage: e.target.value })} data-testid={`qb-stage-pct-${i + 1}`} /></Field>
-                    <div className="flex gap-2 items-end"><Field label="Amount (£)"><input className={inputClass} value={s.amount} readOnly /></Field><button onClick={() => delStage(s.id)} className="pb-2 text-[#F27C7C]"><Trash2 size={14} /></button></div>
+                    <Field label="%"><input type="number" min="0" max="100" step="0.01" className={inputClass} value={s.percentage} onChange={(e) => updStage(s.id, { percentage: e.target.value })} data-testid={`qb-stage-pct-${i + 1}`} /></Field>
+                    <div className="flex gap-2 items-end"><Field label="Amount (£)"><input type="number" min="0" step="0.01" className={inputClass} value={s.amount} onChange={(e) => updStage(s.id, { amount: e.target.value })} data-testid={`qb-stage-amt-${i + 1}`} /></Field><button onClick={() => delStage(s.id)} className="pb-2 text-[#F27C7C]"><Trash2 size={14} /></button></div>
                   </div>
                 </div>
               ))}
@@ -547,7 +577,7 @@ function QuoteWizard({ initial, user, clients, jobs, onClose, onSaved, onClients
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <Field label="Quote date"><input type="date" className={inputClass} value={data.quoteDate} onChange={(e) => set("quoteDate")(e.target.value)} data-testid="qb-quoteDate" /></Field>
                 <Field label="Valid until"><input type="date" className={inputClass} value={data.validUntil} onChange={(e) => set("validUntil")(e.target.value)} data-testid="qb-validUntil" /></Field>
-                <Field label="VAT rate (%)"><input type="number" step="0.01" className={inputClass} value={data.vatRate} onChange={(e) => set("vatRate")(Number(e.target.value))} data-testid="qb-vatRate" /></Field>
+                <Field label="VAT rate (%)"><input type="number" min="0" max="100" step="0.01" className={inputClass} value={data.vatRate} onChange={(e) => set("vatRate")(Number(e.target.value))} data-testid="qb-vatRate" /></Field>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <Field label="Discount type">
@@ -555,7 +585,7 @@ function QuoteWizard({ initial, user, clients, jobs, onClose, onSaved, onClients
                     <option value="percent">Percentage</option><option value="fixed">Fixed £</option>
                   </select>
                 </Field>
-                <Field label="Discount value"><input type="number" step="0.01" className={inputClass} value={data.discount?.value || 0} onChange={(e) => set("discount")({ ...(data.discount || {}), value: Number(e.target.value) })} data-testid="qb-disc-value" /></Field>
+                <Field label="Discount value"><input type="number" min="0" step="0.01" className={inputClass} value={data.discount?.value || 0} onChange={(e) => set("discount")({ ...(data.discount || {}), value: Number(e.target.value) })} data-testid="qb-disc-value" /></Field>
                 <div />
               </div>
               <Field label="Payment terms"><textarea className={`${inputClass} min-h-[80px]`} value={data.paymentTerms} onChange={(e) => set("paymentTerms")(e.target.value)} data-testid="qb-paymentTerms" /></Field>

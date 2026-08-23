@@ -49,6 +49,29 @@ to "template-generated / document generator". Historical PRD entries below use "
 and "LLM" as internal technical descriptors of the document-generation engine and
 remain as audit-trail references only — they are NOT product marketing copy.
 
+### 24 Feb 2026 — PDF Layout Hardening Sweep + Quote Builder Pass 2 (Preview only, undeployed)
+**Preview-only batch after user reported horizontal clipping on Snag Sheet PDFs and asked for the queued Pass-2 work to continue. All static/logic-verified. Awaiting single final deployment approval.**
+
+- ✅ **Fix A — Shared PDF signature block** (`lib/pdf.js`): stripped LLM placeholder prose from "Signature:" lines, render user's saved signature with preserved aspect ratio via `doc.getImageProperties()` above a signature baseline. Regex tightened `/^Signature:\s*/i`. Client `[SIGN HERE]` box behaviour unchanged.
+- ✅ **Fix B — Fabricated image notes** (`lib/media.js`): dropped `originalFilename` fallback in `mediaListToPdfPhotos` so photos with no user caption emit empty notes instead of leaking filenames.
+- ✅ **Fix D — Multi-User Site Diary PDF redesign** (`pages/MultiUserSiteDiary.jsx`): replaced pipe-delimited LLM text dump with a bespoke jsPDF renderer — Site Details KV table, per-gang table w/ gold header bar + zebra rows, KPI blocks for Site Summary, single sign-off block w/ aspect-preserved signature, Photo Evidence annex via shared exported helper, page-break-aware pagination throughout.
+- ✅ **Snag Sheet PDF layout fixes** (`lib/snagging-pdf.js`): wrap fix in `section()` + `subSection()` (root cause of "Damaged plaster finish beside window" clipping), wrap on `drawSnagCover` + `drawReportCover` value rows, section/sub-section vertical spacing tightened.
+- ✅ **Cross-PDF wrap + orphan-heading sweep** (14 renderers: `site-diary`, `quote-builder`, `variation-order`, `contract`, `application-for-payment`, `invoice`, `purchase-order`, `incident-report`, `risk-assessment`, `coshh`, `snagging`, `method-statement`, `toolbox-talk`, `rams`): every `section()` and `subSection()` helper now wraps titles via `splitTextToSize`, positions the gold rule under the last wrapped line, and reserves ~30pt of "keep-with-next" space so headings don't orphan at page boundaries. Trailing padding tightened by 4–6pt per heading.
+- ✅ **Quote Builder Pass 2 (P0 data integrity)** (`pages/QuoteBuilder.jsx`):
+  - Numeric input hardening: `min="0"` on line-item qty/unit price, provisional-sum amount, discount value, VAT rate. `min="0" max="100"` on stage %.
+  - Stage-payment %↔£ bidirectional conversion: user can edit either field; the other derives from the live quote total. Division-by-zero guard when total is £0.
+  - Live-recalc of stage amounts on total change: any change to line items / VAT / discount / provisional sums now refreshes every stage payment's £ amount from its stored %. No more stale £ values on the schedule.
+  - £0 quote confirmation gate in `saveEntry`: warns before saving/generating a zero-total quote.
+
+**Deliberately deferred (need spec / user context or bigger refactor):**
+- Quote Builder client-name substitution bug (spec detail unclear).
+- Reference-number auto/manual toggle UI (would introduce new field state).
+- Quote Builder Passes 3–7 (workflow lifecycle, signatures rework, mobile pass, E2E financial flow).
+- Site Diary Passes 3–4 (data integrity + mobile UX).
+- Shared A4 typography module (large refactor — currently MARGIN=48 is consistent across all 14 files but constants aren't centralised).
+
+
+
 ---
 
 ### 5 Aug 2026 — Site Diary Update Pass 1: Signature Vault + Editable Names + PDF-fidelity Ink

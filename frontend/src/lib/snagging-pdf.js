@@ -312,7 +312,7 @@ function section(s, title) {
   const usable = s.pageWidth - MARGIN * 2;
   const lineH = 16;
   const lines = s.doc.splitTextToSize(String(title || ""), usable);
-  ensureRoom(s, lines.length * lineH + 10);
+  ensureRoom(s, lines.length * lineH + 30);
   s.sectionNum = (s.sectionNum || 0) + 1;
   lines.forEach((l, i) => s.doc.text(l, MARGIN, s.y + i * lineH));
   const lastY = s.y + (lines.length - 1) * lineH;
@@ -325,7 +325,7 @@ function subSection(s, title) {
   const usable = s.pageWidth - MARGIN * 2;
   const lineH = 12;
   const lines = s.doc.splitTextToSize(String(title || ""), usable);
-  ensureRoom(s, lines.length * lineH + 4);
+  ensureRoom(s, lines.length * lineH + 18);
   lines.forEach((l, i) => s.doc.text(l, MARGIN, s.y + i * lineH));
   s.y += lines.length * lineH + 2;
 }

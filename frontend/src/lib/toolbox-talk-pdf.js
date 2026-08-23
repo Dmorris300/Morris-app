@@ -188,17 +188,21 @@ function newPage(state) {
   state.y = 110;
 }
 function section(state, title) {
-  ensureRoom(state, 34);
   const { doc } = state;
-  state.sectionNum = (state.sectionNum || 0) + 1;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(13);
   doc.setTextColor(...INK);
-  doc.text(`${state.sectionNum}. ${title}`, MARGIN, state.y);
+  const usable = state.pageWidth - MARGIN * 2;
+  const lineH = 16;
+  state.sectionNum = (state.sectionNum || 0) + 1;
+  const lines = doc.splitTextToSize(`${state.sectionNum}. ${title}`, usable);
+  ensureRoom(state, lines.length * lineH + 30);
+  lines.forEach((l, i) => doc.text(l, MARGIN, state.y + i * lineH));
+  const lastY = state.y + (lines.length - 1) * lineH;
   doc.setDrawColor(...GOLD);
   doc.setLineWidth(0.6);
-  doc.line(MARGIN, state.y + 4, state.pageWidth - MARGIN, state.y + 4);
-  state.y += 20;
+  doc.line(MARGIN, lastY + 4, state.pageWidth - MARGIN, lastY + 4);
+  state.y = lastY + 14;
 }
 function para(state, text) {
   const { doc } = state;

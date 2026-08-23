@@ -306,18 +306,21 @@ function newPage(state) {
 }
 
 function section(state, title) {
-  ensureRoom(state, 34);
   const { doc } = state;
-  state.sectionNum = (state.sectionNum || 0) + 1;
-  const fullTitle = `${state.sectionNum}. ${title}`;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
   doc.setTextColor(...INK);
-  doc.text(fullTitle, MARGIN, state.y);
+  const usable = PAGE_W - MARGIN * 2;
+  const lineH = 15;
+  state.sectionNum = (state.sectionNum || 0) + 1;
+  const lines = doc.splitTextToSize(`${state.sectionNum}. ${title}`, usable);
+  ensureRoom(state, lines.length * lineH + 26);
+  lines.forEach((l, i) => doc.text(l, MARGIN, state.y + i * lineH));
+  const lastY = state.y + (lines.length - 1) * lineH;
   doc.setDrawColor(...GOLD);
   doc.setLineWidth(0.6);
-  doc.line(MARGIN, state.y + 4, PAGE_W - MARGIN, state.y + 4);
-  state.y += 18;
+  doc.line(MARGIN, lastY + 4, PAGE_W - MARGIN, lastY + 4);
+  state.y = lastY + 12;
 }
 function subheading(state, t) {
   ensureRoom(state, 22);

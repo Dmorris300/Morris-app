@@ -291,20 +291,27 @@ function banner(s, text) {
 }
 
 function section(s, title) {
-  ensureRoom(s, 34);
-  s.sectionNum = (s.sectionNum || 0) + 1;
   s.doc.setFont("helvetica", "bold"); s.doc.setFontSize(13); s.doc.setTextColor(...INK);
-  s.doc.text(`${s.sectionNum}. ${title}`, MARGIN, s.y);
+  const usable = s.pageWidth - MARGIN * 2;
+  const lineH = 16;
+  s.sectionNum = (s.sectionNum || 0) + 1;
+  const lines = s.doc.splitTextToSize(`${s.sectionNum}. ${title}`, usable);
+  ensureRoom(s, lines.length * lineH + 30);
+  lines.forEach((l, i) => s.doc.text(l, MARGIN, s.y + i * lineH));
+  const lastY = s.y + (lines.length - 1) * lineH;
   s.doc.setDrawColor(...GOLD); s.doc.setLineWidth(0.6);
-  s.doc.line(MARGIN, s.y + 4, s.pageWidth - MARGIN, s.y + 4);
-  s.y += 20;
+  s.doc.line(MARGIN, lastY + 4, s.pageWidth - MARGIN, lastY + 4);
+  s.y = lastY + 14;
 }
 
 function subSection(s, title) {
-  ensureRoom(s, 22);
   s.doc.setFont("helvetica", "bold"); s.doc.setFontSize(10.5); s.doc.setTextColor(...MUTED);
-  s.doc.text(title, MARGIN, s.y);
-  s.y += 14;
+  const usable = s.pageWidth - MARGIN * 2;
+  const lineH = 12;
+  const lines = s.doc.splitTextToSize(String(title || ""), usable);
+  ensureRoom(s, lines.length * lineH + 18);
+  lines.forEach((l, i) => s.doc.text(l, MARGIN, s.y + i * lineH));
+  s.y += lines.length * lineH + 2;
 }
 
 function para(s, text) {
