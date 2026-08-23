@@ -2,9 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronLeft, FileText, Mail, Download, Copy, Info, Star, X, Plus, Trash2, Users, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
+import { jsPDF } from "jspdf";
 import { useAuth } from "../lib/auth";
 import api from "../lib/api";
-import { downloadPdf } from "../lib/pdf";
+import { drawHeader, addFooter, appendPhotographicEvidence } from "../lib/pdf";
 import { mediaListToPdfPhotos } from "../lib/media";
 import LiveSignatureBlock from "../components/LiveSignatureBlock";
 import AttachMedia, { recordDocMediaUsage } from "../components/AttachMedia";
@@ -300,16 +301,241 @@ Rules:
   const onDownload = async () => {
     const userWithSig = { ...(user || {}), signature: liveSignature || user?.signature };
     const title = `Multi-User Site Diary — ${project || "project"} — ${ukDate(diaryDate)}`;
-    // Convert attached Vault/uploaded media into the {dataUrl,note,ukDate,location}[]
-    // shape downloadPdf's `photos` parameter expects. Uses the existing
-    // mediaListToPdfPhotos() helper; safely returns [] for empty/broken items.
+    const populated = decorated.filter((g) => (g.name || "").trim().length > 0 || (g.workDone || "").trim().length > 0);
+
+    const doc = new jsPDF({ unit: "pt", format: "a4" });
+    const pageWidth  = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 48;
+    const usable = pageWidth - margin * 2;
+    const today = new Date().toLocaleDateString("en-GB");
+    const userName = userWithSig?.fullName || userWithSig?.username || "";
+    const company  = userWithSig?.companyName || userName;
+    const ref = refNumber || "";
+
+    doc.setFillColor(255, 255, 255);
+    doc.rect(0, 0, pageWidth, pageHeight, "F");
+    drawHeader(doc, pageWidth, margin, userWithSig, company, today, title);
+
+    let y = 150;
+    const bottom = pageHeight - 70;
+
+    const pageBreak = (continuedTitle) => {
+      addFooter(doc, pageWidth, pageHeight, userWithSig, ref, today, userName);
+      doc.addPage();
+      doc.setFillColor(255, 255, 255);
+      doc.rect(0, 0, pageWidth, pageHeight, "F");
+      drawHeader(doc, pageWidth, margin, userWithSig, company, today, continuedTitle || null);
+      y = 150;
+    };
+    const ensureSpace = (needed) => { if (y + needed > bottom) pageBreak(); };
+
+    const sectionHead = (label) => {
+      ensureSpace(30);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(232, 160, 32);
+      doc.text(label.toUpperCase(), margin, y);
+      doc.setDrawColor(232, 160, 32);
+      doc.setLineWidth(0.7);
+      doc.line(margin, y + 4, margin + 70, y + 4);
+      y += 18;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.setTextColor(20, 20, 20);
+    };
+
+    const kvBlock = (rows) => {
+      const labelW = 170;
+      rows.forEach(([k, v]) => {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9.5);
+        doc.setTextColor(80, 80, 80);
+        const valLines = doc.splitTextToSize(String(v || "—"), usable - labelW);
+        const rowH = Math.max(14, valLines.length * 12 + 4);
+        ensureSpace(rowH);
+        doc.text(k, margin, y + 8);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(20, 20, 20);
+        valLines.forEach((l, i) => doc.text(l, margin + labelW, y + 8 + i * 12));
+        doc.setDrawColor(230, 230, 230);
+        doc.setLineWidth(0.3);
+        doc.line(margin, y + rowH, margin + usable, y + rowH);
+        y += rowH;
+      });
+      y += 8;
+    };
+
+    // --- SITE DETAILS ---
+    sectionHead("Site Details");
+    kvBlock([
+      ["Project Name", project],
+      ["Site Address", siteAddress || "—"],
+      ["Date", ukDate(diaryDate)],
+      ["Diary Completed by", user?.fullName || "—"],
+      ["Position", user?.signatureRole || "Director"],
+      ["Company", user?.companyName || "—"],
+      ["Trade", user?.trade || "—"],
+      ["Weather Conditions", weather],
+      ["Overall Site Status", siteStatus],
+    ]);
+
+    // --- GANG ACTIVITY LOG (structured table per gang) ---
+    sectionHead("Gang Activity Log");
+    populated.forEach((g, idx) => {
+      // Gang header bar
+      ensureSpace(30);
+      doc.setFillColor(20, 20, 20);
+      doc.rect(margin, y, usable, 20, "F");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10.5);
+      doc.setTextColor(232, 160, 32);
+      doc.text(`GANG ${idx + 1}${g.name ? "  ·  " + g.name : ""}`, margin + 8, y + 14);
+      y += 26;
+
+      const rows = [
+        ["Gang Leader or Supervisor", g.leader || "—"],
+        ["Number of Workers", g.workerCount || "—"],
+        ["Hours Worked", g.hoursWorked || "—"],
+        ["Location on Site", g.location || "—"],
+        ["Progress Made", g.progress || "—"],
+        ["Work Carried Out", g.workDone || "—"],
+        ["Issues or Delays", g.issues || "—"],
+        ["Materials Used", g.materials || "—"],
+      ];
+      const labelW = 170;
+      rows.forEach(([k, v], rIdx) => {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9.5);
+        doc.setTextColor(90, 90, 90);
+        const valLines = doc.splitTextToSize(String(v || "—"), usable - labelW - 12);
+        const rowH = Math.max(14, valLines.length * 12 + 4);
+        ensureSpace(rowH);
+        // Zebra fill for readability
+        if (rIdx % 2 === 0) {
+          doc.setFillColor(250, 249, 246);
+          doc.rect(margin, y, usable, rowH, "F");
+        }
+        doc.text(k, margin + 8, y + 10);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(20, 20, 20);
+        valLines.forEach((l, i) => doc.text(l, margin + labelW, y + 10 + i * 12));
+        y += rowH;
+      });
+      // Bottom border for this gang table
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(0.4);
+      doc.line(margin, y, margin + usable, y);
+      y += 14;
+    });
+
+    // --- SITE SUMMARY (KPI blocks) ---
+    ensureSpace(90);
+    sectionHead("Site Summary");
+    const kpiW = (usable - 20) / 3;
+    const kpiH = 56;
+    const kpis = [
+      ["Total Gangs on Site Today",   summary.totalGangs],
+      ["Total Workers on Site Today", summary.totalWorkers],
+      ["Total Hours Worked",          summary.totalHours],
+    ];
+    ensureSpace(kpiH + 10);
+    kpis.forEach(([label, val], i) => {
+      const x = margin + i * (kpiW + 10);
+      doc.setFillColor(250, 246, 235);
+      doc.setDrawColor(232, 160, 32);
+      doc.setLineWidth(0.5);
+      doc.roundedRect(x, y, kpiW, kpiH, 4, 4, "FD");
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.5);
+      doc.setTextColor(120, 100, 40);
+      const lbl = doc.splitTextToSize(String(label).toUpperCase(), kpiW - 16);
+      lbl.forEach((l, i2) => doc.text(l, x + 8, y + 14 + i2 * 9));
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(22);
+      doc.setTextColor(232, 160, 32);
+      doc.text(String(val), x + 8, y + kpiH - 12);
+    });
+    y += kpiH + 16;
+
+    // --- OVERALL NOTES ---
+    sectionHead("Overall Notes");
+    kvBlock([
+      ["Visitors to Site Today", visitors || "—"],
+      ["Instructions Received Today", instructions || "—"],
+      ["Overall Site Notes", overallNotes || "—"],
+    ]);
+
+    // --- SINGLE SIGN-OFF BLOCK ---
+    ensureSpace(150);
+    sectionHead("Diary Completed by");
+
+    const sigX = margin + 70;
+    const sigMaxW = 220;
+    const sigMaxH = 46;
+    const sigLineY = y + sigMaxH + 4;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(80, 80, 80);
+    doc.text("Signature:", margin, sigLineY - 4);
+
+    if (userWithSig?.signature) {
+      try {
+        const props = doc.getImageProperties(userWithSig.signature);
+        const ar = props.width / props.height;
+        let sw = sigMaxW, sh = sw / ar;
+        if (sh > sigMaxH) { sh = sigMaxH; sw = sh * ar; }
+        doc.addImage(userWithSig.signature, props.fileType || "PNG", sigX, sigLineY - sh - 2, sw, sh, undefined, "FAST");
+      } catch (e) {
+        if (process.env.NODE_ENV !== "production") console.error("Diary signature embed failed", e);
+      }
+    }
+    doc.setDrawColor(60, 60, 60);
+    doc.setLineWidth(0.6);
+    doc.line(sigX, sigLineY, sigX + sigMaxW, sigLineY);
+    y = sigLineY + 12;
+
+    const signOffLines = [
+      ["Name",     user?.fullName || "—"],
+      ["Position", user?.signatureRole || "Director"],
+      ["Company",  user?.companyName || "—"],
+      ["Date",     ukDate(diaryDate)],
+    ];
+    signOffLines.forEach(([k, v]) => {
+      ensureSpace(14);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9.5);
+      doc.setTextColor(80, 80, 80);
+      doc.text(k + ":", margin, y);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(20, 20, 20);
+      doc.text(String(v || "—"), margin + 70, y);
+      y += 14;
+    });
+
+    // Contemporaneous-record footer note
+    ensureSpace(28);
+    y += 8;
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(9);
+    doc.setTextColor(120, 120, 120);
+    const footerNote = "This site diary is a contemporaneous record of activities on site. It should be completed daily and retained for the duration of the project.";
+    doc.splitTextToSize(footerNote, usable).forEach((l) => { ensureSpace(12); doc.text(l, margin, y); y += 12; });
+
+    addFooter(doc, pageWidth, pageHeight, userWithSig, ref, today, userName);
+
+    // --- PHOTOGRAPHIC EVIDENCE ANNEX ---
     let photos = [];
     if (Array.isArray(attachedMedia) && attachedMedia.length > 0) {
-      try {
-        photos = await mediaListToPdfPhotos(attachedMedia);
-      } catch { photos = []; }  // fail-open: still download the text-only PDF
+      try { photos = await mediaListToPdfPhotos(attachedMedia); } catch { photos = []; }
     }
-    downloadPdf({ title, content: result, user: userWithSig, photos, refNumber });
+    if (photos.length > 0) {
+      appendPhotographicEvidence(doc, pageWidth, pageHeight, margin, photos, userWithSig, company, today, ref, userName);
+    }
+
+    const safe = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 60);
+    doc.save(`${safe}.pdf`);
     toast.success("PDF downloaded");
   };
 

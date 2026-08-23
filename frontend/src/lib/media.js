@@ -92,7 +92,7 @@ export async function mediaListToPdfPhotos(list) {
       const note = parts.filter(Boolean).join(" — ") + (m.kind === "video" ? " (Video still)" : "");
       out.push({
         dataUrl,
-        note: note || m.originalFilename || "",
+        note,
         ukDate: m.dateTaken ? new Date(m.dateTaken).toLocaleDateString("en-GB") : "",
         time: "",
         location: m.site || "",

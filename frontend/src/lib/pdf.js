@@ -30,7 +30,7 @@ function extractRef(content) {
 // Append the "Photographic Evidence" section to the PDF. Each photo gets its
 // own block on a fresh page (or stacked 2-per-page when the page has room).
 // `photos` is an array of: { dataUrl, note, ukDate, time, location }.
-function appendPhotographicEvidence(doc, pageWidth, pageHeight, margin, photos, user, company, today, ref, userName) {
+export function appendPhotographicEvidence(doc, pageWidth, pageHeight, margin, photos, user, company, today, ref, userName) {
   const usable = pageWidth - margin * 2;
 
   // Always start the section on a fresh page so it reads as a distinct annex.
@@ -155,7 +155,7 @@ export function generatePdf({ title, content, user, photo, photoCaption, photos,
   const bottom = pageHeight - 70;
   const lineHeight = 14;
 
-  const sigLineMatcher = /^Signature:\s/i;
+  const sigLineMatcher = /^Signature:\s*/i;
   const clientSigMarker = /\[SIGN HERE\]/i;
   let sigStampedY = null;
 
@@ -208,19 +208,62 @@ export function generatePdf({ title, content, user, photo, photoCaption, photos,
       return;
     }
 
-    doc.text(line, margin, y);
+    // Saved-signature line: LLMs emit "Signature: ..." (often followed by the
+    // signer's name or placeholder underscores). Strip that trailing prose,
+    // then render either the user's saved signature image above a signature
+    // line, or just the signature line if none is held.
+    if (sigStampedY === null && sigLineMatcher.test(line)) {
+      const labelW = 70;
+      const sigX = margin + labelW;
+      const sigMaxW = 220;
+      const sigMaxH = 44;
+      const blockH = sigMaxH + 18; // image band + line + spacing
 
-    if (sigStampedY === null && user?.signature && sigLineMatcher.test(line)) {
-      try {
-        const sigW = 130;
-        const sigH = 46;
-        doc.addImage(user.signature, "PNG", margin + 60, y - 32, sigW, sigH, undefined, "FAST");
-        sigStampedY = y;
-      } catch (e) {
-        if (process.env.NODE_ENV !== "production") console.error("PDF signature embed failed", e);
+      if (y + blockH > bottom) {
+        addFooter(doc, pageWidth, pageHeight, user, ref, today, userName);
+        doc.addPage();
+        doc.setFillColor(255, 255, 255);
+        doc.rect(0, 0, pageWidth, pageHeight, "F");
+        drawHeader(doc, pageWidth, margin, user, company, today, null);
+        y = 110;
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10.5);
+        doc.setTextColor(20, 20, 20);
       }
+
+      // Label only — the trailing "..." prose from the LLM is discarded.
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10.5);
+      doc.setTextColor(20, 20, 20);
+      doc.text("Signature:", margin, y + sigMaxH - 4);
+
+      const lineY = y + sigMaxH;
+      if (user?.signature) {
+        try {
+          // Preserve aspect ratio: fit within sigMaxW x sigMaxH.
+          const props = doc.getImageProperties(user.signature);
+          const ar = props.width / props.height;
+          let sw = sigMaxW;
+          let sh = sw / ar;
+          if (sh > sigMaxH) { sh = sigMaxH; sw = sh * ar; }
+          // Draw crisply, aligned to sit just above the signature line.
+          doc.addImage(user.signature, props.fileType || "PNG", sigX, lineY - sh - 2, sw, sh, undefined, "FAST");
+          sigStampedY = y;
+        } catch (e) {
+          if (process.env.NODE_ENV !== "production") console.error("PDF signature embed failed", e);
+        }
+      }
+
+      // Signature baseline — always drawn (whether image was embedded or not).
+      doc.setDrawColor(60, 60, 60);
+      doc.setLineWidth(0.6);
+      doc.line(sigX, lineY, sigX + sigMaxW, lineY);
+
+      y += blockH;
+      return;
     }
 
+    doc.text(line, margin, y);
     y += lineHeight;
   });
 
