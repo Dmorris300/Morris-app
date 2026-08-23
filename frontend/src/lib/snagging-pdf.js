@@ -245,8 +245,9 @@ function drawReportCover(doc, { project, summary, snags, user, company, todayStr
     doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(160, 155, 145);
     doc.text(k.toUpperCase(), MARGIN, y);
     doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(240, 237, 232);
-    doc.text(String(v), MARGIN, y + 14);
-    y += 34;
+    const valLines = doc.splitTextToSize(String(v), pageWidth - MARGIN * 2);
+    valLines.forEach((l, i) => doc.text(l, MARGIN, y + 14 + i * 13));
+    y += 20 + Math.max(1, valLines.length) * 14;
   });
   doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(160, 155, 145);
   doc.text((company || "").toUpperCase(), MARGIN, pageHeight - 60);
@@ -281,8 +282,9 @@ function drawSnagCover(doc, { data, user, company, todayStr, pageWidth, pageHeig
     doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(160, 155, 145);
     doc.text(k.toUpperCase(), MARGIN, y);
     doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(240, 237, 232);
-    doc.text(String(v), MARGIN, y + 14);
-    y += 34;
+    const valLines = doc.splitTextToSize(String(v), pageWidth - MARGIN * 2);
+    valLines.forEach((l, i) => doc.text(l, MARGIN, y + 14 + i * 13));
+    y += 20 + Math.max(1, valLines.length) * 14;
   });
   doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(160, 155, 145);
   doc.text((company || "").toUpperCase(), MARGIN, pageHeight - 60);
@@ -306,18 +308,26 @@ function newPage(s) {
   s.y = 110;
 }
 function section(s, title) {
-  ensureRoom(s, 34);
-  s.sectionNum = (s.sectionNum || 0) + 1;
   s.doc.setFont("helvetica", "bold"); s.doc.setFontSize(13); s.doc.setTextColor(...INK);
-  s.doc.text(title, MARGIN, s.y);
+  const usable = s.pageWidth - MARGIN * 2;
+  const lineH = 16;
+  const lines = s.doc.splitTextToSize(String(title || ""), usable);
+  ensureRoom(s, lines.length * lineH + 10);
+  s.sectionNum = (s.sectionNum || 0) + 1;
+  lines.forEach((l, i) => s.doc.text(l, MARGIN, s.y + i * lineH));
+  const lastY = s.y + (lines.length - 1) * lineH;
   s.doc.setDrawColor(...GOLD); s.doc.setLineWidth(0.6);
-  s.doc.line(MARGIN, s.y + 4, s.pageWidth - MARGIN, s.y + 4);
-  s.y += 20;
+  s.doc.line(MARGIN, lastY + 4, s.pageWidth - MARGIN, lastY + 4);
+  s.y = lastY + 14;
 }
 function subSection(s, title) {
-  ensureRoom(s, 22);
   s.doc.setFont("helvetica", "bold"); s.doc.setFontSize(10.5); s.doc.setTextColor(...MUTED);
-  s.doc.text(title, MARGIN, s.y); s.y += 14;
+  const usable = s.pageWidth - MARGIN * 2;
+  const lineH = 12;
+  const lines = s.doc.splitTextToSize(String(title || ""), usable);
+  ensureRoom(s, lines.length * lineH + 4);
+  lines.forEach((l, i) => s.doc.text(l, MARGIN, s.y + i * lineH));
+  s.y += lines.length * lineH + 2;
 }
 function para(s, text) {
   s.doc.setFont("helvetica", "normal"); s.doc.setFontSize(11); s.doc.setTextColor(...INK);
