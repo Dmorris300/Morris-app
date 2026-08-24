@@ -153,6 +153,10 @@ class PhotoIn(BaseModel):
 
 class VerifyIn(BaseModel):
     verifiedBy: Optional[str] = ""
+    completionDate: Optional[str] = ""
+    verificationNote: Optional[str] = ""
+    verifierSignature: Optional[str] = ""
+    # legacy alias — older clients may still send `note`
     note: Optional[str] = ""
 
 
@@ -385,14 +389,41 @@ def build_router(db, get_user):
         row = await db.snags.find_one({"id": sid, "userId": user["id"], "isDeleted": {"$ne": True}})
         if not row:
             raise HTTPException(status_code=404, detail="Not found")
-        history = (row.get("history") or []) + [_history_entry(user, "verified", body.note or "Snag verified as complete")]
+        # --- Required verification info -----------------------------------
+        # Verifier name, signature and at least one "after" photo must be
+        # supplied before a snag can be closed. Missing fields return a
+        # clear 400 so the UI can surface exactly what is missing.
+        missing: List[str] = []
+        if not (body.verifiedBy or "").strip():
+            missing.append("verifier name")
+        if not (body.verifierSignature or "").strip():
+            missing.append("signature")
+        if not (row.get("photosAfter") or []):
+            missing.append("at least one 'after' photo")
+        if missing:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot close: missing " + ", ".join(missing) + ".",
+            )
+        verification_note = (body.verificationNote or body.note or "Snag verified as complete").strip()
+        completion_date = (body.completionDate or "").strip() or row.get("completionDate") or _today()
+        history = (row.get("history") or []) + [
+            _history_entry(
+                user, "verified", verification_note,
+                completionDate=completion_date,
+                verifiedBy=body.verifiedBy,
+            )
+        ]
         upd = {
             "verifiedAt": _now_iso(),
-            "verifiedBy": body.verifiedBy or user.get("fullName") or user.get("username"),
+            "verifiedBy": (body.verifiedBy or "").strip(),
+            "verifierSignature": body.verifierSignature or "",
+            "verificationNote": verification_note,
             "status": "Closed",
             "closedAt": _now_iso(),
-            "completionDate": row.get("completionDate") or _today(),
-            "history": history, "updatedAt": _now_iso(),
+            "completionDate": completion_date,
+            "history": history,
+            "updatedAt": _now_iso(),
         }
         await db.snags.update_one({"id": sid}, {"$set": upd})
         return _live_view(await db.snags.find_one({"id": sid}), _today())
@@ -403,7 +434,20 @@ def build_router(db, get_user):
 
     @router.post("/snags/{sid}/reopen")
     async def reopen(sid: str, authorization: Optional[str] = Header(None)):
-        return await change_status(sid, StatusChange(status="Open", note="Snag reopened"), authorization)
+        # Reopen preserves prior verification history & signature. The
+        # per-status handler already appends a status audit event, but we
+        # add a dedicated "reopened" entry that records who reopened the
+        # snag alongside the previous verifier — so nothing is lost.
+        token = authorization.replace("Bearer ", "") if authorization else None
+        user = await get_user(token)
+        row = await db.snags.find_one({"id": sid, "userId": user["id"], "isDeleted": {"$ne": True}})
+        if not row:
+            raise HTTPException(status_code=404, detail="Not found")
+        prev_verifier = row.get("verifiedBy") or ""
+        note = f"Snag reopened. Previous verifier: {prev_verifier}" if prev_verifier else "Snag reopened"
+        history = (row.get("history") or []) + [_history_entry(user, "reopened", note)]
+        await db.snags.update_one({"id": sid}, {"$set": {"history": history, "updatedAt": _now_iso()}})
+        return await change_status(sid, StatusChange(status="Open", note=note), authorization)
 
     @router.post("/snags/{sid}/photos")
     async def add_photo(sid: str, body: PhotoIn, authorization: Optional[str] = Header(None)):

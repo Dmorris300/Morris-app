@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { useAuth } from "../lib/auth";
 import api from "../lib/api";
 import { downloadSnagPdf, snagPdfBlobUrl, downloadSnaggingReportPdf } from "../lib/snagging-pdf";
+import LiveSignatureBlock from "../components/LiveSignatureBlock";
 
 const DRAFT_KEY = "morris.tool_draft.snagging";
 
@@ -73,6 +74,7 @@ export default function SnaggingList() {
   const [filterMine, setFilterMine] = useState(false);
   const [editing, setEditing] = useState(null);
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [wizardStartInVerify, setWizardStartInVerify] = useState(false);
 
   const loadAll = async () => {
     setLoading(true);
@@ -109,11 +111,12 @@ export default function SnaggingList() {
     }
     setEditing(base); setWizardOpen(true);
   };
-  const openEdit = async (s) => {
+  const openEdit = async (s, opts = {}) => {
     try {
       const r = await api.get(`/snagging/snags/${s.id}`);
       setEditing({ ...emptySnag(), ...r.data });
     } catch { setEditing({ ...emptySnag(), ...s }); }
+    setWizardStartInVerify(!!opts.startInVerify);
     setWizardOpen(true);
   };
   const duplicate = (s) => {
@@ -131,9 +134,12 @@ export default function SnaggingList() {
     try { await api.post(`/snagging/snags/${s.id}/status`, { status }); toast.success(`${status}`); await loadAll(); }
     catch { toast.error("Failed"); }
   };
-  const verify = async (s) => {
-    try { await api.post(`/snagging/snags/${s.id}/verify`, {}); toast.success("Verified & closed"); await loadAll(); }
-    catch { toast.error("Failed"); }
+  const verify = (s) => {
+    // Row-level "Verify & close" opens the wizard on the target snag and
+    // signals it to auto-open the verification modal. The modal captures
+    // verifier name, completion date, notes, after-photo evidence and a
+    // signature before the snag can be closed.
+    openEdit(s, { startInVerify: true });
   };
 
   const filtered = useMemo(() => {
@@ -259,8 +265,9 @@ export default function SnaggingList() {
 
       {wizardOpen && editing && (
         <SnagWizard initial={editing} user={user} jobs={jobs} reference={reference}
-          onClose={() => { setWizardOpen(false); setEditing(null); }}
-          onSaved={async () => { await loadAll(); setWizardOpen(false); setEditing(null); }}
+          startInVerify={wizardStartInVerify}
+          onClose={() => { setWizardOpen(false); setEditing(null); setWizardStartInVerify(false); }}
+          onSaved={async () => { await loadAll(); setWizardOpen(false); setEditing(null); setWizardStartInVerify(false); }}
           onTemplatesChanged={setTemplates}
         />
       )}
@@ -315,7 +322,7 @@ function SnagRow({ s, onEdit, onDelete, onDuplicate, onStatus, onVerify }) {
 // ================================================================
 // WIZARD
 // ================================================================
-function SnagWizard({ initial, user, jobs, reference, onClose, onSaved, onTemplatesChanged }) {
+function SnagWizard({ initial, user, jobs, reference, startInVerify = false, onClose, onSaved, onTemplatesChanged }) {
   const [data, setData] = useState(initial);
   const [saving, setSaving] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -323,6 +330,14 @@ function SnagWizard({ initial, user, jobs, reference, onClose, onSaved, onTempla
   const [tplName, setTplName] = useState("");
   const [commentText, setCommentText] = useState("");
   const [photoDraft, setPhotoDraft] = useState(null);
+  const [verifyOpen, setVerifyOpen] = useState(false);
+
+  // Auto-open the verification modal when the wizard is launched from the
+  // row-level "Verify & close" action. Only fires when a persisted snag id
+  // is available; otherwise the user has to save the snag first.
+  useEffect(() => {
+    if (startInVerify && data.id) setVerifyOpen(true);
+  }, [startInVerify, data.id]);
 
   useEffect(() => { if (!data.id) { const t = setTimeout(() => saveDraft(data), 500); return () => clearTimeout(t); } }, [data]);
 
@@ -398,10 +413,14 @@ function SnagWizard({ initial, user, jobs, reference, onClose, onSaved, onTempla
     try { const r = await api.post(`/snagging/snags/${data.id}/status`, { status }); setData(d => ({ ...d, ...r.data })); toast.success(status); }
     catch { toast.error("Failed"); }
   };
-  const verifyAndClose = async () => {
+  const verifyAndClose = () => {
     if (!data.id) return toast.error("Save the snag first");
-    try { const r = await api.post(`/snagging/snags/${data.id}/verify`, {}); setData(d => ({ ...d, ...r.data })); toast.success("Verified & closed"); }
-    catch { toast.error("Failed"); }
+    setVerifyOpen(true);
+  };
+  const onVerified = (updated) => {
+    setData(d => ({ ...d, ...updated }));
+    setVerifyOpen(false);
+    toast.success("Verified & closed");
   };
 
   const saveAsTemplate = async () => {
@@ -573,6 +592,16 @@ function SnagWizard({ initial, user, jobs, reference, onClose, onSaved, onTempla
             </div>
           </div>
         )}
+
+        {verifyOpen && (
+          <VerifyModal
+            snag={data}
+            user={user}
+            onAddPhoto={() => setPhotoDraft({ kind: "after", url: "", caption: "" })}
+            onClose={() => setVerifyOpen(false)}
+            onVerified={onVerified}
+          />
+        )}
       </div>
     </div>
   );
@@ -591,6 +620,118 @@ function PhotoGrid({ title, photos, onDelete }) {
             {p.caption && <div className="text-[10px] text-[#A19D94] mt-1 truncate">{p.caption}</div>}
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+// --- Verification & Sign-off modal ----------------------------------------
+// Opens when the user chooses "Verify & close" (from the row or wizard).
+// Captures verifier name, completion date, verification notes, requires at
+// least one "after" photo and a live signature. Only after Confirm & Close
+// does the snag actually move to Closed. Missing info is called out inline
+// AND rejected by the backend as a defensive second gate.
+function VerifyModal({ snag, user, onAddPhoto, onClose, onVerified }) {
+  const isoToday = () => new Date().toISOString().slice(0, 10);
+  const [verifiedBy, setVerifiedBy] = useState(snag.verifiedBy || user?.fullName || user?.username || "");
+  const [completionDate, setCompletionDate] = useState(snag.completionDate || isoToday());
+  const [note, setNote] = useState(snag.verificationNote || "");
+  const [signature, setSignature] = useState(snag.verifierSignature || "");
+  const [submitting, setSubmitting] = useState(false);
+  const afterCount = (snag.photosAfter || []).length;
+
+  const missing = [];
+  if (!verifiedBy.trim()) missing.push("Verifier name");
+  if (!signature) missing.push("Signature");
+  if (afterCount === 0) missing.push("At least one 'After' photo");
+  const canSubmit = missing.length === 0 && !submitting;
+
+  const confirm = async () => {
+    if (!canSubmit) { toast.error(`Missing: ${missing.join(", ")}`); return; }
+    setSubmitting(true);
+    try {
+      const r = await api.post(`/snagging/snags/${snag.id}/verify`, {
+        verifiedBy: verifiedBy.trim(),
+        completionDate,
+        verificationNote: note.trim(),
+        verifierSignature: signature,
+      });
+      onVerified(r.data);
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || "Could not verify");
+    } finally { setSubmitting(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/80 z-[70] overflow-y-auto" data-testid="snag-verify-modal">
+      <div className="min-h-screen p-4 md:p-8">
+        <div className="max-w-2xl mx-auto card-dark p-5 md:p-6">
+          <div className="flex items-start justify-between mb-4">
+            <div className="min-w-0">
+              <div className="text-[10px] uppercase tracking-[0.25em] text-[#E8A020] mb-1">Verification & sign-off</div>
+              <h2 className="font-display text-2xl text-[#F0EDE8] truncate">{snag.snagRef ? `${snag.snagRef} · ` : ""}{snag.title || "Snag"}</h2>
+              <div className="text-xs text-[#A19D94] mt-1">Complete the checks below then press <span className="text-[#F0EDE8]">Confirm & Close</span>. Only after confirmation will this snag move to Closed.</div>
+            </div>
+            <button onClick={onClose} className="text-[#A19D94] hover:text-[#F0EDE8]" data-testid="snag-verify-close"><X size={20} /></button>
+          </div>
+
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <Field label="Verified by (required)">
+                <input className={inputClass} value={verifiedBy} onChange={(e) => setVerifiedBy(e.target.value)} placeholder="Name of person signing off" data-testid="snag-verify-verifiedBy" />
+              </Field>
+              <Field label="Completion / verification date">
+                <input type="date" className={inputClass} value={completionDate} onChange={(e) => setCompletionDate(e.target.value)} data-testid="snag-verify-date" />
+              </Field>
+            </div>
+            <Field label="Completion / verification notes">
+              <textarea className={`${inputClass} min-h-[90px]`} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Describe how the defect has been put right. This appears on the Snag Sheet PDF." data-testid="snag-verify-note" />
+            </Field>
+
+            <div className="card-dark p-3" data-testid="snag-verify-photos">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-[10px] uppercase tracking-[0.2em] text-[#E8A020]">After photos</div>
+                  <div className="text-xs text-[#A19D94] mt-1">{afterCount === 0 ? "Required — at least one &apos;After&apos; photo must be attached." : `${afterCount} attached.`}</div>
+                </div>
+                <button onClick={onAddPhoto} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md border border-[#2a2620] text-xs text-[#F0EDE8] hover:border-[#68D391]" data-testid="snag-verify-add-after"><Camera size={12} /> Add after photo</button>
+              </div>
+              {afterCount === 0 && (
+                <div className="mt-2 text-[11px] text-[#F27C7C] flex items-center gap-1"><AlertTriangle size={12} /> No &apos;After&apos; photo attached yet.</div>
+              )}
+            </div>
+
+            <div>
+              <LiveSignatureBlock
+                label="Verifier signature (required)"
+                subtitle="Draw with mouse, finger or stylus. Works on desktop and mobile."
+                value={signature}
+                onChange={setSignature}
+                savedSignature={user?.signature}
+                testIdPrefix="snag-verify-sig"
+              />
+            </div>
+
+            {missing.length > 0 && (
+              <div className="text-xs text-[#F27C7C] flex items-start gap-2" data-testid="snag-verify-missing">
+                <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                <span>Missing before closure: <span className="text-[#F0EDE8]">{missing.join(", ")}</span></span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-col-reverse md:flex-row md:items-center gap-2 mt-6 pt-4 border-t border-[#2a2620]">
+            <button onClick={onClose} className="w-full md:w-auto px-4 py-2 rounded-md border border-[#2a2620] text-sm text-[#A19D94]" data-testid="snag-verify-cancel">Cancel</button>
+            <button
+              onClick={confirm}
+              disabled={!canSubmit}
+              className="w-full md:flex-1 inline-flex items-center justify-center gap-2 px-6 py-3 rounded-md bg-[#68D391] text-black text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              data-testid="snag-verify-confirm"
+            >
+              <CheckCircle2 size={16} /> {submitting ? "Closing…" : "Confirm & Close"}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

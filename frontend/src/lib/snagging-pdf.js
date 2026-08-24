@@ -186,12 +186,43 @@ function renderSnagDetail(state, s) {
     );
   }
 
-  if (s.signedOffBy || s.signedOffDate) {
-    subSection(state, "Sign-off");
+  if (s.verifiedBy || s.verifiedAt || s.completionDate || s.verifierSignature) {
+    subSection(state, "Verification & sign-off");
     kvTable(state, [
-      ["Signed off by", s.signedOffBy || "—"],
-      ["Signed off date", s.signedOffDate || "—"],
+      ["Verified by", s.verifiedBy || "—"],
+      ["Verified at", (s.verifiedAt || "").slice(0, 16).replace("T", " ") || "—"],
+      ["Completion date", s.completionDate || "—"],
+      ["Verification notes", s.verificationNote || "—"],
     ]);
+    if (s.verifierSignature) {
+      const { doc, pageWidth } = state;
+      const usable = pageWidth - MARGIN * 2;
+      const sigMaxW = 220;
+      const sigMaxH = 48;
+      ensureRoom(state, sigMaxH + 24);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9.5); doc.setTextColor(...MUTED);
+      doc.text("Signature:", MARGIN, state.y + sigMaxH - 4);
+      const sigX = MARGIN + 70;
+      const lineY = state.y + sigMaxH;
+      try {
+        const props = doc.getImageProperties(s.verifierSignature);
+        const ar = props.width / props.height;
+        let sw = sigMaxW, sh = sw / ar;
+        if (sh > sigMaxH) { sh = sigMaxH; sw = sh * ar; }
+        doc.addImage(s.verifierSignature, props.fileType || "PNG", sigX, lineY - sh - 2, sw, sh, undefined, "FAST");
+      } catch { /* fall through — line still drawn below */ }
+      doc.setDrawColor(60, 60, 60); doc.setLineWidth(0.6);
+      doc.line(sigX, lineY, sigX + sigMaxW, lineY);
+      // Print the verified date to the right of the signature line, so the
+      // sign-off block is self-contained on the PDF.
+      if (s.verifiedAt) {
+        doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(...MUTED);
+        const dateStr = (s.verifiedAt || "").slice(0, 10);
+        const dateX = Math.min(sigX + sigMaxW + 20, MARGIN + usable - 90);
+        doc.text(`Dated: ${dateStr}`, dateX, lineY);
+      }
+      state.y = lineY + 14;
+    }
   }
 }
 
