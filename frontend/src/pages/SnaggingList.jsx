@@ -692,7 +692,7 @@ function VerifyModal({ snag, user, onAddPhoto, onClose, onVerified }) {
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-[10px] uppercase tracking-[0.2em] text-[#E8A020]">After photos</div>
-                  <div className="text-xs text-[#A19D94] mt-1">{afterCount === 0 ? "Required — at least one &apos;After&apos; photo must be attached." : `${afterCount} attached.`}</div>
+                  <div className="text-xs text-[#A19D94] mt-1">{afterCount === 0 ? "Required — at least one ‘After’ photo must be attached." : `${afterCount} attached.`}</div>
                 </div>
                 <button onClick={onAddPhoto} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md border border-[#2a2620] text-xs text-[#F0EDE8] hover:border-[#68D391]" data-testid="snag-verify-add-after"><Camera size={12} /> Add after photo</button>
               </div>
