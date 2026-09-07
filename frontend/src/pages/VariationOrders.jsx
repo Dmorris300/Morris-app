@@ -293,6 +293,17 @@ function VariationRow({ v, onEdit, onDelete, onDuplicate, onFav, onMark }) {
   const status = v.status || "Draft";
   const statusCls = STATUS_BADGE[status] || STATUS_BADGE.Draft;
   const days = ((v.programmeImpact || {}).kind === "Additional days") ? Number((v.programmeImpact || {}).days) || 0 : 0;
+  // Belt-and-braces: format the "Raised" date via the shared helper, and if
+  // anything still looks like a raw ISO (unexpected data shape from legacy
+  // records), inline-convert it here so a customer never sees YYYY-MM-DD.
+  const raisedText = (() => {
+    const formatted = formatUKDate(v.variationDate);
+    if (formatted && /^\d{2}\/\d{2}\/\d{4}$/.test(formatted)) return formatted;
+    const raw = String(v.variationDate || "").trim();
+    const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+    return formatted || "—";
+  })();
   return (
     <div className="card-dark p-4 flex items-start gap-3" data-testid={`vo-row-${v.id}`}>
       <button onClick={onFav} className={`p-1 mt-1 ${v.isFavourite ? "text-[#E8A020]" : "text-[#706D66] hover:text-[#E8A020]"}`} aria-label="Favourite"><Star size={14} fill={v.isFavourite ? "#E8A020" : "none"} /></button>
@@ -304,7 +315,7 @@ function VariationRow({ v, onEdit, onDelete, onDuplicate, onFav, onMark }) {
           <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#E8A020]/40 text-[#E8A020]">{fGBP((v.totals || {}).total || 0)}</span>
           {days > 0 && <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#A0A0F0]/40 text-[#A0A0F0]">+{days} day{days === 1 ? "" : "s"}</span>}
         </div>
-        <div className="text-xs text-[#A19D94] mt-1 truncate">{v.projectName || v.clientCompany || v.clientName || "—"} · {v.reason || "—"} · Raised {formatUKDate(v.variationDate) || "—"}</div>
+        <div className="text-xs text-[#A19D94] mt-1 truncate" data-testid={`vo-row-raised-${v.id}`}>{v.projectName || v.clientCompany || v.clientName || "—"} · {v.reason || "—"} · Raised {raisedText}</div>
       </button>
       <div className="flex gap-1 shrink-0">
         {status === "Draft" && <button onClick={() => onMark("Submitted")} className="p-2 text-[#A19D94] hover:text-[#E8A020]" title="Mark as Submitted" data-testid={`vo-row-submit-${v.id}`}><Send size={14} /></button>}

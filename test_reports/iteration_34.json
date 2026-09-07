@@ -1,0 +1,53 @@
+{
+  "summary": "Preview-only validation of the belt-and-braces raised-date rendering fix in VariationOrders.jsx (VariationRow, line ~292). Seeded 5 VOs via POST /api/variation-orders/variation-orders as darrenhustle300, then asserted the rendered text of [data-testid=vo-row-raised-<id>] on /app/variation-orders. 4/5 test cases PASSED as-specified; case (e) mismatch is caused by BACKEND behaviour (empty variationDate coerced to today's ISO server-side), NOT a card render bug — the card in case (e) still renders correctly formatted DD/MM/YYYY with NO raw ISO leak. Bundle-level confirmation also PASSED: /static/js/bundle.js on Preview contains the new `vo-row-raised-` data-testid marker, the `raisedText` memo, the ISO regex fallback, and `formatUKDate`. Zero occurrences of raw YYYY-MM-DD on any card in any of the 5 probes — the P1a defensive fix is proven to hold.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/variation-orders/variation-orders", "issue": "When variationDate is submitted as empty string '', the backend silently coerces it to today's ISO date (2026-09-07) instead of storing empty/null. This affects test case (e) but has no impact on the card ISO-leak bug being validated. Consider preserving null/empty so the em-dash fallback path can be exercised in the UI."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "AppShell/Dashboard", "issues": ["React hydration warning: <a> descendant inside <a> on Dashboard ProjectCard (LinkWithRef nesting cc-project-* -> cc-project-photos-*). Not related to this fix but observed in console during navigation. Pre-existing."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "None for the P1a fix — belt-and-braces rendering is proven correct. Safe to re-deploy pending user approval.",
+    "OPTIONAL follow-up (not blocking): backend POST/PATCH variation-orders should NOT rewrite empty variationDate to today's date, so the em-dash fallback becomes reachable in real data."
+  ],
+  "critical_code_review_comments": [
+    "VariationRow raisedText memo (lines 296-306) correctly layers three defences: formatUKDate → inline ISO regex → em-dash. Logic is sound; regex ^(\\d{4})-(\\d{2})-(\\d{2}) covers both date-only and full ISO datetime.",
+    "Empty-string case never reaches the '—' branch because backend coerces to today's date; this is a backend concern, not a card concern.",
+    "File is 786 lines — approaching the 700-line split threshold, consider extracting VariationWizard into its own module in a future refactor."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (5/5 seed + 5/5 delete)", "frontend": "100% for the ISO-leak invariant (0/5 raw-ISO leaks); 4/5 exact-match on expected literal (case e differs due to backend, not UI)"},
+  "test_credentials": "darrenhustle300 / hustle1234 (admin, from /app/memory/test_credentials.md)",
+  "seed_data_creation": "5 TEST_-prefixed VariationOrders seeded and deleted (all DELETEs returned 200). No test data remains.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "P1a belt-and-braces raised-date fix on VariationOrders dashboard cards is verified in Preview. All 5 test cases proved zero raw-ISO leak. Bundle confirmed to contain the new logic (vo-row-raised- testid + raisedText memo + ISO regex + formatUKDate). Cleanup completed.",
+  "rca of the issue": {
+    "user_report": "Production cards showed 'Raised 2026-09-07' (raw ISO) instead of 'Raised 07/09/2026'.",
+    "fix_applied": "VariationRow now computes raisedText via a three-tier fallback: (1) formatUKDate → returns DD/MM/YYYY only if it matches the pattern, (2) inline regex ^(\\d{4})-(\\d{2})-(\\d{2}) extracts and re-orders any raw ISO substring, (3) em-dash for truly empty values. A new data-testid='vo-row-raised-<id>' allows automated assertion.",
+    "validation": "5 seeded variations (ISO date, ISO date x3, ISO datetime, empty) all rendered with DD/MM/YYYY on the card — no YYYY-MM-DD substring anywhere. Bundle contains all new markers. Fix is proven belt-and-braces safe.",
+    "test_case_results": [
+      {"label": "a", "variationDate": "2026-09-07", "expected": "Raised 07/09/2026", "actual": "Raised 07/09/2026", "pass": true, "iso_leak": false},
+      {"label": "b", "variationDate": "2026-08-30", "expected": "Raised 30/08/2026", "actual": "Raised 30/08/2026", "pass": true, "iso_leak": false},
+      {"label": "c", "variationDate": "2026-08-15", "expected": "Raised 15/08/2026", "actual": "Raised 15/08/2026", "pass": true, "iso_leak": false},
+      {"label": "d", "variationDate": "2026-09-07T00:00:00.000Z", "expected": "Raised 07/09/2026", "actual": "Raised 07/09/2026", "pass": true, "iso_leak": false},
+      {"label": "e", "variationDate": "", "expected": "Raised —", "actual": "Raised 07/09/2026", "pass": false, "iso_leak": false, "note": "Backend coerces empty variationDate to today's ISO — card still formats correctly, no ISO leak. Not a card-render bug."}
+    ],
+    "bundle_confirmation": {
+      "bundle_url": "https://prompt-web-4.preview.emergentagent.com/static/js/bundle.js",
+      "bundle_size_bytes": 12841452,
+      "vo-row-raised-_occurrences": 1,
+      "raisedText_occurrences": 3,
+      "iso_regex_literal_occurrences": 43,
+      "formatUKDate_occurrences": 6
+    }
+  }
+}
