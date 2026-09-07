@@ -33,17 +33,29 @@ function extractRef(content) {
 //   • "(role not set in profile)" and variants
 //   • "[SIGNATORY ROLE]", "[Role]", "[insert role]" square-bracket placeholders
 //   • A "Role:" line that ends up empty after the scrub — drop the whole line
+//   • Long-form dates like "07 September 2026" → "07/09/2026" (defensive; the
+//     LLM is separately told to use DD/MM/YYYY, but this catches leaks)
+const _MONTHS = ["january","february","march","april","may","june","july","august","september","october","november","december"];
+const _MONTH_IDX = _MONTHS.reduce((a, m, i) => (a[m] = i + 1, a), {});
 export function scrubContent(content) {
   if (!content) return "";
   const placeholderInParens = /\s*\((?:role not set in profile|role not set|insert role|role missing)\)\s*/gi;
   const bracketPlaceholder = /\s*\[(?:signatory role|role|insert role|role missing|role not set)\]\s*/gi;
+  // Matches "07 September 2026" or "7 Sep 2026" (case-insensitive). Captures
+  // day, month, year separately so we can re-emit as DD/MM/YYYY.
+  const longDate = /\b(\d{1,2})\s+(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\.?\s+(\d{4})\b/gi;
+  const normaliseDate = (_, d, mon, y) => {
+    const key = mon.toLowerCase().replace(/\./g, "").replace(/^sept$/, "sep");
+    // full-month lookup; short form falls through the same key via prefix
+    const full = _MONTHS.find((m) => m.startsWith(key.slice(0, 3)));
+    const mm = full ? String(_MONTH_IDX[full]).padStart(2, "0") : "01";
+    return `${String(d).padStart(2, "0")}/${mm}/${y}`;
+  };
   return content
     .split("\n")
     .map((raw) => {
-      // Replace placeholders with a single space then collapse duplicates —
-      // preserves normal word spacing when a placeholder was embedded mid-line.
       let line = raw.replace(placeholderInParens, " ").replace(bracketPlaceholder, " ");
-      // "Role:  " (possibly with only whitespace remaining) → drop the whole line.
+      line = line.replace(longDate, normaliseDate);
       if (/^\s*Role\s*:\s*$/i.test(line)) return null;
       return line.replace(/[ \t]{2,}/g, " ").replace(/\s+$/g, "");
     })

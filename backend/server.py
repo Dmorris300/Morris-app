@@ -370,14 +370,20 @@ def _signoff_instructions(tool_id: str, profile: dict, has_signature: bool) -> s
     name = profile.get("fullName") or ""
     role = profile.get("signatureRole") or ""
     company = profile.get("companyName") or ""
-    now_str = datetime.now(timezone.utc).strftime("%d %B %Y, %H:%M")
+    # Numeric UK date-time format only — the LLM is separately told never to
+    # write months in words. Consistent DD/MM/YYYY across every generated doc.
+    now_str = datetime.now(timezone.utc).strftime("%d/%m/%Y %H:%M")
     sig_line = ("Signature: (signed electronically. saved signature on file)" if has_signature
                 else "Signature: Add your signature in profile settings to complete this document.")
 
+    # Only emit the "Role:" line when a real role exists on the profile.
+    # No placeholder text ever reaches the LLM prompt (belt-and-braces:
+    # the frontend PDF scrubber also strips any placeholders that leak).
+    role_line = f"Role: {role}\n" if role else ""
     contractor_block = (
         "CONTRACTOR SIGN-OFF\n"
         f"Name: {name}\n"
-        f"Role: {role or '(role not set in profile)'}\n"
+        f"{role_line}"
         f"Company: {company}\n"
         f"Date and time: {now_str}\n"
         f"{sig_line}\n"
@@ -764,6 +770,15 @@ async def generate(req: GenerateReq, authorization: Optional[str] = Header(None)
         "Never add information the user did not ask for. "
         "Financial documents: clear and exact. Figures, dates, amounts with no ambiguity. "
         "Legal documents: firm but plain. A tradesperson must be able to read it out loud without stumbling.\n\n"
+        # ---------- Global formatting rules (added Sep 2026) ----------
+        # These are non-negotiable output rules — they apply to every tool
+        # and every document family. Do NOT let a downstream tool-specific
+        # rule override them. Enforced defensively on the frontend renderer
+        # too, but the LLM is the first line of defence.
+        "GLOBAL FORMATTING RULES — HARD, ALWAYS ON:\n"
+        "1. DATES: All customer-facing dates MUST be numeric UK format DD/MM/YYYY. Never write months in words ('07 September 2026' is WRONG; '07/09/2026' is CORRECT). If a date-time is needed, use 'DD/MM/YYYY HH:MM' (24-hour). This applies inside body text, tables, sign-off blocks, evidence captions and every other output section.\n"
+        "2. NO PLACEHOLDER LEAKS: Never print parenthetical fallback text such as '(role not set in profile)', '(name not set)', '[SIGNATORY ROLE]', '[Role]', '[insert role]' or any similar bracketed placeholder. If a value is missing, OMIT the whole line — do not synthesise a placeholder, do not leave the line blank with a trailing colon.\n"
+        "3. SIGN-OFF UNIQUENESS: The 'MANDATORY SIGN-OFF BLOCK(S)' below are the single authoritative source of signatures on every document. Do NOT add an additional sign-off / signature block anywhere else in the document (no 'MEASURED BY', 'PREPARED BY', 'RECORDED BY' or similar signature panels). Factual attribution lines inside body sections (e.g. 'Measured by: John Smith' as a data field) are fine — they must not include a Signature: line, a signature box, or a date-time stamp.\n\n"
         # ---------- Morris Global Writing Standard (added Feb 2026) ----------
         # Reinforces the block above. Positions the Morris voice explicitly and
         # gives context-aware guidance per document family. Never overrides

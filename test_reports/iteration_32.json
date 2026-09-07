@@ -1,0 +1,42 @@
+{
+  "summary": "Backend verification of P1a Measurement Record fixes (role placeholder, duplicate sign-off, long-form dates, DD/MM/YYYY HH:MM). Wrote pytest suite /app/backend/tests/test_measurement_record_signoff.py covering all 5 assertions. Each generate assertion runs TWICE against Claude to catch LLM drift. All 9 tests PASSED (2 runs x 4 LLM assertions + 1 scrubber inspection).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/generate (toolId=measurement-record)", "issue": "One of the two LLM runs added an extra 'REVIEW DATE: 07/09/2027' line in the document header. Measurement Record is a daily site record so a REVIEW DATE line should probably be suppressed for this tool (add measurement-record to the suppress_auto_review set / SINGLE_SIGNOFF_TOOLS review-date-suppression list). Not part of the 5 requested assertions but worth fixing for consistency."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_measurement_record_signoff.py",
+    "/app/test_reports/pytest/measurement_signoff.xml"
+  ],
+  "evidence": {
+    "bug1_role_empty": "With signatureRole='' the CONTRACTOR SIGN-OFF block contained only: Name / Company / Date and time / Signature — no 'Role:' line, no '(role not set in profile)' placeholder. Both runs clean.",
+    "bug2_role_director": "Sample sign-off (verbatim): 'CONTRACTOR SIGN-OFF\\nName: Darren Morris\\nRole: Director\\nCompany: Test Co Ltd\\nDate and time: 07/09/2026 18:37\\nSignature: ...' — appears exactly once.",
+    "bug3_single_signoff": "Only ONE 'CONTRACTOR SIGN-OFF' block per document across all 8 LLM runs. No standalone 'MEASURED BY' heading. Factual 'Measured by: Darren Morris' line correctly present inside RECORD DETAILS with no Signature/Date panel.",
+    "bug4_dates": "All dates numeric: 'Date measured: 15/01/2026', header 'DATE: 07/09/2026', sign-off 'Date and time: 07/09/2026 18:37'. No long-form UK dates observed in any of 8 runs.",
+    "bug5_scrubber": "scrubContent in /app/frontend/src/lib/pdf.js exports properly: strips '(role not set in profile)' + '[SIGNATORY ROLE]/[Role]/[insert role]', drops empty 'Role:' lines (regex /^\\s*Role\\s*:\\s*$/i), converts 'DD Month YYYY' -> 'DD/MM/YYYY'. Verified by regex: matches '07 September 2026', does NOT match '2026-01-15' (ISO) or '07/09/2026' (numeric)."
+  },
+  "action_items": [
+    "Optional: add 'measurement-record' to the review-date-suppression set on the backend so 'REVIEW DATE' does not sporadically appear in the header (observed 1 of 2 runs)."
+  ],
+  "critical_code_review_comments": [
+    "server.py is 1733 lines — should be split into modules (auth, generate, jobs, cis, team, drafts).",
+    "_signoff_instructions() now correctly omits Role line when role is empty (line ~382).",
+    "GLOBAL FORMATTING RULES block (lines 778-781) is well-worded and enforces DD/MM/YYYY + placeholder ban + sign-off uniqueness at the prompt layer.",
+    "Frontend scrubContent() is a good defensive belt-and-braces — long-date regex correctly avoids ISO/numeric false positives."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (9/9 tests, all 5 bug fixes verified across 2 LLM runs each)", "frontend": "N/A (backend-only testing per request)"},
+  "test_credentials": "darrenhustle300 / hustle1234 (admin). Original signatureRole snapshot captured and restored in module-scoped fixture teardown.",
+  "seed_data_creation": "No persistent seed data. Test uses TEST_ prefix on project name; nothing is saved to /api/documents. Admin user's signatureRole is temporarily mutated during tests and restored on teardown.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "test_measurement_record_signoff.py can be reused as a regression suite for any future prompt/LLM changes to the sign-off block or global formatting rules. It runs each assertion twice to cope with LLM non-determinism. Only minor drift observed was a sporadic REVIEW DATE line in the header of measurement-record (probably measurement-record is not in the suppress_auto_review list yet).",
+  "rca of the issue": "N/A — this iteration was verification-only; the fixes described in review_request are working."
+}

@@ -139,6 +139,7 @@ export default function MeasurementRecord() {
    Project: {project}
    Site address: {siteAddress}
    Date measured: {date}
+   Measured by: {measuredByName}
    Unit of measurement: {unitLabel}
    Purpose: {purpose}
 
@@ -169,12 +170,7 @@ ${form.additionalNotes ? `${deductions.length > 0 ? "8" : "6"}. ADDITIONAL NOTES
 ${deductions.length > 0 ? (form.additionalNotes ? "9" : "8") : (form.additionalNotes ? "7" : "6")}. DISCLAIMER — print as a final block, verbatim:
    These measurements were taken on site and are the responsibility of the person named above. Always verify before ordering.
 
-LAST. SIGN-OFF — single record-keeper sign-off block:
-   Measured by: (auto from profile — full name)
-   Date: {date}
-   Signature: (auto-insert user's saved signature if held)
-
-Rules: never invent rows. Use only the rows supplied. If a column value is blank, print '—'. No square-bracket placeholders. No 'kinetic', 'utilise', 'endeavour', 'facilitate', 'prior to', 'operatives are advised'. Short sentences. Keep the table tight.`;
+Rules: never invent rows. Use only the rows supplied. If a column value is blank, print '—'. No square-bracket placeholders. No 'kinetic', 'utilise', 'endeavour', 'facilitate', 'prior to', 'operatives are advised'. Short sentences. Keep the table tight. Do NOT add a Measured-By signature block or any other signature/sign-off panel — the global CONTRACTOR SIGN-OFF is the ONLY signature block on this document.`;
 
       const r = await api.post("/generate", {
         toolId: TOOL_ID,
@@ -184,6 +180,7 @@ Rules: never invent rows. Use only the rows supplied. If a column value is blank
           project: form.project,
           siteAddress: form.siteAddress,
           date: form.date,
+          measuredByName: user?.fullName || user?.username || "—",
           unitLabel: unitDef.label,
           unitSuffix: unitDef.suffix,
           purpose: form.purpose,
