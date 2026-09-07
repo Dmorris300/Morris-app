@@ -1,0 +1,51 @@
+{
+  "summary": "PREVIEW-ONLY re-verification of the belt-and-braces VariationRow raised-date fix. All 6 probes PASSED: 3 API-seeded variations with the exact production ISO values that failed in prod (2026-09-07, 2026-08-30, 2026-08-15), 2 legacy records inserted DIRECTLY into MongoDB (bypassing backend coercion) with plain-ISO and full-ISO-datetime variationDate, and 1 empty-variationDate record inserted directly into MongoDB (to reach the em-dash branch that the backend otherwise masks). Every card rendered DD/MM/YYYY correctly or the em-dash. Global invariant scan of every [data-testid^=vo-row-raised-] on the loaded page: 6 rows scanned, 0 violations of the YYYY-MM-DD forbidden pattern. Bundle at Preview REACT_APP_BACKEND_URL confirmed to contain the raisedText memo, ISO regex fallback, formatUKDate, and vo-row-raised- testid marker. Same card render path is used for legacy records — legacy_plain and legacy_isodt were inserted straight into Mongo (never touched the API) and both rendered correctly, proving the formatter is on the shared render path, not the create path.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/variation-orders/variation-orders", "issue": "LOGGED PER USER REQUEST (do not fix in this pass): backend coerces empty variationDate to today's ISO on create. Verified again in this iteration — API-seeded record with variationDate='' ended up as today's date. The em-dash branch is only reachable via legacy/direct-insert records. Card render path is unaffected and correct."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/tmp/probe_results.json"],
+  "action_items": [
+    "None for the P1a card-render fix. Belt-and-braces render logic is proven correct against production-value parity, null/empty branch, legacy plain-ISO, and legacy ISO-datetime. Safe to redeploy pending user go-ahead."
+  ],
+  "critical_code_review_comments": [
+    "VariationRow raisedText memo (VariationOrders.jsx:299-306) is a clean three-tier defence: formatUKDate → inline /^\\d{4}-\\d{2}-\\d{2}/ regex fallback → em-dash. Verified robust across all four data shapes exercised in this pass.",
+    "Because the mongo-inserted legacy records never hit the create/update API, they conclusively demonstrate that the fix lives on the render path (VariationRow) and is applied uniformly to every dashboard card regardless of record origin.",
+    "VariationOrders.jsx is 786 lines — future refactor should extract VariationWizard into its own file to stay under the 700-line convention."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (3/3 API seed, 3/3 API delete, 3/3 mongo insert, 3/3 mongo delete)", "frontend": "100% (6/6 assertions pass, 0/6 ISO leaks, global scan 0 violations across 6 rows)"},
+  "test_credentials": "darrenhustle300 / hustle1234 (admin)",
+  "seed_data_creation": "3 TEST_API_* variations via POST /api/variation-orders/variation-orders and 3 TEST_LEGACY_* / TEST_EMPTY_* variations inserted directly into db.variation_orders via pymongo. All 6 fully cleaned up post-run (API deletes returned 200; Mongo deletes returned deletedCount=1 for each).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "P1a belt-and-braces raised-date render fix is fully re-verified against production values (2026-09-07, 2026-08-30, 2026-08-15), against the null/empty branch via direct Mongo insert (Raised —), against legacy plain-ISO shape (2025-11-03 → 03/11/2025), and against legacy ISO-datetime shape (2025-12-24T00:00:00.000Z → 24/12/2025). Global invariant scan across every vo-row-raised-* on the loaded dashboard: 6 rows, 0 YYYY-MM-DD violations. Bundle confirmed to serve the updated code. All test data cleaned up.",
+  "separately_logged_issues": {
+    "backend_empty_variationDate_coercion": "backend/variation_orders.py line 255-256 rewrites empty variationDate to today's ISO on POST/PATCH. This was LOGGED ONLY per user instruction — not fixed. Impact: em-dash render branch is only reachable for legacy/direct-insert data. UI card renderer handles empty correctly (verified via direct mongo insert)."
+  },
+  "test_case_results": [
+    {"label": "api_a", "variationDate": "2026-09-07", "expected": "Raised 07/09/2026", "actual": "Prod Parity a · Client Request · Raised 07/09/2026", "iso_leak": false, "pass": true, "path": "API create"},
+    {"label": "api_b", "variationDate": "2026-08-30", "expected": "Raised 30/08/2026", "actual": "Prod Parity b · Client Request · Raised 30/08/2026", "iso_leak": false, "pass": true, "path": "API create"},
+    {"label": "api_c", "variationDate": "2026-08-15", "expected": "Raised 15/08/2026", "actual": "Prod Parity c · Client Request · Raised 15/08/2026", "iso_leak": false, "pass": true, "path": "API create"},
+    {"label": "legacy_plain", "variationDate": "2025-11-03", "expected": "Raised 03/11/2025", "actual": "Legacy legacy_plain · Client Request · Raised 03/11/2025", "iso_leak": false, "pass": true, "path": "Direct Mongo insert (legacy record path)"},
+    {"label": "legacy_isodt", "variationDate": "2025-12-24T00:00:00.000Z", "expected": "Raised 24/12/2025", "actual": "Legacy legacy_isodt · Client Request · Raised 24/12/2025", "iso_leak": false, "pass": true, "path": "Direct Mongo insert (legacy record path)"},
+    {"label": "empty", "variationDate": "", "expected": "Raised —", "actual": "Legacy empty · Client Request · Raised —", "iso_leak": false, "pass": true, "path": "Direct Mongo insert (bypasses backend coercion)"}
+  ],
+  "global_invariant_scan": {"rows_scanned": 6, "violations": [], "selector": "[data-testid^=\"vo-row-raised-\"]"},
+  "bundle_confirmation": {
+    "bundle_url": "https://prompt-web-4.preview.emergentagent.com/static/js/bundle.js",
+    "status": 200,
+    "size_bytes": 12830873,
+    "vo-row-raised-_occurrences": 1,
+    "raisedText_occurrences": 3,
+    "formatUKDate_occurrences": 8,
+    "iso_regex_fallback_present": true
+  }
+}
