@@ -1,0 +1,41 @@
+{
+  "summary": "Verified all 4 P1a remaining fixes: (1) SignaturePad hardenInk pixel-threshold logic (code inspection — all 3 sites integrated), (2) VariationOrders dashboard card shows 'Raised 07/09/2026' via formatUKDate (Playwright: seeded VO with variationDate=2026-09-07, card renders exactly 'Raised 07/09/2026', ISO absent), (3) PriceWorkVariationTracker: newly added row via 'Add Variation' has unit pre-selected 'Lump Sum' and exactly the 8 canonical PRICING_BASIS options — no legacy values (Playwright DOM inspection of the <select> options array), (4) Regression pytest test_measurement_record_signoff.py = 9/9 PASSED.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "assertions": {
+    "signature_hardenInk": {
+      "status": "PASS (code inspection)",
+      "evidence": "SignaturePad.jsx: strokeStyle '#000000' (line 31), lineWidth 3.2 (line 28). hardenInk() at lines 69-82 iterates canvas ImageData: alpha > 50 -> RGB(0,0,0)/alpha 255, else alpha 0. Called at end() line 86 (before toDataURL 87), applySaved() line 105 (before toDataURL 107, emits via onChange), and saveCurrent() line 116 (before POST /api/signatures/vault at 118). All 3 integration sites confirmed."
+    },
+    "variation_orders_card_date": {
+      "status": "PASS",
+      "evidence": "Route is /app/variation-orders (not /app/tool/...). Import 'formatUKDate' from '../lib/uk-format' present at line 20. Line 307 renders 'Raised {formatUKDate(v.variationDate) || \"—\"}'. Playwright: seeded VO id=58e2eb0d... with variationDate='2026-09-07'; rendered card textContent = 'TEST_VODATE_ZZZ_descDraftVO-019£0.00TEST_VODATE_ZZZ · — · Raised 07/09/2026'. ISO '2026-09-07' NOT present in card. Empty variationDate falls through to '—' by short-circuit."
+    },
+    "tracker_dropdown": {
+      "status": "PASS",
+      "evidence": "PriceWorkVariationTracker.jsx makeRow() line 47-59: unit defaults to 'Lump Sum'. UNIT_OPTIONS = PRICING_BASIS import from '../lib/uk-format' (line 8 + 36). Playwright: after clicking 'Add Variation', both rows' unit <select> reported selected='Lump Sum' and options=['Lump Sum','Per Item / Piece','Per Metre','Per m²','Per m³','Per Hour','Per Day','Other'] (exactly 8, matches canonical PRICING_BASIS). No legacy values ('Square metre','Linear metre','Each','Per floor','Per room') present. Passthrough <option> at line 330 preserved for legacy stored values."
+    },
+    "regression_measurement_record": {
+      "status": "PASS",
+      "evidence": "pytest tests/test_measurement_record_signoff.py = 9 passed in 63.21s (2 runs each of role-empty/role-set/single-signoff/numeric-dates + 1 scrubber inspection). JUnit XML: /app/test_reports/pytest/iteration_33_regression.xml."
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_measurement_record_signoff.py",
+    "/app/test_reports/pytest/iteration_33_regression.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "SignaturePad.hardenInk() correctly forces alpha channel to 255 for any pixel with alpha > 50 — eliminates PDF-print washout. Called at all three emission points (draw-end / vault-apply / vault-save).",
+    "VariationOrders.jsx has been growing (~774 lines) — worth splitting the wizard into its own file, but not blocking.",
+    "PriceWorkVariationTracker passthrough option pattern on line 330 (`r.unit && !UNIT_OPTIONS.includes(r.unit) && <option value={r.unit}>{r.unit}</option>`) is a clean way to preserve legacy stored values without polluting new-row dropdowns."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (9/9 regression tests)", "frontend": "100% (4/4 UI/code assertions)"},
+  "test_credentials": "darrenhustle300 / hustle1234 (admin)",
+  "seed_data_creation": "Two TEST_ prefixed variation-orders documents were POSTed and DELETEd during the run (both cleanup DELETE returned 200). No residual data.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All P1a remaining fixes verified. Note: /app/tool/variation-orders is NOT a route — use /app/variation-orders. The onboarding tour modal is dismissed via localStorage.setItem('morris_onboarding_done','1'). Seed VOs via POST /api/variation-orders/variation-orders (note: doubled 'variation-orders/variation-orders' path).",
+  "rca of the issue": "N/A — verification only, all 4 fixes confirmed working."
+}

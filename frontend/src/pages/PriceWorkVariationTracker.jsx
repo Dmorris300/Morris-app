@@ -50,7 +50,7 @@ function makeRow() {
     date: "",
     description: "",
     instructedBy: "",
-    unit: "Square metre",
+    unit: "Lump Sum",
     quantity: "",
     rate: "",
     status: "Pending agreement",

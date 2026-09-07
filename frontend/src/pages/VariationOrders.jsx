@@ -17,6 +17,7 @@ import { useAuth } from "../lib/auth";
 import api from "../lib/api";
 import SignaturePad from "../components/SignaturePad";
 import { downloadVariationPdf, variationPdfBlobUrl } from "../lib/variation-order-pdf";
+import { formatUKDate } from "../lib/uk-format";
 import { listMedia, thumbSrc } from "../lib/media";
 
 const TOOL_ID = "variation-orders";
@@ -303,7 +304,7 @@ function VariationRow({ v, onEdit, onDelete, onDuplicate, onFav, onMark }) {
           <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#E8A020]/40 text-[#E8A020]">{fGBP((v.totals || {}).total || 0)}</span>
           {days > 0 && <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#A0A0F0]/40 text-[#A0A0F0]">+{days} day{days === 1 ? "" : "s"}</span>}
         </div>
-        <div className="text-xs text-[#A19D94] mt-1 truncate">{v.projectName || v.clientCompany || v.clientName || "—"} · {v.reason || "—"} · Raised {v.variationDate || "—"}</div>
+        <div className="text-xs text-[#A19D94] mt-1 truncate">{v.projectName || v.clientCompany || v.clientName || "—"} · {v.reason || "—"} · Raised {formatUKDate(v.variationDate) || "—"}</div>
       </button>
       <div className="flex gap-1 shrink-0">
         {status === "Draft" && <button onClick={() => onMark("Submitted")} className="p-2 text-[#A19D94] hover:text-[#E8A020]" title="Mark as Submitted" data-testid={`vo-row-submit-${v.id}`}><Send size={14} /></button>}

@@ -25,10 +25,10 @@ export default function SignaturePad({ value, onChange, height = 180, allowVault
     canvas.width = w * dpr;
     canvas.height = height * dpr;
     ctx.scale(dpr, dpr);
-    ctx.lineWidth = 2.4;
+    ctx.lineWidth = 3.2;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    ctx.strokeStyle = "#111111"; // Dark ink so it prints identically on PDF (item: signatures render clearly)
+    ctx.strokeStyle = "#000000"; // Pure black ink — plus we hard-threshold the alpha channel at capture time so every rendered pixel is solid dark on PDF (item: no faded/washed-out signatures)
     ctx.clearRect(0, 0, w, height);
     if (value) {
       const img = new Image();
@@ -61,9 +61,29 @@ export default function SignaturePad({ value, onChange, height = 180, allowVault
     lastRef.current = p;
     setHasInk(true);
   };
+  // Threshold the canvas so every visible pixel becomes solid black. This
+  // eliminates the "faded/washed-out signature" issue: browsers draw with
+  // sub-pixel antialiasing that leaves feathered edges with alpha < 1.0,
+  // which then print faint on the A4 PDF. We keep the outline shape by
+  // treating any pixel with alpha > 50 as solid #000, alpha 255.
+  const hardenInk = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const w = canvas.width;
+    const h = canvas.height;
+    const img = ctx.getImageData(0, 0, w, h);
+    const px = img.data;
+    for (let i = 0; i < px.length; i += 4) {
+      if (px[i + 3] > 50) { px[i] = 0; px[i + 1] = 0; px[i + 2] = 0; px[i + 3] = 255; }
+      else { px[i + 3] = 0; }
+    }
+    ctx.putImageData(img, 0, 0);
+  };
   const end = () => {
     if (!drawingRef.current) return;
     drawingRef.current = false;
+    hardenInk();
     const dataUrl = canvasRef.current.toDataURL("image/png");
     onChange?.(dataUrl);
   };
@@ -82,8 +102,9 @@ export default function SignaturePad({ value, onChange, height = 180, allowVault
     const img = new Image();
     img.onload = () => {
       ctx.drawImage(img, 0, 0, canvas.clientWidth, height);
+      hardenInk();
       setHasInk(true);
-      onChange?.(sig.dataUrl);
+      onChange?.(canvasRef.current.toDataURL("image/png"));
     };
     img.src = sig.dataUrl;
     setShowVault(false);
@@ -92,10 +113,12 @@ export default function SignaturePad({ value, onChange, height = 180, allowVault
     if (!hasInk) return;
     setSaving(true);
     try {
+      hardenInk();
       const dataUrl = canvasRef.current.toDataURL("image/png");
       const r = await api.post("/signatures/vault", { label: saveLabel.trim() || "My signature", dataUrl });
       setVault([r.data, ...vault]);
       setSaveLabel("");
+      onChange?.(dataUrl);
     } catch { /* silent */ } finally { setSaving(false); }
   };
   const deleteSaved = async (id) => {
