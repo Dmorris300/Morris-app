@@ -57,7 +57,7 @@ export default function LiveSignatureBlock({
           {subtitle && <div className="text-[11px] text-[#706D66] mt-1">{subtitle}</div>}
         </div>
         <div className="flex items-center gap-2">
-          {savedSignature && (
+          {savedSignature && !allowBlank && (
             <button
               type="button"
               onClick={useSaved}

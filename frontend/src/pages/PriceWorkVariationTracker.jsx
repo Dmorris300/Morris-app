@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { useAuth } from "../lib/auth";
 import api from "../lib/api";
 import { downloadPdf } from "../lib/pdf";
+import { PRICING_BASIS } from "../lib/uk-format";
 import LiveSignatureBlock from "../components/LiveSignatureBlock";
 
 const TOOL_ID   = "pricework-variation-tracker";
@@ -28,7 +29,11 @@ const N = (v) => {
 const money = (n) =>
   `£${(Number(n) || 0).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-const UNIT_OPTIONS = ["Square metre", "Linear metre", "Each", "Per floor", "Per room", "Lump sum", "Other"];
+// Canonical pricing basis list — shared with Quote Builder / Profit Calc.
+// Legacy row values not in the canonical list are still preserved (rendered
+// as a passthrough <option/> in the row's select), so upgrading this list
+// never blanks existing tracker rows.
+const UNIT_OPTIONS = PRICING_BASIS;
 const STATUS_OPTIONS = [
   "Pending agreement",
   "Agreed",
@@ -322,6 +327,7 @@ Rules:
                   </td>
                   <td className="pr-2">
                     <select className="input-base !py-1 !text-sm" value={r.unit} onChange={(e) => updateRow(r.id, "unit", e.target.value)} data-testid={`pvt-row-${idx}-unit`}>
+                      {r.unit && !UNIT_OPTIONS.includes(r.unit) && <option value={r.unit}>{r.unit}</option>}
                       {UNIT_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
                     </select>
                   </td>

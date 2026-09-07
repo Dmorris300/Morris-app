@@ -27,6 +27,30 @@ function extractRef(content) {
   return m ? m[1].trim() : null;
 }
 
+// Strip LLM debug/placeholder leaks from generated content before it reaches
+// a customer-facing PDF. We do this at render time (not prompt time) so a
+// misbehaving model can never leak these into the document.
+//   • "(role not set in profile)" and variants
+//   • "[SIGNATORY ROLE]", "[Role]", "[insert role]" square-bracket placeholders
+//   • A "Role:" line that ends up empty after the scrub — drop the whole line
+export function scrubContent(content) {
+  if (!content) return "";
+  const placeholderInParens = /\s*\((?:role not set in profile|role not set|insert role|role missing)\)\s*/gi;
+  const bracketPlaceholder = /\s*\[(?:signatory role|role|insert role|role missing|role not set)\]\s*/gi;
+  return content
+    .split("\n")
+    .map((raw) => {
+      // Replace placeholders with a single space then collapse duplicates —
+      // preserves normal word spacing when a placeholder was embedded mid-line.
+      let line = raw.replace(placeholderInParens, " ").replace(bracketPlaceholder, " ");
+      // "Role:  " (possibly with only whitespace remaining) → drop the whole line.
+      if (/^\s*Role\s*:\s*$/i.test(line)) return null;
+      return line.replace(/[ \t]{2,}/g, " ").replace(/\s+$/g, "");
+    })
+    .filter((l) => l !== null)
+    .join("\n");
+}
+
 // Append the "Photographic Evidence" section to the PDF. Each photo gets its
 // own block on a fresh page (or stacked 2-per-page when the page has room).
 // `photos` is an array of: { dataUrl, note, ukDate, time, location }.
@@ -150,7 +174,12 @@ export function generatePdf({ title, content, user, photo, photoCaption, photos,
   doc.setFontSize(10.5);
   doc.setTextColor(20, 20, 20);
 
-  const lines = doc.splitTextToSize(content || "", usable);
+  // Scrub debug/placeholder leaks from LLM output before rendering. The
+  // model sometimes emits "(role not set in profile)", "[SIGNATORY ROLE]"
+  // or leaves an empty "Role:" line when the profile has no signatory
+  // role — none of that should ever reach a customer-facing PDF.
+  const cleanedContent = scrubContent(content || "");
+  const lines = doc.splitTextToSize(cleanedContent, usable);
   let y = 150;
   const bottom = pageHeight - 70;
   const lineHeight = 14;

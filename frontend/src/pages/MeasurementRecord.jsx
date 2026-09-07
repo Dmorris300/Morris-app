@@ -139,7 +139,6 @@ export default function MeasurementRecord() {
    Project: {project}
    Site address: {siteAddress}
    Date measured: {date}
-   Measured by: (auto from profile — full name + trade)
    Unit of measurement: {unitLabel}
    Purpose: {purpose}
 

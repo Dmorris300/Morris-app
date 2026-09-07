@@ -4,11 +4,16 @@
 
 import { jsPDF } from "jspdf";
 import { drawHeader, addFooter } from "./pdf";
+import { formatUKDate } from "./uk-format";
 
 const GOLD = [232, 160, 32], INK = [20, 20, 20], MUTED = [110, 110, 110], BORDER = [180, 180, 180], ZEBRA = [248, 246, 242];
 const MARGIN = 48;
 
 const fGBP = (n) => `£${(Number(n) || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
+// Format any stored date (ISO or already-DD/MM/YYYY) for display. Callers
+// used to render raw ISO strings on customer PDFs — now everything routes
+// through here so a UK user sees DD/MM/YYYY consistently.
+const fDate = (v) => formatUKDate(v) || "—";
 const STATUS_COLOUR = {
   "Draft": [140, 140, 140],
   "Submitted": [232, 160, 32],
@@ -44,7 +49,7 @@ export function generateVariationPdf({ data, user, today }) {
     ["Client email", data.clientEmail || "—"],
     ["Client phone", data.clientPhone || "—"],
     ["Original contract ref", data.originalContractRef || "—"],
-    ["Original contract date", data.originalContractDate || "—"],
+    ["Original contract date", fDate(data.originalContractDate)],
     ["Linked quote", data.originalQuoteRef || "—"],
   ]);
 
@@ -52,13 +57,13 @@ export function generateVariationPdf({ data, user, today }) {
   section(state, "Variation Summary");
   kvTable(state, [
     ["Variation reference", ref],
-    ["Date raised", data.variationDate || todayStr],
+    ["Date raised", fDate(data.variationDate) || todayStr],
     ["Status", status],
     ["Reason", data.reason || "—"],
     ["Instruction method", data.instructionMethod || "—"],
     ["Instructor name", data.instructorName || "—"],
     ["Instructor role", data.instructorRole || "—"],
-    ["Instruction date", data.instructionDate || "—"],
+    ["Instruction date", fDate(data.instructionDate)],
     ["Location on site", data.instructionLocation || "—"],
   ]);
 
@@ -116,7 +121,7 @@ export function generateVariationPdf({ data, user, today }) {
     const days = Number(impact.days) || 0;
     const sign = impactKind === "Reduction in days" ? "-" : "";
     impactRows.push(["Days", `${sign}${Math.round(days)} working day${Math.round(days) === 1 ? "" : "s"}`]);
-    if (impact.newPCDate) impactRows.push(["New Practical Completion date", impact.newPCDate]);
+    if (impact.newPCDate) impactRows.push(["New Practical Completion date", fDate(impact.newPCDate)]);
   }
   if (impact.notes) impactRows.push(["Notes", impact.notes]);
   table(state, null, impactRows, { colWidths: [state.pageWidth - MARGIN * 2 - 260, 260], header: false, zebra: true });
@@ -190,7 +195,7 @@ function drawCover(doc, { data, user, company, todayStr, ref, pageWidth, pageHei
     ["Prepared for", data.clientName || data.clientCompany || "—"],
     ["Site", data.projectAddress || "—"],
     ["Reference", ref],
-    ["Date raised", data.variationDate || todayStr],
+    ["Date raised", fDate(data.variationDate) || todayStr],
     ["Reason", data.reason || "—"],
     ["Total (inc VAT)", fGBP(totals?.total || 0)],
   ];
@@ -281,8 +286,8 @@ function drawDualSignoff(s, data, user, todayStr) {
   ensureRoom(s, cellH + 10);
   const boxTop = s.y;
   const cells = [
-    { title: "PREPARED BY (CONTRACTOR)", name: data.preparedBy || user?.fullName || "—", sig: data.preparedSignature || user?.signature, date: data.variationDate || todayStr },
-    { title: "APPROVED BY (CLIENT)", name: data.clientApproverName || "—", sig: data.clientApproverSignature, date: data.approvedDate || "—" },
+    { title: "PREPARED BY (CONTRACTOR)", name: data.preparedBy || user?.fullName || "—", sig: data.preparedSignature || user?.signature, date: fDate(data.variationDate) || todayStr },
+    { title: "APPROVED BY (CLIENT)", name: data.clientApproverName || "—", sig: data.clientApproverSignature, date: fDate(data.approvedDate) },
   ];
   cells.forEach((cell, i) => {
     const x = MARGIN + i * (cellW + gap);
