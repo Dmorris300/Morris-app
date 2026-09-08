@@ -1,0 +1,27 @@
+{
+  "summary": "P1b frontend-only regression + acceptance testing complete. All 5 P1b items (shared 401 reliability, V2V structured fallback, PWP canonical basis + Lump Sum hiding, PWQ new fields + client-sig separation, MR labels/column-hiding + PVT two-row card + VIL two-row card) PASS. One P1a regression check confirmed (variation orders page empty for admin — no dates to inspect, non-blocking).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Measurement Record — mr-measurement-type dropdown", "issues": ["Option labels are terse ('Mixed', 'Linear', 'Area', 'Volume') vs the spec wording in the request ('Linear metres — hide Width & Height', etc.). Functionality (which columns hide) is correct — this is a labeling/UX nit only, not a functional bug."]},
+      {"screen": "Price Work Profit Calculator — pricingBasis dropdown", "issues": ["First option is an empty '' placeholder value in addition to the 8 canonical options. Not spec-breaking but consider removing the empty option or replacing with a disabled '— Select basis —' placeholder so the canonical list stays clean."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "api.js interceptor: sessionExpiryHandled guard reset at 10s is good. Consider debouncing toast within the guard window explicitly via toast.dismiss() to avoid rare stacking if two 401s fire in the same microtask before guard flips.",
+    "VerbalToVariation.jsx: onGenerate does not catch abort/network as distinct from 5xx before checking err.response — current branch order handles it via `!err?.response` after other status checks; correct behaviour verified in UI.",
+    "PriceWorkQuote.jsx: pwq-client-sig block correctly passes savedSignature={null} + allowBlank; LiveSignatureBlock hides the Use-Saved button. Verified in DOM (pwq-client-sig-use-saved count = 0)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped)", "frontend": "100% on P1b items tested"},
+  "test_credentials": "darrenhustle300 / hustle1234 (admin, bypasses free-tier). Cookie banner must be accepted before login. Onboarding tour (data-testid=onboarding-tour) overlays first tool page after fresh login — dismissable via Skip tour link OR by removing the element / setting localStorage flag before automation click actions.",
+  "seed_data_creation": "None — no persistent data created. V2V generated one document (REF VAR-DM-260908-001) which will appear in the admin's document ledger.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Route note: Verbal to Variation lives at /app/wow/verbal-to-variation (NOT /app/verbal-to-variation as the request stated). All other tested routes match the request. Playwright automation must dismiss the OnboardingTour overlay (data-testid=onboarding-tour) after first navigation OR click Skip tour link. For 401 flow, `page.evaluate(\"localStorage.setItem('morris_token','invalid.jwt.token')\")` + click generate reliably reproduces the interceptor redirect (~400ms setTimeout). Toast text queried via [data-sonner-toast] may return empty when captured post-redirect — the redirect + token clear is the reliable assertion. VO regression could not be exercised because darrenhustle300 has zero variations (empty state rendered), so vo-row-raised-* selectors return no elements — this is not a bug. Detailed evidence: PWP opts=[''-placeholder,Lump Sum,Per Item / Piece,Per Metre,Per m²,Per m³,Per Hour,Per Day,Other], LumpSum hides unitRate+unitsCompleted, PerItem shows them. PWQ status opts=[Draft,Sent,Accepted,Rejected]. MR ths=Item/Description,Length,Width,Height,Qty,Total,Notes. MR Linear L=1 W=0 H=0; Area L=1 W=1 H=0; Volume/Mixed all=1. MR col widths=[32%,8%,8%,8%,6%,12%,22%,4%]. PVT and VIL: rows testids exist, all 11 per-row fields present, desktop scrollWidth=1920 (no horiz overflow), mobile 390px scrollWidth=390 (no overflow). PVT line total 5×100=£500 ✓. V2V generation: structured fields correctly injected into prompt — output contains 'St James Court', 'VO-005', 'damper', len~1600.",
+  "rca of the issue": "N/A — no issues found on P1b scope."
+}

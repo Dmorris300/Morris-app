@@ -256,97 +256,106 @@ Rules:
         </Grid>
       </Section>
 
-      {/* SECTION 2 — TABLE */}
+      {/* SECTION 2 — VARIATION LOG (two-row card layout, replaces the
+          overflow-scrolled 12-column table. All fields and calculations
+          preserved; long descriptions stay readable.) */}
       <Section title="Variation Log" testId="vil-section-2" icon={<Layers size={14}/>}>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="text-[10px] uppercase tracking-widest text-[#706D66]">
-              <tr>
-                <th className="text-left py-2">Reference</th>
-                <th className="text-left">Date Instructed</th>
-                <th className="text-left">Instructed by</th>
-                <th className="text-left">How</th>
-                <th className="text-left">Description</th>
-                <th className="text-right">Estimated (£)</th>
-                <th className="text-right">Agreed (£)</th>
-                <th className="text-left">Submitted?</th>
-                <th className="text-left">Date Submitted</th>
-                <th className="text-left">Status</th>
-                <th className="text-left">Notes</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r, idx) => (
-                <tr key={r.id} className="border-t border-[#F0EDE8]/5 align-top" data-testid={`vil-row-${idx}`}>
-                  <td className="py-1 pr-2">
-                    <div className="text-xs text-[#E8A020] tracking-widest font-mono" data-testid={`vil-${idx}-ref`}>{refFor(idx)}</div>
-                  </td>
-                  <td className="pr-2">
-                    <input type="date" className="input-base !py-1 !text-sm" value={r.dateInstructed} onChange={(e) => updateRow(r.id, "dateInstructed", e.target.value)} data-testid={`vil-${idx}-date-instructed`} />
-                  </td>
-                  <td className="pr-2">
-                    <input className="input-base !py-1 !text-sm" placeholder={`e.g. "John Smith — Site Manager"`} value={r.instructedBy} onChange={(e) => updateRow(r.id, "instructedBy", e.target.value)} data-testid={`vil-${idx}-instructed-by`} />
-                  </td>
-                  <td className="pr-2">
-                    <select className="input-base !py-1 !text-sm" value={r.how} onChange={(e) => updateRow(r.id, "how", e.target.value)} data-testid={`vil-${idx}-how`}>
-                      <option value="">— Choose —</option>
-                      {HOW_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
-                    </select>
-                  </td>
-                  <td className="pr-2 min-w-[220px]">
-                    <textarea
-                      rows={2}
-                      className="input-base !py-1 !text-sm resize-y"
-                      placeholder="Describe what was asked for and where on site"
-                      value={r.description}
-                      onChange={(e) => updateRow(r.id, "description", e.target.value)}
-                      data-testid={`vil-${idx}-description`}
-                    />
-                  </td>
-                  <td className="pr-1">
-                    <input type="number" step="0.01" className="input-base !py-1 !text-sm text-right" value={r.estimatedValue} onChange={(e) => updateRow(r.id, "estimatedValue", e.target.value)} data-testid={`vil-${idx}-estimated`} />
-                  </td>
-                  <td className="pr-1">
-                    <input type="number" step="0.01" className="input-base !py-1 !text-sm text-right" value={r.agreedValue} onChange={(e) => updateRow(r.id, "agreedValue", e.target.value)} data-testid={`vil-${idx}-agreed`} />
-                  </td>
-                  <td className="pr-2">
-                    <button
-                      type="button"
-                      onClick={() => updateRow(r.id, "submitted", !r.submitted)}
-                      className="px-3 py-1 rounded text-xs uppercase tracking-widest transition"
-                      style={{
-                        background: r.submitted ? "rgba(232,160,32,0.12)" : "transparent",
-                        border: `1px solid ${r.submitted ? "#E8A020" : "rgba(160,157,148,0.25)"}`,
-                        color: r.submitted ? "#E8A020" : "#A19D94",
-                      }}
-                      data-testid={`vil-${idx}-submitted`}
-                    >
-                      {r.submitted ? "Yes" : "No"}
-                    </button>
-                  </td>
-                  <td className="pr-2">
-                    {r.submitted ? (
-                      <input type="date" className="input-base !py-1 !text-sm" value={r.dateSubmitted} onChange={(e) => updateRow(r.id, "dateSubmitted", e.target.value)} data-testid={`vil-${idx}-date-submitted`} />
-                    ) : (
-                      <div className="text-xs text-[#706D66]">—</div>
-                    )}
-                  </td>
-                  <td className="pr-2">
-                    <select className="input-base !py-1 !text-sm" value={r.status} onChange={(e) => updateRow(r.id, "status", e.target.value)} data-testid={`vil-${idx}-status`}>
-                      {STATUS_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
-                    </select>
-                  </td>
-                  <td className="pr-2">
-                    <input className="input-base !py-1 !text-sm" placeholder="Notes" value={r.notes} onChange={(e) => updateRow(r.id, "notes", e.target.value)} data-testid={`vil-${idx}-notes`} />
-                  </td>
-                  <td className="text-right">
-                    <button onClick={() => removeRow(r.id)} className="text-[#706D66] hover:text-red-400" data-testid={`vil-${idx}-remove`}><Trash2 size={14}/></button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="grid gap-3" data-testid="vil-rows">
+          {rows.map((r, idx) => (
+            <div
+              key={r.id}
+              className="rounded p-4"
+              style={{ background: "rgba(15,15,15,0.5)", border: "1px solid rgba(160,157,148,0.18)" }}
+              data-testid={`vil-row-${idx}`}
+            >
+              {/* Row 1 — Reference | Date Instructed | Instructed by | How | Status */}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                <div className="md:col-span-2">
+                  <FieldLabel>Reference</FieldLabel>
+                  <div className="text-[#E8A020] text-xs font-mono py-2" data-testid={`vil-${idx}-ref`}>{refFor(idx)}</div>
+                </div>
+                <div className="md:col-span-2">
+                  <FieldLabel>Date Instructed</FieldLabel>
+                  <input type="date" className="input-base !py-2 !text-sm" value={r.dateInstructed} onChange={(e) => updateRow(r.id, "dateInstructed", e.target.value)} data-testid={`vil-${idx}-date-instructed`} />
+                </div>
+                <div className="md:col-span-4">
+                  <FieldLabel>Instructed by</FieldLabel>
+                  <input className="input-base !py-2 !text-sm" placeholder={`e.g. "John Smith — Site Manager"`} value={r.instructedBy} onChange={(e) => updateRow(r.id, "instructedBy", e.target.value)} data-testid={`vil-${idx}-instructed-by`} />
+                </div>
+                <div className="md:col-span-2">
+                  <FieldLabel>How</FieldLabel>
+                  <select className="input-base !py-2 !text-sm" value={r.how} onChange={(e) => updateRow(r.id, "how", e.target.value)} data-testid={`vil-${idx}-how`}>
+                    <option value="">— Choose —</option>
+                    {HOW_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </div>
+                <div className="md:col-span-2">
+                  <FieldLabel>Status</FieldLabel>
+                  <select className="input-base !py-2 !text-sm" value={r.status} onChange={(e) => updateRow(r.id, "status", e.target.value)} data-testid={`vil-${idx}-status`}>
+                    {STATUS_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Row 2 — Description | Estimated | Agreed | Submitted? | Date Submitted */}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end mt-3">
+                <div className="md:col-span-5">
+                  <FieldLabel>Description</FieldLabel>
+                  <textarea
+                    rows={2}
+                    className="input-base !py-2 !text-sm resize-y"
+                    placeholder="Describe what was asked for and where on site"
+                    value={r.description}
+                    onChange={(e) => updateRow(r.id, "description", e.target.value)}
+                    data-testid={`vil-${idx}-description`}
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <FieldLabel>Estimated (£)</FieldLabel>
+                  <input type="number" step="0.01" className="input-base !py-2 !text-sm text-right" value={r.estimatedValue} onChange={(e) => updateRow(r.id, "estimatedValue", e.target.value)} data-testid={`vil-${idx}-estimated`} />
+                </div>
+                <div className="md:col-span-2">
+                  <FieldLabel>Agreed (£)</FieldLabel>
+                  <input type="number" step="0.01" className="input-base !py-2 !text-sm text-right" value={r.agreedValue} onChange={(e) => updateRow(r.id, "agreedValue", e.target.value)} data-testid={`vil-${idx}-agreed`} />
+                </div>
+                <div className="md:col-span-1">
+                  <FieldLabel>Submitted?</FieldLabel>
+                  <button
+                    type="button"
+                    onClick={() => updateRow(r.id, "submitted", !r.submitted)}
+                    className="w-full px-2 py-2 rounded text-xs uppercase tracking-widest transition"
+                    style={{
+                      background: r.submitted ? "rgba(232,160,32,0.12)" : "transparent",
+                      border: `1px solid ${r.submitted ? "#E8A020" : "rgba(160,157,148,0.25)"}`,
+                      color: r.submitted ? "#E8A020" : "#A19D94",
+                    }}
+                    data-testid={`vil-${idx}-submitted`}
+                  >
+                    {r.submitted ? "Yes" : "No"}
+                  </button>
+                </div>
+                <div className="md:col-span-2">
+                  <FieldLabel>Date Submitted</FieldLabel>
+                  {r.submitted ? (
+                    <input type="date" className="input-base !py-2 !text-sm" value={r.dateSubmitted} onChange={(e) => updateRow(r.id, "dateSubmitted", e.target.value)} data-testid={`vil-${idx}-date-submitted`} />
+                  ) : (
+                    <div className="text-xs text-[#706D66] py-2">—</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Row 3 — Notes | Delete */}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end mt-3">
+                <div className="md:col-span-11">
+                  <FieldLabel>Notes</FieldLabel>
+                  <input className="input-base !py-2 !text-sm" placeholder="Notes" value={r.notes} onChange={(e) => updateRow(r.id, "notes", e.target.value)} data-testid={`vil-${idx}-notes`} />
+                </div>
+                <div className="md:col-span-1 flex justify-end pb-2">
+                  <button onClick={() => removeRow(r.id)} className="text-[#706D66] hover:text-red-400" data-testid={`vil-${idx}-remove`} aria-label="Remove instruction"><Trash2 size={16}/></button>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
         <button onClick={addRow} className="btn-secondary flex items-center gap-2 text-xs mt-3" data-testid="vil-add">
           <Plus size={12}/> Add Variation
@@ -433,6 +442,9 @@ function Section({ title, children, testId, icon }) {
 
 function Grid({ children }) {
   return <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">{children}</div>;
+}
+function FieldLabel({ children }) {
+  return <div className="text-[10px] uppercase tracking-widest text-[#A19D94] mb-1">{children}</div>;
 }
 
 function Inp({ label, value, onChange, type = "text", testId }) {

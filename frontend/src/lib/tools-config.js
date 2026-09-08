@@ -1,6 +1,8 @@
 // Central registry of all Morris tools
 // Each tool: id, name, section, info, fields[], promptTemplate
 
+import { PRICING_BASIS } from "./uk-format";
+
 export const TRADES = [
   "Bricklayer", "Carpenter and Joiner", "Crane Operator", "Drainage Engineer",
   "Dry Liner", "Duct Fitter", "Electrician", "EV Charger Installer",
@@ -1769,9 +1771,9 @@ Rules: never invent facts. Always show the maths. If a field is blank, drop the 
       fo("clientName", "Client / Main contractor (optional)"),
       fp("startDate", "Start date", "today", "date"),
       fp("endDate", "End date (or today if still on it)", "today", "date"),
-      sel("pricingBasis", "Price work basis", ["Per unit / piece (e.g. £ per socket, £ per metre)", "Lump sum for the whole job", "Per m² / m³", "Per metre", "Other"]),
-      fo("unitRate", "Unit rate (£) — leave blank if lump sum", "number"),
-      fo("unitsCompleted", "Units completed", "number"),
+      sel("pricingBasis", "Price work basis", PRICING_BASIS),
+      fo("unitRate", "Unit rate (£) — leave blank if lump sum", "number", "", { dependsOn: { field: "pricingBasis", notEquals: "Lump Sum", requireValue: true } }),
+      fo("unitsCompleted", "Units completed", "number", "", { dependsOn: { field: "pricingBasis", notEquals: "Lump Sum", requireValue: true } }),
       f("priceWorkValue", "Total price work value (£) — the agreed price for the job", "number"),
       f("hoursOnJob", "Your hours on the job (total)", "number"),
       fo("matesHoursOnJob", "Your mate's / labourer's hours on the job (£cost included below)", "number"),

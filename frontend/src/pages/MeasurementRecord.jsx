@@ -55,6 +55,10 @@ export default function MeasurementRecord() {
     date: isoToday(),
     unit: "m",
     purpose: "Pricing / quoting",
+    // P1b — measurement type controls which dimension columns show.
+    // "Mixed" preserves existing behaviour (shows L/W/H). "Linear" hides
+    // Width/Height, "Area" hides Height. Volume shows everything.
+    measurementType: "Mixed",
     additionalNotes: "",
   });
   const [items, setItems] = useState([makeRow()]);
@@ -261,6 +265,18 @@ Rules: never invent rows. Use only the rows supplied. If a column value is blank
           <Inp label="Measured by (auto from profile)" value={user?.fullName || ""} onChange={() => {}} testId="mr-measured-by" readOnly />
           <Drop label="Unit of measurement (applies to whole sheet)" value={form.unit} onChange={(v) => setForm({ ...form, unit: v })} options={UNITS.map((u) => ({ value: u.id, label: u.label }))} testId="mr-unit" />
           <Drop label="Measurement purpose" value={form.purpose} onChange={(v) => setForm({ ...form, purpose: v })} options={PURPOSES} testId="mr-purpose" />
+          <Drop
+            label="Measurement type"
+            value={form.measurementType}
+            onChange={(v) => setForm({ ...form, measurementType: v })}
+            options={[
+              { value: "Mixed", label: "Mixed — show Length, Width and Height" },
+              { value: "Linear", label: "Linear metres — hide Width & Height" },
+              { value: "Area", label: "Area m² — hide Height" },
+              { value: "Volume", label: "Volume m³ — show all dimensions" },
+            ]}
+            testId="mr-measurement-type"
+          />
         </div>
       </div>
 
@@ -269,6 +285,7 @@ Rules: never invent rows. Use only the rows supplied. If a column value is blank
         title="Measurements"
         rows={items}
         unit={unitDef.suffix}
+        measurementType={form.measurementType}
         onChange={(id, field, value) => updateRow(id, field, value, false)}
         onRemove={(id) => removeRow(id, false)}
         onAdd={() => addRow(false)}
@@ -311,6 +328,7 @@ Rules: never invent rows. Use only the rows supplied. If a column value is blank
                   title="Deductions / Voids"
                   rows={deductions}
                   unit={unitDef.suffix}
+                  measurementType={form.measurementType}
                   onChange={(id, field, value) => updateRow(id, field, value, true)}
                   onRemove={(id) => removeRow(id, true)}
                   onAdd={() => addRow(true)}
@@ -371,18 +389,30 @@ Rules: never invent rows. Use only the rows supplied. If a column value is blank
   );
 }
 
-function MeasurementTable({ title, rows, unit, onChange, onRemove, onAdd, testIdBase, flat }) {
+function MeasurementTable({ title, rows, unit, onChange, onRemove, onAdd, testIdBase, flat, measurementType = "Mixed" }) {
+  const showWidth  = measurementType !== "Linear";
+  const showHeight = measurementType === "Mixed" || measurementType === "Volume";
   return (
     <div className={flat ? "" : "card-dark p-5"} data-testid={`${testIdBase}-table`}>
       {!flat && <div className="text-xs uppercase tracking-widest text-[#E8A020] mb-4 flex items-center gap-2"><Ruler size={14}/> {title}</div>}
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm" style={{ tableLayout: "fixed" }}>
+          <colgroup>
+            <col style={{ width: "32%" }} />
+            <col style={{ width: "8%" }} />
+            {showWidth  && <col style={{ width: "8%" }} />}
+            {showHeight && <col style={{ width: "8%" }} />}
+            <col style={{ width: "6%" }} />
+            <col style={{ width: "12%" }} />
+            <col style={{ width: "22%" }} />
+            <col style={{ width: "4%" }} />
+          </colgroup>
           <thead className="text-[10px] uppercase tracking-widest text-[#706D66]">
             <tr>
-              <th className="text-left py-2 w-1/3">Item / Description</th>
-              <th className="text-right">L</th>
-              <th className="text-right">W</th>
-              <th className="text-right">H</th>
+              <th className="text-left py-2">Item / Description</th>
+              <th className="text-right">Length</th>
+              {showWidth  && <th className="text-right">Width</th>}
+              {showHeight && <th className="text-right">Height</th>}
               <th className="text-right">Qty</th>
               <th className="text-right">Total</th>
               <th className="text-left pl-2">Notes</th>
@@ -398,8 +428,8 @@ function MeasurementTable({ title, rows, unit, onChange, onRemove, onAdd, testId
                     <input className="input-base !py-1 !text-sm" placeholder="e.g. Living room floor" value={r.description} onChange={(e) => onChange(r.id, "description", e.target.value)} data-testid={`${testIdBase}-row-${idx}-desc`} />
                   </td>
                   <td className="pr-1"><input type="number" step="0.01" className="input-base !py-1 !text-sm text-right" value={r.length} onChange={(e) => onChange(r.id, "length", e.target.value)} data-testid={`${testIdBase}-row-${idx}-L`} /></td>
-                  <td className="pr-1"><input type="number" step="0.01" className="input-base !py-1 !text-sm text-right" value={r.width} onChange={(e) => onChange(r.id, "width", e.target.value)} data-testid={`${testIdBase}-row-${idx}-W`} /></td>
-                  <td className="pr-1"><input type="number" step="0.01" className="input-base !py-1 !text-sm text-right" value={r.height} onChange={(e) => onChange(r.id, "height", e.target.value)} data-testid={`${testIdBase}-row-${idx}-H`} /></td>
+                  {showWidth  && <td className="pr-1"><input type="number" step="0.01" className="input-base !py-1 !text-sm text-right" value={r.width} onChange={(e) => onChange(r.id, "width", e.target.value)} data-testid={`${testIdBase}-row-${idx}-W`} /></td>}
+                  {showHeight && <td className="pr-1"><input type="number" step="0.01" className="input-base !py-1 !text-sm text-right" value={r.height} onChange={(e) => onChange(r.id, "height", e.target.value)} data-testid={`${testIdBase}-row-${idx}-H`} /></td>}
                   <td className="pr-1"><input type="number" step="1" className="input-base !py-1 !text-sm text-right" value={r.quantity} onChange={(e) => onChange(r.id, "quantity", e.target.value)} data-testid={`${testIdBase}-row-${idx}-Q`} /></td>
                   <td className="pr-1 text-right tabular-nums" style={{ color: t.kind === "empty" ? "#706D66" : "#E8A020" }} data-testid={`${testIdBase}-row-${idx}-total`}>
                     {t.kind === "empty" ? "—" : `${fmt(t.value, t.kind === "volume" ? 3 : 2)} ${unit}${t.unit}`}

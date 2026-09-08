@@ -293,74 +293,82 @@ Rules:
         </Grid>
       </Section>
 
-      {/* SECTION 2 — VARIATION TABLE */}
+      {/* SECTION 2 — VARIATIONS (two-row card layout, replaces the cramped
+          10-column spreadsheet. Preserves all fields and calculations. On
+          small viewports each field stacks; on md+ the two-row grid stays
+          balanced with generous space for Description and Notes.) */}
       <Section title="Variation Tracker" testId="pvt-section-2">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm" style={{ minWidth: 1400 }}>
-            <thead className="text-[10px] uppercase tracking-widest text-[#706D66]">
-              <tr>
-                <th className="text-left py-2 pr-2 whitespace-nowrap">Reference Number</th>
-                <th className="text-left pr-2">Date</th>
-                <th className="text-left pr-2">Description of Variation</th>
-                <th className="text-left pr-2">Instructed by</th>
-                <th className="text-left pr-2">Unit</th>
-                <th className="text-right pr-2">Quantity</th>
-                <th className="text-right pr-2">Rate (£)</th>
-                <th className="text-right pr-2 whitespace-nowrap">Line Total (£)</th>
-                <th className="text-left pr-2">Status</th>
-                <th className="text-left pr-2">Notes</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {decorated.map((r, idx) => (
-                <tr key={r.id} className="border-t border-[#F0EDE8]/5 align-top" data-testid={`pvt-row-${idx}`}>
-                  <td className="py-1 pr-2 text-[#E8A020] text-xs font-mono whitespace-nowrap" data-testid={`pvt-row-${idx}-ref`}>{r.ref}</td>
-                  <td className="pr-2">
-                    <input type="date" className="input-base !py-1 !text-sm" value={r.date} onChange={(e) => updateRow(r.id, "date", e.target.value)} data-testid={`pvt-row-${idx}-date`} />
-                  </td>
-                  <td className="pr-2">
-                    <input className="input-base !py-1 !text-sm" placeholder="What extra work or change was instructed?" value={r.description} onChange={(e) => updateRow(r.id, "description", e.target.value)} data-testid={`pvt-row-${idx}-description`} />
-                  </td>
-                  <td className="pr-2">
-                    <input className="input-base !py-1 !text-sm" placeholder="(optional)" value={r.instructedBy} onChange={(e) => updateRow(r.id, "instructedBy", e.target.value)} data-testid={`pvt-row-${idx}-instructedby`} />
-                  </td>
-                  <td className="pr-2">
-                    <select className="input-base !py-1 !text-sm" value={r.unit} onChange={(e) => updateRow(r.id, "unit", e.target.value)} data-testid={`pvt-row-${idx}-unit`}>
-                      {r.unit && !UNIT_OPTIONS.includes(r.unit) && <option value={r.unit}>{r.unit}</option>}
-                      {UNIT_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
-                    </select>
-                  </td>
-                  <td className="pr-2">
-                    <input type="number" min="0" step="0.01" className="input-base !py-1 !text-sm text-right" value={r.quantity} onChange={(e) => updateRow(r.id, "quantity", e.target.value)} data-testid={`pvt-row-${idx}-quantity`} />
-                  </td>
-                  <td className="pr-2">
-                    <input type="number" min="0" step="0.01" className="input-base !py-1 !text-sm text-right" value={r.rate} onChange={(e) => updateRow(r.id, "rate", e.target.value)} data-testid={`pvt-row-${idx}-rate`} />
-                  </td>
-                  <td className="pr-2 whitespace-nowrap text-right">
-                    <div
-                      className="px-2 py-1 rounded text-xs font-mono inline-block"
-                      style={{ background: "rgba(15,15,15,0.4)", border: "1px solid rgba(160,157,148,0.18)", color: "#F0EDE8" }}
-                      data-testid={`pvt-row-${idx}-linetotal`}
-                    >{money(r.lineTotal)}</div>
-                  </td>
-                  <td className="pr-2">
-                    <select className="input-base !py-1 !text-sm" value={r.status} onChange={(e) => updateRow(r.id, "status", e.target.value)} data-testid={`pvt-row-${idx}-status`}>
-                      {STATUS_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
-                    </select>
-                  </td>
-                  <td className="pr-2">
-                    <input className="input-base !py-1 !text-sm" placeholder="Notes" value={r.notes} onChange={(e) => updateRow(r.id, "notes", e.target.value)} data-testid={`pvt-row-${idx}-notes`} />
-                  </td>
-                  <td className="text-right">
-                    <button onClick={() => removeRow(r.id)} className="text-[#706D66] hover:text-red-400" data-testid={`pvt-row-${idx}-remove`}><Trash2 size={14}/></button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="grid gap-3" data-testid="pvt-rows">
+          {decorated.map((r, idx) => (
+            <div
+              key={r.id}
+              className="rounded p-4"
+              style={{ background: "rgba(15,15,15,0.5)", border: "1px solid rgba(160,157,148,0.18)" }}
+              data-testid={`pvt-row-${idx}`}
+            >
+              {/* Row 1 — Reference | Date | Description | Instructed by */}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                <div className="md:col-span-2">
+                  <FieldLabel>Reference</FieldLabel>
+                  <div className="text-[#E8A020] text-xs font-mono py-2" data-testid={`pvt-row-${idx}-ref`}>{r.ref}</div>
+                </div>
+                <div className="md:col-span-2">
+                  <FieldLabel>Date</FieldLabel>
+                  <input type="date" className="input-base !py-2 !text-sm" value={r.date} onChange={(e) => updateRow(r.id, "date", e.target.value)} data-testid={`pvt-row-${idx}-date`} />
+                </div>
+                <div className="md:col-span-5">
+                  <FieldLabel>Description of Variation</FieldLabel>
+                  <input className="input-base !py-2 !text-sm" placeholder="What extra work or change was instructed?" value={r.description} onChange={(e) => updateRow(r.id, "description", e.target.value)} data-testid={`pvt-row-${idx}-description`} />
+                </div>
+                <div className="md:col-span-3">
+                  <FieldLabel>Instructed by</FieldLabel>
+                  <input className="input-base !py-2 !text-sm" placeholder="Name + role (optional)" value={r.instructedBy} onChange={(e) => updateRow(r.id, "instructedBy", e.target.value)} data-testid={`pvt-row-${idx}-instructedby`} />
+                </div>
+              </div>
+
+              {/* Row 2 — Unit | Qty | Rate | Line Total | Status | Notes | Delete */}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end mt-3">
+                <div className="md:col-span-2">
+                  <FieldLabel>Unit</FieldLabel>
+                  <select className="input-base !py-2 !text-sm" value={r.unit} onChange={(e) => updateRow(r.id, "unit", e.target.value)} data-testid={`pvt-row-${idx}-unit`}>
+                    {r.unit && !UNIT_OPTIONS.includes(r.unit) && <option value={r.unit}>{r.unit}</option>}
+                    {UNIT_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </div>
+                <div className="md:col-span-1">
+                  <FieldLabel>Qty</FieldLabel>
+                  <input type="number" min="0" step="0.01" className="input-base !py-2 !text-sm text-right" value={r.quantity} onChange={(e) => updateRow(r.id, "quantity", e.target.value)} data-testid={`pvt-row-${idx}-quantity`} />
+                </div>
+                <div className="md:col-span-1">
+                  <FieldLabel>Rate (£)</FieldLabel>
+                  <input type="number" min="0" step="0.01" className="input-base !py-2 !text-sm text-right" value={r.rate} onChange={(e) => updateRow(r.id, "rate", e.target.value)} data-testid={`pvt-row-${idx}-rate`} />
+                </div>
+                <div className="md:col-span-2">
+                  <FieldLabel>Line Total (£)</FieldLabel>
+                  <div
+                    className="px-3 py-2 rounded text-sm font-mono text-right tabular-nums"
+                    style={{ background: "rgba(15,15,15,0.6)", border: "1px solid rgba(160,157,148,0.18)", color: "#F0EDE8" }}
+                    data-testid={`pvt-row-${idx}-linetotal`}
+                  >{money(r.lineTotal)}</div>
+                </div>
+                <div className="md:col-span-2">
+                  <FieldLabel>Status</FieldLabel>
+                  <select className="input-base !py-2 !text-sm" value={r.status} onChange={(e) => updateRow(r.id, "status", e.target.value)} data-testid={`pvt-row-${idx}-status`}>
+                    {STATUS_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </div>
+                <div className="md:col-span-3">
+                  <FieldLabel>Notes</FieldLabel>
+                  <input className="input-base !py-2 !text-sm" placeholder="Notes" value={r.notes} onChange={(e) => updateRow(r.id, "notes", e.target.value)} data-testid={`pvt-row-${idx}-notes`} />
+                </div>
+                <div className="md:col-span-1 flex justify-end pb-2">
+                  <button onClick={() => removeRow(r.id)} className="text-[#706D66] hover:text-red-400" data-testid={`pvt-row-${idx}-remove`} aria-label="Remove variation"><Trash2 size={16}/></button>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
-        <button onClick={addRow} className="btn-secondary flex items-center gap-2 text-xs mt-3" data-testid="pvt-add-row">
+        <button onClick={addRow} className="btn-secondary flex items-center gap-2 text-xs mt-4" data-testid="pvt-add-row">
           <Plus size={12}/> Add Variation
         </button>
       </Section>
@@ -452,6 +460,9 @@ function Section({ title, children, testId, icon }) {
 }
 function Grid({ children }) {
   return <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">{children}</div>;
+}
+function FieldLabel({ children }) {
+  return <div className="text-[10px] uppercase tracking-widest text-[#A19D94] mb-1">{children}</div>;
 }
 function Inp({ label, value, onChange, type = "text", testId, helper, placeholder }) {
   return (

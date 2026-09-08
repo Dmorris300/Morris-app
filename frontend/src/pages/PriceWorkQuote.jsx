@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ChevronLeft, FileText, Mail, Download, Copy, Info, Star, X, Plus, Trash2, ClipboardList } from "lucide-react";
+import { ChevronLeft, FileText, Mail, Download, Copy, Info, Star, X, Plus, Trash2, ClipboardList, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../lib/auth";
 import api from "../lib/api";
@@ -8,6 +8,7 @@ import { downloadPdf } from "../lib/pdf";
 import LiveSignatureBlock from "../components/LiveSignatureBlock";
 import DraftSaveButton from "../components/DraftSaveButton";
 import { draftIdFromQuery, clearDraftQueryParam, fetchDraft } from "../lib/drafts";
+import { QUOTE_STATUS_ORDER } from "../lib/uk-format";
 
 const TOOL_ID   = "price-work-quote";
 const TOOL_NAME = "Price Work Quote";
@@ -97,14 +98,24 @@ export default function PriceWorkQuote() {
   const [generating, setGenerating]     = useState(false);
   const [result, setResult]             = useState("");
   const [refNumber, setRefNumber]       = useState("");
+  const [genError, setGenError]         = useState("");
   const [liveSignature, setLiveSignature] = useState("");
+  // P1b — separate client acceptance signature. `savedSignature={null}` on
+  // the block below ensures the "Use Saved Signature" button on the client
+  // block does NOT pick up the logged-in user's own vault signature.
+  const [clientSignature, setClientSignature] = useState("");
+  // P1b — new fields
+  const [quoteStatus, setQuoteStatus]                     = useState("Draft");
+  const [programme, setProgramme]                         = useState("");
+  const [linkedVariationRef, setLinkedVariationRef]       = useState("");
 
   // ---------- Draft save/resume ----------
   const getDraftData = () => ({
     quoteRef, quoteDate, validUntil, project, siteAddress, quotedTo,
     contactName, scope, drawingRef, rows, vatRegistered, vatRate,
     paymentTerms, paymentTermsOther, included, excluded, additionalNotes,
-    result, refNumber, liveSignature,
+    result, refNumber, liveSignature, clientSignature,
+    quoteStatus, programme, linkedVariationRef,
   });
   const draftRestoredFor = useRef(null);
   useEffect(() => {
@@ -136,6 +147,10 @@ export default function PriceWorkQuote() {
         if (p.result !== undefined) setResult(p.result);
         if (p.refNumber !== undefined) setRefNumber(p.refNumber);
         if (p.liveSignature !== undefined) setLiveSignature(p.liveSignature);
+        if (p.clientSignature !== undefined) setClientSignature(p.clientSignature);
+        if (p.quoteStatus !== undefined) setQuoteStatus(p.quoteStatus);
+        if (p.programme !== undefined) setProgramme(p.programme);
+        if (p.linkedVariationRef !== undefined) setLinkedVariationRef(p.linkedVariationRef);
         toast.success("Draft restored");
       } catch (e) {
         if (process.env.NODE_ENV !== "production") console.error("Quote draft restore failed", e);
@@ -184,7 +199,7 @@ export default function PriceWorkQuote() {
     const populated = decorated.filter((r) => (r.description || "").trim().length > 0);
     if (populated.length === 0) { toast.error("Add at least one priced item"); return; }
 
-    setGenerating(true); setResult(""); setRefNumber("");
+    setGenerating(true); setResult(""); setRefNumber(""); setGenError("");
 
     const itemsBlock = populated.map((r) => {
       return [
@@ -223,8 +238,11 @@ export default function PriceWorkQuote() {
 
 3. QUOTE DETAILS — list on separate lines:
    Quote Reference Number: {quoteRef}
+   Quote Status: {quoteStatus}
+   Linked Variation Reference: {linkedVariationRef}
    Date of Quote: {quoteDate}
    Quote Valid Until: {validUntil}
+   Programme / Duration: {programme}
    Project Name: {project}
    Site Address: {siteAddress}
    Quoted To: {quotedTo}
@@ -256,7 +274,7 @@ export default function PriceWorkQuote() {
    Signature: (auto-insert user's saved signature if held; otherwise leave a signature line)
 
 9. ACCEPTANCE OF PRICE WORK QUOTE — print as a clearly separated section at the bottom of the document with the heading 'ACCEPTANCE OF PRICE WORK QUOTE' in capitals. Then print verbatim:
-   I / We confirm acceptance of the above priced schedule of works at the total value stated. Works to proceed in accordance with the terms outlined above.
+   I / We confirm acceptance of the above priced schedule of works at the total value stated. This quote is valid until {validUntil}. Works to proceed in accordance with the programme, payment terms and inclusions/exclusions set out above. Any additional works instructed after acceptance will be priced separately as a Variation.
 
    Then print the following acceptance lines on separate lines, each followed by a blank signature line (an underscore line):
    Accepted by (Name): __________________________
@@ -301,6 +319,9 @@ Rules:
           additionalNotes: additionalNotes || "—",
           quotedByName: user?.fullName || "—",
           quotedByRole: user?.signatureRole || "Director",
+          quoteStatus: quoteStatus || "Draft",
+          programme: programme || "—",
+          linkedVariationRef: linkedVariationRef || "—",
         },
         trade: user?.trade,
         companyName: user?.companyName,
@@ -312,15 +333,30 @@ Rules:
       try { await api.post("/profile/update", { recentlyUsed: recent }); await refresh(); } catch { /* ignore */ }
       toast.success("Price Work Quote generated. Saved to your Vault.");
     } catch (err) {
-      const d = err?.response?.data?.detail;
-      toast.error(typeof d === "string" ? d : "Could not generate. Try again.");
+      const s = err?.response?.status;
+      const detail = err?.response?.data?.detail;
+      if (s === 401) {
+        // Global api interceptor is handling session-expired UX. Preserve form state.
+      } else if (s === 402) {
+        setGenError(typeof detail === "string" ? detail : "Free plan limit reached — please upgrade to keep generating quotes.");
+        toast.error("Free plan limit reached.");
+      } else if (s === 429) {
+        setGenError("Morris is busy — please wait a moment and try again. Your inputs are preserved.");
+        toast.error("Server busy — try again shortly.");
+      } else if (!err?.response) {
+        setGenError("Network error — Morris couldn't reach the server. Your inputs are preserved.");
+        toast.error("Network error.");
+      } else {
+        setGenError(typeof detail === "string" ? detail : "Generation failed — your inputs are preserved, please try again.");
+        toast.error("Generation failed.");
+      }
     } finally { setGenerating(false); }
   };
 
   const onCopy = () => { navigator.clipboard.writeText(result); toast.success("Copied"); };
   const onDownload = () => {
     const userWithSig = { ...(user || {}), signature: liveSignature || user?.signature };
-    downloadPdf({ title: `Price Work Quote — ${project || "project"} — ${quoteRef}`, content: result, user: userWithSig });
+    downloadPdf({ title: `Price Work Quote — ${project || "project"} — ${quoteRef}`, content: result, user: userWithSig, clientSignature });
     toast.success("PDF downloaded");
   };
 
@@ -358,8 +394,11 @@ Rules:
       <Section title="Quote Details" testId="pwq-section-1" icon={<ClipboardList size={14}/>}>
         <Grid>
           <Inp label="Quote Reference Number" value={quoteRef} onChange={setQuoteRef} testId="pwq-ref" helper={`Auto-suggested next number — edit if needed`} />
+          <Drop label="Quote Status" value={quoteStatus} onChange={setQuoteStatus} options={QUOTE_STATUS_ORDER} testId="pwq-status" />
           <Inp label="Date of Quote" value={quoteDate} onChange={setQuoteDate} type="date" testId="pwq-date" />
           <Inp label="Quote Valid Until" value={validUntil} onChange={setValidUntil} type="date" testId="pwq-validuntil" helper="Defaults to 30 days from today" />
+          <Inp label="Programme / Duration" value={programme} onChange={setProgramme} testId="pwq-programme" helper="e.g. 3 weeks from acceptance, or start 15/03/2026" />
+          <Inp label="Linked Variation Reference (optional)" value={linkedVariationRef} onChange={setLinkedVariationRef} testId="pwq-linked-vo" helper="e.g. VO-005 — if this quote covers a specific variation" />
           <Inp label="Project Name" value={project} onChange={setProject} testId="pwq-project" />
           <Inp label="Site Address" value={siteAddress} onChange={setSiteAddress} testId="pwq-site" />
           <Inp label="Quoted To (Main Contractor / Client Name)" value={quotedTo} onChange={setQuotedTo} testId="pwq-quotedto" />
@@ -542,9 +581,38 @@ Rules:
         </div>
       </Section>
 
+      {/* SECTION 7 — CLIENT ACCEPTANCE (P1b). Deliberately NOT wired to the
+          logged-in user's saved signature — the "Use Saved Signature" button
+          must never apply the sender's own signature as the client's. */}
+      <Section title="Client / Recipient Acceptance (optional)" testId="pwq-section-7">
+        <div className="text-xs text-[#A19D94] mb-3 leading-relaxed">
+          Leave blank for the client to sign on the printed PDF, or capture their signature here on site.
+          The logged-in user's saved signature is intentionally not usable here.
+        </div>
+        <LiveSignatureBlock
+          label="Client / Recipient Signature"
+          subtitle="Optional. Applies to the ACCEPTANCE section of the PDF."
+          value={clientSignature}
+          onChange={setClientSignature}
+          savedSignature={null}
+          allowBlank
+          testIdPrefix="pwq-client-sig"
+        />
+      </Section>
+
       <button onClick={onGenerate} disabled={generating} className="btn-primary w-full flex items-center justify-center gap-2 mt-5" data-testid="pwq-generate">
         {generating ? "Generating…" : <><FileText size={14}/> Generate Price Work Quote</>}
       </button>
+      {genError && (
+        <div
+          className="mt-3 p-3 rounded flex items-start gap-2 text-sm"
+          style={{ border: "1px solid rgba(229,99,90,0.4)", background: "rgba(229,99,90,0.08)", color: "#F0EDE8" }}
+          data-testid="pwq-gen-error"
+        >
+          <AlertCircle size={16} className="text-[#E5635A] mt-0.5 flex-shrink-0" />
+          <div>{genError}</div>
+        </div>
+      )}
 
       {result && (
         <div className="card-dark p-6 mt-6" data-testid="pwq-output-block">

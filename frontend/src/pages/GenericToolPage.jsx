@@ -252,11 +252,19 @@ export default function GenericToolPage() {
     } catch (err) {
       const status = err?.response?.status;
       const detail = err?.response?.data?.detail;
-      if (status === 402) {
+      if (status === 401) {
+        // The global api interceptor already surfaced a session-expired toast
+        // and is routing the user to /login. Don't stack another error here —
+        // the form values remain in state, so nothing is lost.
+      } else if (status === 402) {
         toast.error(typeof detail === "string" ? detail : "Free plan limit reached");
         nav("/app/billing");
+      } else if (status === 429) {
+        toast.error("Morris is busy — please wait a few seconds and try again.");
+      } else if (!err?.response) {
+        toast.error("Network error — check your connection and try again. Your inputs are preserved.");
       } else {
-        toast.error(typeof detail === "string" ? detail : "Generation failed");
+        toast.error(typeof detail === "string" ? detail : "Generation failed — your inputs are preserved, please try again.");
       }
     } finally { setGenerating(false); }
   };
@@ -332,6 +340,21 @@ export default function GenericToolPage() {
             {(tool.fields || []).map((field) => {
               const required = isRequired(field);
               const isMissingFlagged = missing.includes(field.label);
+              // Conditional field visibility via `dependsOn` metadata.
+              //   dependsOn: { field, equals?, notEquals?, requireValue? }
+              // When the dependency isn't satisfied the field is hidden AND its
+              // stored value is left in state (so switching the dependency back
+              // preserves what the user typed). Kept intentionally small — no
+              // deeply chained logic, no boolean groups.
+              if (field.dependsOn) {
+                const depVal = (values[field.dependsOn.field] ?? "").toString().trim();
+                const dep = field.dependsOn;
+                let visible = true;
+                if (dep.requireValue && !depVal) visible = false;
+                if (visible && dep.equals !== undefined && depVal !== String(dep.equals)) visible = false;
+                if (visible && dep.notEquals !== undefined && depVal === String(dep.notEquals)) visible = false;
+                if (!visible) return null;
+              }
               return (
                 <div key={field.name}>
                   <div className="text-xs uppercase tracking-widest text-[#A19D94] mb-2 flex items-center gap-1">
