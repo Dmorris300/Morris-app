@@ -53,23 +53,25 @@ remain as audit-trail references only — they are NOT product marketing copy.
 
 **Bug**: After the first P1a production deploy, fresh Measurement Record PDFs still rendered the Contractor Sign-Off signature as faint/light-grey and detached/floating above the sign-off line. Three other P1a checks (no role placeholder, single sign-off, DD/MM/YYYY dates) already passing.
 
-**Root cause**: Legacy saved signature dataURLs were full-canvas snapshots containing sub-pixel-antialiased strokes (α < 1.0 at feathered edges). `jsPDF.addImage` embedded those alpha-blended pixels verbatim → faint grey on print + large transparent margin around ink → visually floating. The existing `SignaturePad.hardenInk()` only ran on the on-screen canvas — the "Use Saved Signature" button (`LiveSignatureBlock.useSaved`) and every profile-signature fallback bypassed it entirely.
+**Follow-up regression (same day)** — After the first `normalizeSignature` shipped, the signature was solid black but visually WORSE: the trimmed image was stretched across the whole pad on "Use Saved Signature", strokes were noticeably thicker (binary alpha threshold), and the PDF version was blown up to 44pt-tall (max-band size) instead of natural height. Fixed in a follow-up ship: gamma-boost alpha (preserves antialiased edges), contain-fit drawImage in SignaturePad (no more stretch), natural 26pt PDF target height (no more upscaling).
 
-**Fix (frontend-only, 4 files)**:
-- ✅ **NEW `/app/frontend/src/lib/signature-utils.js`** — exports `normalizeSignature(dataUrl): Promise<string>` that (a) alpha-thresholds every α > 40 pixel to solid `rgba(0,0,0,255)` and zeros the rest, and (b) trims the resulting bitmap to the ink bounding box + 6px pad. Idempotent, defensive.
-- ✅ `SignaturePad.jsx` — `end`, `applySaved`, `saveCurrent` now await `normalizeSignature` before propagating / persisting.
-- ✅ `LiveSignatureBlock.jsx` — `useSaved` is now async and awaits `normalizeSignature(savedSignature)` before `onChange`, so profile signatures are hardened + trimmed when the "Use Saved Signature" button is clicked.
+**Root cause**: Legacy saved signature dataURLs were full-canvas snapshots containing sub-pixel-antialiased strokes (α < 1.0 at feathered edges). `jsPDF.addImage` embedded those alpha-blended pixels verbatim → faint grey on print + large transparent margin around ink → visually floating. The existing `SignaturePad.hardenInk()` only ran on the on-screen canvas — the "Use Saved Signature" button (`LiveSignatureBlock.useSaved`) and every profile-signature fallback bypassed it entirely. **Secondary root cause** (regression): the first fix used a binary alpha threshold that thickened strokes and dropped antialiasing, and `pdf.js` unconditionally started at `sw = sigMaxW = 220pt` which upscaled trimmed signatures.
+
+**Fix (frontend-only, 4 files, two ships combined)**:
+- ✅ **NEW `/app/frontend/src/lib/signature-utils.js`** — exports `normalizeSignature(dataUrl): Promise<string>` that (a) darkens every non-transparent pixel to RGB `#000000` and gamma-boosts alpha via `newAlpha = 255 * (α/255)^0.35` (preserves antialiased edges, no stroke thickening), and (b) trims the resulting bitmap to the ink bounding box + 6px pad. Idempotent, defensive.
+- ✅ `SignaturePad.jsx` — DELETED `hardenInk()` function and both call sites. Only `normalizeSignature` runs on export. Mount useEffect and `applySaved` use contain-fit drawImage (`scale = min(w/iw, h/ih, 1)` — never upscale, centred) so trimmed signatures don't stretch across the pad.
+- ✅ `LiveSignatureBlock.jsx` — `useSaved` is now async and awaits `normalizeSignature(savedSignature)` before `onChange`.
 - ✅ `MeasurementRecord.jsx` — `onDownload` is now async; normalizes `liveSignature || user?.signature` before `downloadPdf()` as final safety net for legacy profile signatures.
+- ✅ `pdf.js` signature block — new `sigTargetH = 26pt` (natural hand-signature height); height-first sizing, down-only scaling; never upscales small signatures.
 
-**Verification (testing_agent iteration_36, 100% frontend pass)**:
-- Path A (fresh draw): normalized dataURL is **208×51** (tight bbox, from a 1028×140 DPR-scaled raw canvas), 1,791 ink pixels, **0 non-black**, **0 bad-alpha**.
-- Path C (end-to-end PDF, PyMuPDF-extracted embedded PNG): **208×51**, 10,608 ink pixels, **0 non-black**, **0 bad-alpha** — pure solid black. `CONTRACTOR SIGN-OFF` block appears exactly once. `Signature:` label appears exactly once. No role placeholder.
-- Path D (regression smoke — RAMS, Incident Report): both pages load clean, no console errors from shared code.
-- Path E (console): 0 signature-related errors.
+**Verification (testing_agent iterations 36–38, 100% frontend pass)**:
+- Fresh drawn signature normalized dataURL: **174×47** natural bbox, alpha histogram with full gradient (mid-range 60-220 = 428 pixels, high 240+ = 1103 pixels), **0 non-black RGB pixels**.
+- PDF-embedded signature: **49.74×26.00pt** on 88×46 px source (iteration 37), positioned within 2pt of the sign-off baseline. Contractor Sign-Off appears exactly once. Signature label appears exactly once. No role placeholder.
+- Regression smoke on RAMS + Incident Report: clean, 0 console errors from shared code.
 
 **Explicit scope lock**: this ship contains ONLY the signature-fidelity fix. Does NOT include P1b, MR L/W/H layout, Price Work Variation Tracker layout, RAMS improvements, project/team/snagging improvements, or backend empty-date coercion.
 
-**Deploy status**: Dispatched to deployer at 08 Sep 2026 (post-verification). Awaiting async promotion confirmation.
+**Deploy status**: Correction dispatched to deployer at 08 Sep 2026 evening (post-verification of iteration 38). Awaiting async promotion confirmation.
 
 ---
 

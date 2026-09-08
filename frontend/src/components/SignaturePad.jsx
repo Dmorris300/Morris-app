@@ -29,11 +29,24 @@ export default function SignaturePad({ value, onChange, height = 180, allowVault
     ctx.lineWidth = 3.2;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    ctx.strokeStyle = "#000000"; // Pure black ink — plus we hard-threshold the alpha channel at capture time so every rendered pixel is solid dark on PDF (item: no faded/washed-out signatures)
+    ctx.strokeStyle = "#000000"; // Pure black ink. normalizeSignature() darkens RGB to #000 and gamma-boosts alpha on export, so antialiased edges are preserved AND print solid.
     ctx.clearRect(0, 0, w, height);
     if (value) {
       const img = new Image();
-      img.onload = () => { ctx.drawImage(img, 0, 0, w, height); setHasInk(true); };
+      img.onload = () => {
+        // Contain-fit: preserve the signature's original aspect ratio and
+        // never upscale it. This stops trimmed tight-bbox signatures from
+        // being stretched across the whole pad.
+        const iw = img.naturalWidth || img.width;
+        const ih = img.naturalHeight || img.height;
+        const scale = Math.min(w / iw, height / ih, 1);
+        const rw = iw * scale;
+        const rh = ih * scale;
+        const dx = (w - rw) / 2;
+        const dy = (height - rh) / 2;
+        ctx.drawImage(img, dx, dy, rw, rh);
+        setHasInk(true);
+      };
       img.src = value;
     }
   }, []);
@@ -62,32 +75,13 @@ export default function SignaturePad({ value, onChange, height = 180, allowVault
     lastRef.current = p;
     setHasInk(true);
   };
-  // Threshold the canvas so every visible pixel becomes solid black. This
-  // eliminates the "faded/washed-out signature" issue: browsers draw with
-  // sub-pixel antialiasing that leaves feathered edges with alpha < 1.0,
-  // which then print faint on the A4 PDF. We keep the outline shape by
-  // treating any pixel with alpha > 50 as solid #000, alpha 255.
-  const hardenInk = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    const w = canvas.width;
-    const h = canvas.height;
-    const img = ctx.getImageData(0, 0, w, h);
-    const px = img.data;
-    for (let i = 0; i < px.length; i += 4) {
-      if (px[i + 3] > 50) { px[i] = 0; px[i + 1] = 0; px[i + 2] = 0; px[i + 3] = 255; }
-      else { px[i + 3] = 0; }
-    }
-    ctx.putImageData(img, 0, 0);
-  };
   const end = async () => {
     if (!drawingRef.current) return;
     drawingRef.current = false;
-    hardenInk();
     const rawUrl = canvasRef.current.toDataURL("image/png");
-    // Also trim to the ink bounding box so downstream PDF renders sit tight
-    // above the sign-off line instead of floating in a full-canvas frame.
+    // normalizeSignature darkens RGB to #000000 and gamma-boosts alpha
+    // (preserving antialiased edges — no binary threshold, no stroke
+    // thickening) and trims to the ink bounding box.
     const normalized = await normalizeSignature(rawUrl);
     onChange?.(normalized || rawUrl);
   };
@@ -102,11 +96,21 @@ export default function SignaturePad({ value, onChange, height = 180, allowVault
   const applySaved = (sig) => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
+    const w = canvas.clientWidth;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const img = new Image();
     img.onload = async () => {
-      ctx.drawImage(img, 0, 0, canvas.clientWidth, height);
-      hardenInk();
+      // Contain-fit: preserve the saved signature's aspect ratio and never
+      // upscale beyond its natural size. Prevents visible stretching in the
+      // pad when the saved image is a trimmed tight-bbox PNG.
+      const iw = img.naturalWidth || img.width;
+      const ih = img.naturalHeight || img.height;
+      const scale = Math.min(w / iw, height / ih, 1);
+      const rw = iw * scale;
+      const rh = ih * scale;
+      const dx = (w - rw) / 2;
+      const dy = (height - rh) / 2;
+      ctx.drawImage(img, dx, dy, rw, rh);
       setHasInk(true);
       const rawUrl = canvasRef.current.toDataURL("image/png");
       const normalized = await normalizeSignature(rawUrl);
@@ -119,10 +123,10 @@ export default function SignaturePad({ value, onChange, height = 180, allowVault
     if (!hasInk) return;
     setSaving(true);
     try {
-      hardenInk();
       const rawUrl = canvasRef.current.toDataURL("image/png");
-      // Store the trimmed, hardened version so every future re-use of the
-      // vault entry prints solid black and sits on the baseline.
+      // Store the normalized (darkened + gamma-boosted + trimmed) version
+      // so every future re-use of the vault entry prints solid black,
+      // keeps its natural stroke thickness, and sits on the baseline.
       const normalized = (await normalizeSignature(rawUrl)) || rawUrl;
       const r = await api.post("/signatures/vault", { label: saveLabel.trim() || "My signature", dataUrl: normalized });
       setVault([r.data, ...vault]);

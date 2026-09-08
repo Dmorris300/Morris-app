@@ -1,0 +1,40 @@
+{
+  "summary": "Regression test of P1a signature-utils v2 (gamma-boost + contain-fit + 26pt natural PDF sizing). Verified 4 of 5 paths against the preview URL as darrenhustle300. PDF-render geometry regression (Path C) is FIXED — signature now embeds at natural 26pt height (49.74 x 26.00pt for an 88x46 source), not the old 44pt-tall band. Contain-fit drawImage in SignaturePad also produces natural bbox on the pad (88x46 out of a 1028x140 canvas). RGB is genuinely #000000. HOWEVER, one required sub-check FAILS: the alpha channel of the normalized signature is BINARY (only 0 or 255), not the gamma-boosted gradient the user explicitly required (they wanted mid-alpha values 60-220 preserved to keep antialiased edges). Root cause: SignaturePad.jsx still calls hardenInk() inside end() (line 100) and saveCurrent() (line 145) BEFORE normalizeSignature runs, so alpha is pre-thresholded to 0/255 and the ALPHA_GAMMA=0.35 curve inside normalizeSignature has no mid-range values left to lift. The comment in files_of_reference stated hardenInk was removed from applySaved, but it is still active in the drawing/save paths — which are the paths that generate the dataURL flowing to onChange (and thus to PDF).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "SignaturePad.jsx", "issue": "hardenInk() is still invoked inside end() (line 100) and saveCurrent() (line 145) BEFORE normalizeSignature(). This binary-thresholds alpha to 0/255, defeating the ALPHA_GAMMA gamma-boost curve added to normalizeSignature. Consequence: strokes lose their antialiased edge gradient — the very behaviour the user demanded preserved. Path A alpha histogram of normalized dataURL: 556 pixels at alpha 255, 0 pixels in 60-220 range, 0 in 1-59. Verified again from PDF SMask (xref 21): 556 fully-opaque + 3492 fully-transparent, zero mid-range. Fix: remove hardenInk() from both end() and saveCurrent() and let normalizeSignature handle darkening (it already sets RGB to #000000 and gamma-boosts alpha).", "selector": "[data-testid=signature-canvas]", "priority": "HIGH"}
+    ],
+    "integration_issues": [
+      {"flow": "Path B — mr-sig-use-saved cannot be exercised end-to-end from test harness", "issue": "The mr-sig-use-saved button only renders when LiveSignatureBlock.savedSignature is truthy — which comes from user.signature. POST /api/profile/update with cookie credentials returned 401 in-browser (auth uses Bearer token, not cookies). Test could not populate user.signature to trigger the button. Path B geometry (contain-fit centred bbox <70% of pad) therefore untested via the mr-sig-use-saved code path, but the same contain-fit math is in SignaturePad's mount useEffect and Path A produced a natural 88x46 result — indicating contain-fit itself works. Recommend the main agent verify Path B manually by saving a signature via the Profile page's signature-save-button then clicking mr-sig-use-saved.", "affected_selectors": ["[data-testid=mr-sig-use-saved]"]}
+    ],
+    "design_issues": []
+  },
+  "path_results": {
+    "path_a_fresh_draw": {"black_rgb": true, "natural_bbox_88x46": true, "alpha_gradient_preserved": false, "verdict": "FAIL — alpha binary-thresholded, not gamma-boosted"},
+    "path_b_use_saved": {"tested": false, "reason": "could not populate user.signature via /api/profile/update (401)"},
+    "path_c_pdf": {"pdf_downloaded_bytes": 75814, "signature_bbox_pt": "49.74 x 26.00", "source_px": "88 x 46", "target_height_natural_26pt": true, "not_blown_up_to_44pt": true, "positioned_above_baseline": true, "rgb_black": true, "alpha_gradient_preserved": false, "verdict": "PASS on geometry (PRIMARY regression fixed) — FAIL on alpha gradient (secondary requirement)"},
+    "path_d_smoke": {"rams_canvas_present": true, "incident_report_canvas_present": false, "console_errors_sig_related": 0},
+    "path_e_console": {"total_console_errors": 1, "signature_related": 0}
+  },
+  "test_report_links": ["/tmp/test_mr_v3.pdf", "/tmp/pdf_sig_region.png", "/tmp/smask.png", "/tmp/sig_test_summary.json"],
+  "action_items": [
+    "REMOVE hardenInk() calls from SignaturePad.jsx end() (line 100) and saveCurrent() (line 145). The gamma-boost inside normalizeSignature already handles darkening; hardenInk pre-binarizes alpha and defeats the antialiasing preservation that was the whole point of the v2 fix.",
+    "Alternatively, if hardenInk is kept for legacy vault re-loads, remove its alpha-collapse step (px[i+3] > 50 -> 255) and let normalizeSignature handle alpha via gamma curve.",
+    "Verify Path B manually: save a signature via the Profile page's signature-save-button, reload /app/measurement-record, click mr-sig-use-saved, confirm the ink is centred with a substantial transparent margin (bbox < 70% of the 380x140 pad).",
+    "Incident-report signature canvas selector not found via [data-testid=signature-canvas] — verify the page includes a LiveSignatureBlock/SignaturePad."
+  ],
+  "critical_code_review_comments": [
+    "SignaturePad.jsx hardenInk() (lines 78-96) is dead-weight now that normalizeSignature has a proper gamma-boost. Its binary threshold at alpha>50 is the exact anti-pattern the v2 fix was meant to eliminate. Delete it or gate it behind a legacy flag.",
+    "pdf.js signature block sizing (lines 261-300) is correct and idiomatic — height-first with proportional width, down-only scaling. Verified 26pt render on 88x46 source = 49.74x26pt.",
+    "LiveSignatureBlock only surfaces mr-sig-use-saved when savedSignature (user.signature) is truthy; the SignaturePad-vault mechanism is separate. Consider unifying these two ‘saved signature’ sources so users don’t get two disconnected ‘saved’ UIs."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only)", "frontend": "60% — 3/5 sub-requirements met (RGB black, natural sizing on pad, 26pt PDF height); alpha gradient preservation FAILS"},
+  "test_credentials": "darrenhustle300 / hustle1234 (admin)",
+  "seed_data_creation": "Created one vault signature entry labelled 'TestSig1' for darrenhustle300.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Path A alpha check is the outstanding failure. After main agent removes hardenInk() from SignaturePad.end/saveCurrent, re-run Path A and confirm the normalized dataURL alpha histogram contains pixels in the 60-220 range. Path C PDF geometry is already correct. For Path B, save a signature on the Profile page first (that page's signature-save-button writes user.signature), then re-run the mr-sig-use-saved test.",
+  "rca of the issue": "1) User complaint: signature was thickened + stretched after v1 binary threshold. 2) v2 fix intended: replace binary threshold with gamma-boosted alpha inside normalizeSignature, add contain-fit drawImage in SignaturePad, target 26pt in pdf.js. 3) Verified: contain-fit and 26pt PDF sizing landed correctly — signature is NOT stretched or blown up any more (primary regression FIXED). 4) Bug remaining: SignaturePad.end() and saveCurrent() STILL run hardenInk() BEFORE calling normalizeSignature. hardenInk collapses alpha to 0 or 255 based on threshold 50. By the time normalizeSignature receives the raw dataURL, alpha is already binary — the gamma curve has nothing to lift. Mitigation: delete hardenInk() calls in SignaturePad end() (line 100) and saveCurrent() (line 145). normalizeSignature already darkens RGB to #000 and gamma-boosts alpha; that is sufficient to produce dark ink on paper while keeping edges antialiased."
+}

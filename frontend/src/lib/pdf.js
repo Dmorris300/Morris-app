@@ -258,6 +258,12 @@ export function generatePdf({ title, content, user, photo, photoCaption, photos,
       const sigX = margin + labelW;
       const sigMaxW = 220;
       const sigMaxH = 44;
+      // Natural signature height in PDF points. A hand-drawn signature on
+      // print is typically ~9–10 mm tall; 26 pt ≈ 9.2 mm. We render the
+      // signature at this target height and never upscale beyond it, so a
+      // trimmed tight-bbox signature stays at its natural size instead of
+      // being blown up to the full sigMaxW × sigMaxH band.
+      const sigTargetH = 26;
       const blockH = sigMaxH + 18; // image band + line + spacing
 
       if (y + blockH > bottom) {
@@ -281,11 +287,14 @@ export function generatePdf({ title, content, user, photo, photoCaption, photos,
       const lineY = y + sigMaxH;
       if (user?.signature) {
         try {
-          // Preserve aspect ratio: fit within sigMaxW x sigMaxH.
+          // Preserve aspect ratio at the natural target height. Only scale
+          // DOWN if the derived width would exceed the max band or the
+          // target height exceeds the band — never scale UP.
           const props = doc.getImageProperties(user.signature);
           const ar = props.width / props.height;
-          let sw = sigMaxW;
-          let sh = sw / ar;
+          let sh = sigTargetH;
+          let sw = sh * ar;
+          if (sw > sigMaxW) { sw = sigMaxW; sh = sw / ar; }
           if (sh > sigMaxH) { sh = sigMaxH; sw = sh * ar; }
           // Draw crisply, aligned to sit just above the signature line.
           doc.addImage(user.signature, props.fileType || "PNG", sigX, lineY - sh - 2, sw, sh, undefined, "FAST");
