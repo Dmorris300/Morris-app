@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { CheckCircle2, RefreshCw, PenTool } from "lucide-react";
 import { toast } from "sonner";
 import SignaturePad from "./SignaturePad";
+import { normalizeSignature } from "../lib/signature-utils";
 
 // A single live signature pad used on every tool form. Accepts an optional
 // `savedSignature` so the user can populate the pad with the signature they
@@ -29,12 +30,16 @@ export default function LiveSignatureBlock({
 
   useEffect(() => { setHasInk(!!value); }, [value]);
 
-  const useSaved = () => {
+  const useSaved = async () => {
     if (!savedSignature) {
       toast.message("No saved signature yet. Add one in Profile → Sign-off settings.");
       return;
     }
-    onChange?.(savedSignature);
+    // Harden the ink and trim to the ink bounding box so the signature
+    // prints solid black and sits neatly on the sign-off line, regardless
+    // of whether the saved signature was captured before hardenInk existed.
+    const normalized = await normalizeSignature(savedSignature);
+    onChange?.(normalized || savedSignature);
     setResetKey((k) => k + 1);
     setHasInk(true);
     toast.success("Saved signature applied. You can draw over it or keep it as-is.");

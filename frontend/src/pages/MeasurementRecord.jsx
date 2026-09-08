@@ -4,6 +4,7 @@ import api from "../lib/api";
 import { toast } from "sonner";
 import { ChevronLeft, FileText, Mail, Download, Copy, Info, Star, X, Plus, Trash2, Ruler, ChevronDown, ChevronUp } from "lucide-react";
 import { downloadPdf } from "../lib/pdf";
+import { normalizeSignature } from "../lib/signature-utils";
 import LiveSignatureBlock from "../components/LiveSignatureBlock";
 import { Link } from "react-router-dom";
 
@@ -209,8 +210,15 @@ Rules: never invent rows. Use only the rows supplied. If a column value is blank
   };
 
   const onCopy = () => { navigator.clipboard.writeText(result); toast.success("Copied"); };
-  const onDownload = () => {
-    const userWithSig = { ...(user || {}), signature: liveSignature || user?.signature };
+  const onDownload = async () => {
+    // Belt-and-braces: `liveSignature` is already normalized (SignaturePad /
+    // LiveSignatureBlock harden + trim on capture and on Use-Saved). The
+    // fallback `user.signature` may still be a legacy raw canvas snapshot
+    // from an older Profile save, so normalize it before the PDF renderer
+    // embeds it — otherwise it prints faint grey and floats above the line.
+    const rawSig = liveSignature || user?.signature || "";
+    const normalizedSig = rawSig ? (await normalizeSignature(rawSig)) || rawSig : "";
+    const userWithSig = { ...(user || {}), signature: normalizedSig };
     downloadPdf({ title: `Measurement Record — ${form.project || "site"}`, content: result, user: userWithSig });
     toast.success("PDF downloaded");
   };

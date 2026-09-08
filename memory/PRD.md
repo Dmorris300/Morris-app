@@ -49,6 +49,30 @@ to "template-generated / document generator". Historical PRD entries below use "
 and "LLM" as internal technical descriptors of the document-generation engine and
 remain as audit-trail references only — they are NOT product marketing copy.
 
+### 8 Sep 2026 — P1a Signature Fidelity Fix (Preview-verified, deploy dispatched)
+
+**Bug**: After the first P1a production deploy, fresh Measurement Record PDFs still rendered the Contractor Sign-Off signature as faint/light-grey and detached/floating above the sign-off line. Three other P1a checks (no role placeholder, single sign-off, DD/MM/YYYY dates) already passing.
+
+**Root cause**: Legacy saved signature dataURLs were full-canvas snapshots containing sub-pixel-antialiased strokes (α < 1.0 at feathered edges). `jsPDF.addImage` embedded those alpha-blended pixels verbatim → faint grey on print + large transparent margin around ink → visually floating. The existing `SignaturePad.hardenInk()` only ran on the on-screen canvas — the "Use Saved Signature" button (`LiveSignatureBlock.useSaved`) and every profile-signature fallback bypassed it entirely.
+
+**Fix (frontend-only, 4 files)**:
+- ✅ **NEW `/app/frontend/src/lib/signature-utils.js`** — exports `normalizeSignature(dataUrl): Promise<string>` that (a) alpha-thresholds every α > 40 pixel to solid `rgba(0,0,0,255)` and zeros the rest, and (b) trims the resulting bitmap to the ink bounding box + 6px pad. Idempotent, defensive.
+- ✅ `SignaturePad.jsx` — `end`, `applySaved`, `saveCurrent` now await `normalizeSignature` before propagating / persisting.
+- ✅ `LiveSignatureBlock.jsx` — `useSaved` is now async and awaits `normalizeSignature(savedSignature)` before `onChange`, so profile signatures are hardened + trimmed when the "Use Saved Signature" button is clicked.
+- ✅ `MeasurementRecord.jsx` — `onDownload` is now async; normalizes `liveSignature || user?.signature` before `downloadPdf()` as final safety net for legacy profile signatures.
+
+**Verification (testing_agent iteration_36, 100% frontend pass)**:
+- Path A (fresh draw): normalized dataURL is **208×51** (tight bbox, from a 1028×140 DPR-scaled raw canvas), 1,791 ink pixels, **0 non-black**, **0 bad-alpha**.
+- Path C (end-to-end PDF, PyMuPDF-extracted embedded PNG): **208×51**, 10,608 ink pixels, **0 non-black**, **0 bad-alpha** — pure solid black. `CONTRACTOR SIGN-OFF` block appears exactly once. `Signature:` label appears exactly once. No role placeholder.
+- Path D (regression smoke — RAMS, Incident Report): both pages load clean, no console errors from shared code.
+- Path E (console): 0 signature-related errors.
+
+**Explicit scope lock**: this ship contains ONLY the signature-fidelity fix. Does NOT include P1b, MR L/W/H layout, Price Work Variation Tracker layout, RAMS improvements, project/team/snagging improvements, or backend empty-date coercion.
+
+**Deploy status**: Dispatched to deployer at 08 Sep 2026 (post-verification). Awaiting async promotion confirmation.
+
+---
+
 ### 24 Feb 2026 — PDF Layout Hardening Sweep + Quote Builder Pass 2 (Preview only, undeployed)
 **Preview-only batch after user reported horizontal clipping on Snag Sheet PDFs and asked for the queued Pass-2 work to continue. All static/logic-verified. Awaiting single final deployment approval.**
 

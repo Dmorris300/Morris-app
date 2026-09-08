@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Eraser, PenTool, ChevronDown, Save as SaveIcon, Trash2, Check } from "lucide-react";
 import api from "../lib/api";
+import { normalizeSignature } from "../lib/signature-utils";
 
 // Signature pad with vault (save + reuse) and PDF-fidelity dark ink.
 // Renders the signature the same dark colour on-screen as it will appear on
@@ -80,12 +81,15 @@ export default function SignaturePad({ value, onChange, height = 180, allowVault
     }
     ctx.putImageData(img, 0, 0);
   };
-  const end = () => {
+  const end = async () => {
     if (!drawingRef.current) return;
     drawingRef.current = false;
     hardenInk();
-    const dataUrl = canvasRef.current.toDataURL("image/png");
-    onChange?.(dataUrl);
+    const rawUrl = canvasRef.current.toDataURL("image/png");
+    // Also trim to the ink bounding box so downstream PDF renders sit tight
+    // above the sign-off line instead of floating in a full-canvas frame.
+    const normalized = await normalizeSignature(rawUrl);
+    onChange?.(normalized || rawUrl);
   };
   const clear = () => {
     const canvas = canvasRef.current;
@@ -100,11 +104,13 @@ export default function SignaturePad({ value, onChange, height = 180, allowVault
     const ctx = canvas.getContext("2d");
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const img = new Image();
-    img.onload = () => {
+    img.onload = async () => {
       ctx.drawImage(img, 0, 0, canvas.clientWidth, height);
       hardenInk();
       setHasInk(true);
-      onChange?.(canvasRef.current.toDataURL("image/png"));
+      const rawUrl = canvasRef.current.toDataURL("image/png");
+      const normalized = await normalizeSignature(rawUrl);
+      onChange?.(normalized || rawUrl);
     };
     img.src = sig.dataUrl;
     setShowVault(false);
@@ -114,11 +120,14 @@ export default function SignaturePad({ value, onChange, height = 180, allowVault
     setSaving(true);
     try {
       hardenInk();
-      const dataUrl = canvasRef.current.toDataURL("image/png");
-      const r = await api.post("/signatures/vault", { label: saveLabel.trim() || "My signature", dataUrl });
+      const rawUrl = canvasRef.current.toDataURL("image/png");
+      // Store the trimmed, hardened version so every future re-use of the
+      // vault entry prints solid black and sits on the baseline.
+      const normalized = (await normalizeSignature(rawUrl)) || rawUrl;
+      const r = await api.post("/signatures/vault", { label: saveLabel.trim() || "My signature", dataUrl: normalized });
       setVault([r.data, ...vault]);
       setSaveLabel("");
-      onChange?.(dataUrl);
+      onChange?.(normalized);
     } catch { /* silent */ } finally { setSaving(false); }
   };
   const deleteSaved = async (id) => {
