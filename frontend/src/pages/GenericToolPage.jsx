@@ -11,6 +11,7 @@ import api from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { toast } from "sonner";
 import { Loader2, AlertTriangle } from "lucide-react";
+import { registerRecoverySource, consumeRecoverySnapshot } from "../lib/session-recovery";
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 const inOneYearIso = () => {
@@ -148,6 +149,36 @@ export default function GenericToolPage() {
       }
     })();
   }, [toolId, tool]);
+
+  // Session-expiry recovery — consume any snapshot the api.js 401 interceptor
+  // stashed for THIS tool before redirecting to /login. Runs once per toolId.
+  const recoveryConsumedFor = useRef(null);
+  useEffect(() => {
+    if (!tool) return;
+    if (recoveryConsumedFor.current === toolId) return;
+    recoveryConsumedFor.current = toolId;
+    const snap = consumeRecoverySnapshot(toolId);
+    if (!snap || !snap.data) return;
+    const d = snap.data;
+    if (d.values && typeof d.values === "object") setValues(d.values);
+    if (typeof d.liveSignature === "string") setLiveSignature(d.liveSignature);
+    if (typeof d.clientSignature === "string") setClientSignature(d.clientSignature);
+    if (Array.isArray(d.attachedPhotos)) setAttachedPhotos(d.attachedPhotos);
+    if (d.attachedPhoto) setAttachedPhoto(d.attachedPhoto);
+    if (Array.isArray(d.attachedMedia)) setAttachedMedia(d.attachedMedia);
+    toast.success(`Restored your unsaved ${tool.name} from before you signed out.`);
+  }, [toolId, tool]);
+
+  // Register a live snapshot source so the 401 interceptor captures the
+  // current tool's form state before it redirects.
+  useEffect(() => {
+    if (!tool) return;
+    const unregister = registerRecoverySource(toolId, () => ({
+      values, liveSignature, clientSignature,
+      attachedPhoto, attachedPhotos, attachedMedia,
+    }));
+    return unregister;
+  });
 
   // No required-field gating — users can generate with whatever they've entered.
   const missingRequired = [];

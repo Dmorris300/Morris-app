@@ -1,6 +1,7 @@
 import axios from "axios";
 import { fireToolNotification } from "./notification-triggers";
 import { toast } from "sonner";
+import { snapshotActiveToolBeforeRedirect } from "./session-recovery";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 export const API = `${BACKEND_URL}/api`;
@@ -19,9 +20,14 @@ let sessionExpiryHandled = false;
 function handleExpiredSession() {
   if (sessionExpiryHandled) return;
   sessionExpiryHandled = true;
+  // Snapshot the active tool's form state BEFORE we clear the token or
+  // redirect. If the current page has registered a recovery source, this
+  // writes a small payload to localStorage so the tool can re-hydrate
+  // itself after the user signs back in.
+  try { snapshotActiveToolBeforeRedirect(); } catch { /* never block redirect */ }
   try { localStorage.removeItem("morris_token"); } catch { /* ignore */ }
   try {
-    toast.error("Your session has expired. Please sign in again.", { duration: 4500 });
+    toast.error("Your session has expired. We saved your unsaved work — please sign in again.", { duration: 5000 });
   } catch { /* ignore */ }
   // Don't nuke the current tab if we're already on an auth screen — the login
   // form will handle it. Otherwise send the user to login and remember where

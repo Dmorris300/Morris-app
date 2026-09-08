@@ -9,6 +9,7 @@ import LiveSignatureBlock from "../components/LiveSignatureBlock";
 import DraftSaveButton from "../components/DraftSaveButton";
 import { draftIdFromQuery, clearDraftQueryParam, fetchDraft } from "../lib/drafts";
 import { QUOTE_STATUS_ORDER } from "../lib/uk-format";
+import { registerRecoverySource, consumeRecoverySnapshot } from "../lib/session-recovery";
 
 const TOOL_ID   = "price-work-quote";
 const TOOL_NAME = "Price Work Quote";
@@ -157,6 +158,45 @@ export default function PriceWorkQuote() {
       } finally { clearDraftQueryParam(); }
     })();
   }, []); // run once on mount
+
+  // ---------- Session-expiry recovery ----------
+  // Restore any snapshot the api.js 401 interceptor wrote for us before
+  // redirecting to /login. Runs once on mount and clears the snapshot.
+  useEffect(() => {
+    const snap = consumeRecoverySnapshot(TOOL_ID);
+    if (!snap || !snap.data) return;
+    const p = snap.data;
+    if (p.quoteRef !== undefined) setQuoteRef(p.quoteRef);
+    if (p.quoteDate !== undefined) setQuoteDate(p.quoteDate);
+    if (p.validUntil !== undefined) setValidUntil(p.validUntil);
+    if (p.project !== undefined) setProject(p.project);
+    if (p.siteAddress !== undefined) setSiteAddress(p.siteAddress);
+    if (p.quotedTo !== undefined) setQuotedTo(p.quotedTo);
+    if (p.contactName !== undefined) setContactName(p.contactName);
+    if (p.scope !== undefined) setScope(p.scope);
+    if (p.drawingRef !== undefined) setDrawingRef(p.drawingRef);
+    if (Array.isArray(p.rows)) setRows(p.rows);
+    if (p.vatRegistered !== undefined) setVatRegistered(p.vatRegistered);
+    if (p.vatRate !== undefined) setVatRate(p.vatRate);
+    if (p.paymentTerms !== undefined) setPaymentTerms(p.paymentTerms);
+    if (p.paymentTermsOther !== undefined) setPaymentTermsOther(p.paymentTermsOther);
+    if (p.included !== undefined) setIncluded(p.included);
+    if (p.excluded !== undefined) setExcluded(p.excluded);
+    if (p.additionalNotes !== undefined) setAdditionalNotes(p.additionalNotes);
+    if (p.liveSignature !== undefined) setLiveSignature(p.liveSignature);
+    if (p.clientSignature !== undefined) setClientSignature(p.clientSignature);
+    if (p.quoteStatus !== undefined) setQuoteStatus(p.quoteStatus);
+    if (p.programme !== undefined) setProgramme(p.programme);
+    if (p.linkedVariationRef !== undefined) setLinkedVariationRef(p.linkedVariationRef);
+    toast.success("Restored your unsaved Price Work Quote from before you signed out.");
+  }, []);
+
+  // Register a live snapshot source so the 401 interceptor can capture the
+  // current form state before redirecting.
+  useEffect(() => {
+    const unregister = registerRecoverySource(TOOL_ID, () => getDraftData());
+    return unregister;
+  });
 
   const isFav = (user?.favourites || []).includes(TOOL_ID);
   const toggleFav = async () => {

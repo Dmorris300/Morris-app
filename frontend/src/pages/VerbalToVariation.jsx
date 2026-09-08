@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import ToolHeader, { ResultActions } from "../components/ToolHeader";
 import LiveSignatureBlock from "../components/LiveSignatureBlock";
 import api from "../lib/api";
@@ -6,6 +6,7 @@ import { useAuth } from "../lib/auth";
 import { toast } from "sonner";
 import { Mic, MicOff, Loader2, Wand2, AlertCircle } from "lucide-react";
 import { VARIATION_STATUS_ORDER } from "../lib/uk-format";
+import { registerRecoverySource, consumeRecoverySnapshot } from "../lib/session-recovery";
 
 const TOOL = {
   id: "verbal-to-variation",
@@ -41,6 +42,40 @@ export default function VerbalToVariation() {
 
   const recRef = useRef(null);
   const supported = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
+
+  // ---------- Session-expiry recovery ----------
+  // Restore any snapshot saved by the api.js interceptor after a session
+  // expiry. Runs once on mount and clears the snapshot on consume.
+  useEffect(() => {
+    const snap = consumeRecoverySnapshot(TOOL.id);
+    if (!snap || !snap.data) return;
+    const d = snap.data;
+    if (typeof d.transcript === "string") setTranscript(d.transcript);
+    if (typeof d.project === "string") setProject(d.project);
+    if (typeof d.instructedBy === "string") setInstructedBy(d.instructedBy);
+    if (typeof d.instructionDate === "string") setInstructionDate(d.instructionDate);
+    if (typeof d.description === "string") setDescription(d.description);
+    if (typeof d.estimatedValue === "string") setEstimatedValue(d.estimatedValue);
+    if (typeof d.additionalDays === "string") setAdditionalDays(d.additionalDays);
+    if (typeof d.status === "string") setStatus(d.status);
+    if (typeof d.reference === "string") setReference(d.reference);
+    if (typeof d.liveSignature === "string") setLiveSignature(d.liveSignature);
+    if (typeof d.clientSignature === "string") setClientSignature(d.clientSignature);
+    toast.success("Restored your unsaved Verbal to Variation from before you signed out.");
+  }, []);
+
+  // Register a snapshot source so the 401 interceptor can capture form state
+  // right before redirecting. Cleanup on unmount avoids stale closures.
+  useEffect(() => {
+    const unregister = registerRecoverySource(TOOL.id, () => ({
+      transcript, project, instructedBy, instructionDate, description,
+      estimatedValue, additionalDays, status, reference,
+      liveSignature, clientSignature,
+    }));
+    return unregister;
+  }, [transcript, project, instructedBy, instructionDate, description,
+      estimatedValue, additionalDays, status, reference,
+      liveSignature, clientSignature]);
 
   const start = () => {
     if (!supported) { toast.error("Voice not supported on this browser. Type your instruction below or use the structured fields."); return; }
