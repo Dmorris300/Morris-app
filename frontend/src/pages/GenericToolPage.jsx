@@ -81,21 +81,45 @@ export default function GenericToolPage() {
   const intentProcessedFor = useRef(null);
   const dual = isDualSignoff(toolId);
 
-  // Initialise values with auto-defaults whenever the tool changes
+  // Initialise values with auto-defaults whenever the tool changes.
+  // If a session-expiry snapshot exists for this exact toolId, consume it
+  // HERE — inside the same effect that resets state — so no subsequent
+  // re-render of this effect can wipe the restored values. This is the fix
+  // for the observed race where a second [toolId, tool] fire (e.g. from
+  // useAuth `refresh`) would blank the fields the recovery effect had just
+  // set.
+  const recoveredFor = useRef(null);
   useEffect(() => {
     if (!tool) return;
-    const init = {};
-    (tool.fields || []).forEach((f) => {
-      const d = autoDefaultFor(f);
-      if (d) init[f.name] = d;
-    });
-    setValues(init);
+
+    // If we already restored a snapshot for this toolId in a previous run
+    // of this effect, DO NOT reset state — the user's restored values must
+    // survive later re-renders triggered by auth refresh, tool metadata
+    // reloads, or React 18 concurrent re-render passes.
+    if (recoveredFor.current === toolId) return;
+
+    // Peek-and-consume the recovery snapshot before deciding whether to
+    // reset. Only claim it if it belongs to THIS tool.
+    const snap = consumeRecoverySnapshot(toolId);
+    const recovered = snap && snap.data && typeof snap.data === "object" ? snap.data : null;
+
+    if (recovered && recovered.values && typeof recovered.values === "object") {
+      setValues(recovered.values);
+      recoveredFor.current = toolId;
+    } else {
+      const init = {};
+      (tool.fields || []).forEach((f) => {
+        const d = autoDefaultFor(f);
+        if (d) init[f.name] = d;
+      });
+      setValues(init);
+    }
     setResult("");
     setRefNumber("");
     setInfoOpen(false);
     setMissing([]);
-    setLiveSignature("");
-    setClientSignature("");
+    setLiveSignature(recovered && typeof recovered.liveSignature === "string" ? recovered.liveSignature : "");
+    setClientSignature(recovered && typeof recovered.clientSignature === "string" ? recovered.clientSignature : "");
 
     // Pick up any pending photo intent from Photo to Document. If the user
     // landed here via that tool, the photo is in localStorage tagged to this
@@ -104,19 +128,31 @@ export default function GenericToolPage() {
     // wiping the state on the second pass.
     if (intentProcessedFor.current !== toolId) {
       intentProcessedFor.current = toolId;
-      setAttachedPhoto(null);
-      setAttachedPhotos([]);
-      try {
-        const raw = localStorage.getItem("morris_photo_intent_v1");
-        if (raw) {
-          const intent = JSON.parse(raw);
-          if (intent?.toolId === toolId) {
-            if (intent.photo) setAttachedPhoto(intent.photo);
-            if (Array.isArray(intent.photos)) setAttachedPhotos(intent.photos);
+      if (recovered && Array.isArray(recovered.attachedPhotos)) setAttachedPhotos(recovered.attachedPhotos);
+      else setAttachedPhotos([]);
+      if (recovered && recovered.attachedPhoto) setAttachedPhoto(recovered.attachedPhoto);
+      else setAttachedPhoto(null);
+      if (recovered && Array.isArray(recovered.attachedMedia)) setAttachedMedia(recovered.attachedMedia);
+
+      // Only look for a photo intent if we did NOT restore from a recovery
+      // snapshot — a recovered payload is authoritative for that mount.
+      if (!recovered) {
+        try {
+          const raw = localStorage.getItem("morris_photo_intent_v1");
+          if (raw) {
+            const intent = JSON.parse(raw);
+            if (intent?.toolId === toolId) {
+              if (intent.photo) setAttachedPhoto(intent.photo);
+              if (Array.isArray(intent.photos)) setAttachedPhotos(intent.photos);
+            }
+            localStorage.removeItem("morris_photo_intent_v1");
           }
-          localStorage.removeItem("morris_photo_intent_v1");
-        }
-      } catch { /* ignore */ }
+        } catch { /* ignore */ }
+      }
+    }
+
+    if (recovered) {
+      toast.success(`Restored your unsaved ${tool.name} from before you signed out.`);
     }
   }, [toolId, tool]);
 
@@ -148,25 +184,6 @@ export default function GenericToolPage() {
         clearDraftQueryParam();
       }
     })();
-  }, [toolId, tool]);
-
-  // Session-expiry recovery — consume any snapshot the api.js 401 interceptor
-  // stashed for THIS tool before redirecting to /login. Runs once per toolId.
-  const recoveryConsumedFor = useRef(null);
-  useEffect(() => {
-    if (!tool) return;
-    if (recoveryConsumedFor.current === toolId) return;
-    recoveryConsumedFor.current = toolId;
-    const snap = consumeRecoverySnapshot(toolId);
-    if (!snap || !snap.data) return;
-    const d = snap.data;
-    if (d.values && typeof d.values === "object") setValues(d.values);
-    if (typeof d.liveSignature === "string") setLiveSignature(d.liveSignature);
-    if (typeof d.clientSignature === "string") setClientSignature(d.clientSignature);
-    if (Array.isArray(d.attachedPhotos)) setAttachedPhotos(d.attachedPhotos);
-    if (d.attachedPhoto) setAttachedPhoto(d.attachedPhoto);
-    if (Array.isArray(d.attachedMedia)) setAttachedMedia(d.attachedMedia);
-    toast.success(`Restored your unsaved ${tool.name} from before you signed out.`);
   }, [toolId, tool]);
 
   // Register a live snapshot source so the 401 interceptor captures the
