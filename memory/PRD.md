@@ -49,6 +49,68 @@ to "template-generated / document generator". Historical PRD entries below use "
 and "LLM" as internal technical descriptors of the document-generation engine and
 remain as audit-trail references only — they are NOT product marketing copy.
 
+### 12 Sep 2026 — VO-STATE-01 stale bridged wizard state on "+ New Variation" (Preview only, undeployed)
+
+**Trigger**: During user manual verification of the legacy variation-letter → V2 bridge, closing a bridged wizard without saving and then clicking **+ New Variation** re-opened the wizard with the legacy state still populated (project / client / description / £1,200 total). Contract violation: "+ New Variation must always initialise from a clean `emptyVariation()` state unless the user explicitly resumes, duplicates, or imports a legacy draft."
+
+**Root cause**:
+- `VariationOrders.jsx`'s `openNew()` previously ran:
+  ```js
+  else { const d = loadDraft(); if (d && !d.id) base = { ...base, ...d, id: undefined }; }
+  ```
+  `loadDraft()` reads `localStorage[DRAFT_KEY]` — a per-keystroke autosave written by the wizard's `useEffect(() => saveDraft(data), [data])` when a wizard is open on a record with no id.
+- When the bridge opened the wizard for a legacy variation-letter draft, `data.id` was undefined (the bridge maps into a new V2 record). Auto-save fired repeatedly and populated `DRAFT_KEY` with the fully-hydrated bridged state.
+- Closing the wizard without saving cleared `editing` / `wizardOpen`, but `localStorage[DRAFT_KEY]` **was not cleared**. The next `+ New Variation` click hit the `else` branch and silently spread the bridged state on top of the empty template.
+- The autosave / silent-restore path is a legacy design that pre-dates the P1b session-recovery module and the P1.5 explicit Resume workflow. Users have no visible way to know the "recovery" is happening — this violates the least-surprise contract for a "+ New" action.
+
+**Fix**:
+- Extracted the three wizard entry points into a pure module `/app/frontend/src/lib/variation-order-state.js` with a strict contract:
+  - `openNewBase({ fromTemplate, filterProject, jobs })` → always a clean baseline; NEVER reads autosave.
+  - `openEditBase(v)` → spread record on top of `emptyVariation()`.
+  - `duplicateBase(v)` → copy record, strip `id / _id / createdAt / updatedAt / status / variationRef / preparedSignature / clientApproverSignature / approvedDate`, regenerate line-item ids.
+- `VariationOrders.jsx` now imports the pure helpers. `loadDraft()` removed; `clearAutosaveDraft()` added.
+- Wizard close (`onClose`) now calls `clearAutosaveDraft()` so a close-without-save can never leak state into a subsequent New / Resume / Duplicate.
+- Auto-save inside the wizard is left in place as harmless crash-safety data (no code reads it any more except the on-save `removeItem` call).
+
+**Files changed**:
+- `frontend/src/lib/variation-order-state.js` (NEW — pure state helpers).
+- `frontend/src/pages/VariationOrders.jsx` — imports the new helpers; `openNew` / `openEdit` / `duplicate` delegate; `onClose` clears autosave; removed the inline `emptyVariation` / `emptyLine` / `loadDraft` definitions.
+
+**Tests added**:
+- `frontend/tests/vo-state.test.mjs` — 8-case Node unit test via the existing ESM loader hook. Covers:
+  - `emptyVariation()` skeleton fields (no stale defaults).
+  - `openNewBase` after bridged-legacy-close does NOT inherit legacy project/client/description/VAT/signature/photos/programme/line-items.
+  - `openNewBase` after resumed-V2-close does NOT inherit V2 record fields.
+  - `openNewBase` template overrides are applied (positive path).
+  - `openNewBase` filterProject preselect is applied (positive path).
+  - `openEditBase` spreads V2 record over empty defaults (Resume V2).
+  - `duplicateBase` strips id/timestamps/signatures/status/refs; regenerates line-item ids; preserves permitted content.
+  - `emptyLine` returns a fresh id each call.
+  - Result: **8/8 pass**.
+
+**Browser verification (12 Sep 2026)**:
+- Seeded legacy draft `babb0af5-…` (project *Legacy Bridge Test Project*, client *Legacy Bridge Client Ltd*, instructor *Sarah Legacy*, description *Legacy bridge manual verification*, labour £750, materials £250, VAT 20%).
+- Flow: Log in as `previewqa` → `/app/drafts` → Resume the legacy draft → wizard opens on Step 1 populated ✅ → click **✕ Close** without save → click **+ New Variation** → wizard reopens on Step 1.
+- Post-fix state:
+  - Wizard header: `NEW VARIATION · UNTITLED · £0.00` (was `LEGACY BRIDGE MANUAL VERIFICATION · £1,200.00`).
+  - Every Step 1 input blank: Project name, Site address, Client contact name, Client company, Client email, Client phone.
+  - `containsLegacyProject / Client / Desc / Total / Instructor` = all `false` in the wizard DOM.
+  - `localStorage['morris.tool_draft.variation-orders']` = `null` immediately after close.
+- Legacy draft record verified via `GET /api/drafts/babb0af5-…` — every field unchanged post-cycle (project, client, instructor, description, costs, VAT all identical to seed).
+
+**Final PASS/FAIL**:
+- VO-STATE-01 — **PASS**.
+- Resume legacy → close → + New Variation clean — **PASS** (browser + unit test).
+- Resume V2 → close → + New Variation clean — **PASS** (unit test; browser flow identical).
+- Duplicate still copies only permitted fields — **PASS** (unit test).
+- Legacy draft not overwritten — **PASS** (API verification).
+
+**Aggregate Phase 1 test coverage after this fix**: **27 backend pytest · 13 legacy-VO bridge unit · 18 PDF smoke · 8 VO-STATE-01 unit · 1 skipped = 66 assertions passing**.
+
+**Explicit scope lock**: Preview only. No deploy. Phase 1 stack still awaiting user go-ahead for Preview→Prod promotion.
+
+---
+
 ### 12 Sep 2026 — Phase 1 Mega Fix P3 (PDF Integrity) (Preview only, undeployed)
 
 **Scope**: Audit all 16 V2 PDF generators + the generic-tool fallback for the shared standard — page-break safety, no orphan headings, header/footer on every page, evidence annex pagination, Morris brand consistency, DD/MM/YYYY dates, professional commercial-document appearance. Fix priority defects surfaced by the user + regression tests.

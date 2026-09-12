@@ -21,6 +21,7 @@ import { formatUKDate } from "../lib/uk-format";
 import { listMedia, thumbSrc } from "../lib/media";
 import { fetchDraft, clearDraftQueryParam } from "../lib/drafts";
 import { mapLegacyVariationLetterDraft } from "../lib/legacy-variation-letter-bridge";
+import { emptyVariation, emptyLine, openNewBase, openEditBase, duplicateBase } from "../lib/variation-order-state";
 
 const TOOL_ID = "variation-orders";
 const DRAFT_KEY = "morris.tool_draft.variation-orders";
@@ -54,33 +55,12 @@ const Field = ({ label, children, hint }) => (
 );
 const fGBP = (n) => `£${(Number(n) || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
 
-const emptyLine = () => ({ id: crypto.randomUUID(), category: "Labour", description: "", qty: 1, unit: "day", unitPrice: 0 });
-const emptyVariation = () => ({
-  projectId: "", projectName: "", projectAddress: "",
-  clientName: "", clientCompany: "", clientEmail: "", clientPhone: "",
-  originalQuoteId: "", originalQuoteRef: "", originalContractRef: "", originalContractDate: "",
-  variationRef: "", variationDate: new Date().toISOString().slice(0, 10),
-  status: "Draft", reason: "Client Request",
-  instructionMethod: "Verbal", instructorName: "", instructorRole: "",
-  instructionDate: new Date().toISOString().slice(0, 10), instructionLocation: "",
-  scopeSummary: "",
-  descriptionOfChange: "",
-  reasonNarrative: "",
-  referenceDocs: "",
-  lineItems: [emptyLine()],
-  addVat: false, vatRate: 20,
-  programmeImpact: { kind: "No impact", days: 0, newPCDate: "", notes: "" },
-  photoIds: [], supportingDocs: [],
-  preparedBy: "", preparedSignature: "",
-  clientApproverName: "", clientApproverSignature: "", approvedDate: "",
-  rejectionReason: "",
-  paymentTerms: "Payment for this variation will be included in the next Application for Payment.",
-  notes: "",
-  isFavourite: false,
-});
+// P3 (Sep 2026, VO-STATE-01) — `emptyLine` / `emptyVariation` are now
+// owned by /app/frontend/src/lib/variation-order-state.js so the
+// "+ New Variation must always be clean" contract is unit-testable.
 
 function saveDraft(d) { try { localStorage.setItem(DRAFT_KEY, JSON.stringify(d)); } catch { /* ignore */ } }
-function loadDraft() { try { const raw = localStorage.getItem(DRAFT_KEY); return raw ? JSON.parse(raw) : null; } catch { return null; } }
+function clearAutosaveDraft() { try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ } }
 
 function computeTotals(data) {
   const items = data.lineItems || [];
@@ -182,30 +162,18 @@ export default function VariationOrders() {
   }, [draftParamId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openNew = (fromTemplate = null) => {
-    let base = emptyVariation();
-    if (fromTemplate) base = { ...base, ...(fromTemplate.payload || {}), id: undefined, status: "Draft", variationRef: "", variationDate: base.variationDate, lineItems: (fromTemplate.payload?.lineItems || []).map(l => ({ ...l, id: crypto.randomUUID() })) };
-    else { const d = loadDraft(); if (d && !d.id) base = { ...base, ...d, id: undefined }; }
-    // Preselect project when filter is on
-    if (filterProject && !base.projectId) {
-      const j = jobs.find(x => x.id === filterProject);
-      if (j) {
-        base.projectId = j.id;
-        base.projectName = j.projectName || j.clientName || "";
-        base.projectAddress = j.address || "";
-        base.clientName = j.clientName || "";
-        base.clientCompany = j.company || "";
-      }
-    }
+    // VO-STATE-01 (Sep 2026) — "+ New Variation" must ALWAYS produce a
+    // clean baseline. Previously we silently spread `loadDraft()` (a
+    // localStorage autosave) on top of the empty template, which meant
+    // that closing a bridged legacy draft OR any prior wizard session
+    // left the next "+ New Variation" click starting from the stale
+    // state. The autosave is now cleared on close (below); openNew no
+    // longer reads it under any circumstance.
+    const base = openNewBase({ fromTemplate, filterProject, jobs });
     setEditing(base); setWizardOpen(true);
   };
-  const openEdit = (v) => { setEditing({ ...emptyVariation(), ...v }); setWizardOpen(true); };
-  const duplicate = (v) => {
-    const copy = { ...v }; delete copy.id; delete copy.createdAt; delete copy.updatedAt; delete copy._id;
-    copy.status = "Draft"; copy.variationDate = new Date().toISOString().slice(0, 10); copy.variationRef = "";
-    copy.lineItems = (copy.lineItems || []).map(l => ({ ...l, id: crypto.randomUUID() }));
-    copy.preparedSignature = ""; copy.clientApproverSignature = ""; copy.approvedDate = "";
-    setEditing({ ...emptyVariation(), ...copy }); setWizardOpen(true);
-  };
+  const openEdit = (v) => { setEditing(openEditBase(v)); setWizardOpen(true); };
+  const duplicate = (v) => { setEditing(duplicateBase(v)); setWizardOpen(true); };
   const deleteVariation = async (v) => {
     if (!window.confirm(`Delete variation ${v.variationRef || ""}?`)) return;
     try { await api.delete(`/variation-orders/variation-orders/${v.id}`); toast.success("Deleted"); await loadAll(); }
@@ -310,7 +278,13 @@ export default function VariationOrders() {
 
       {wizardOpen && editing && (
         <VariationWizard initial={editing} user={user} jobs={jobs} quotes={quotes}
-          onClose={() => { setWizardOpen(false); setEditing(null); }}
+          onClose={() => {
+            // VO-STATE-01 — clear the wizard autosave so the next
+            // "+ New Variation" click cannot inherit closed-without-save
+            // state (bridged legacy, resumed V2, or freshly-typed).
+            clearAutosaveDraft();
+            setWizardOpen(false); setEditing(null);
+          }}
           onSaved={async () => { await loadAll(); setWizardOpen(false); setEditing(null); }}
           onTemplatesChanged={setTemplates}
         />
