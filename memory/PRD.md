@@ -49,6 +49,50 @@ to "template-generated / document generator". Historical PRD entries below use "
 and "LLM" as internal technical descriptors of the document-generation engine and
 remain as audit-trail references only — they are NOT product marketing copy.
 
+### 12 Sep 2026 — VO-PDF-01: Programme / Time Impact + Cost Breakdown orphan-heading fix (Preview only, undeployed)
+
+**Trigger**: During manual P3 preview verification the user reported the "6. Programme / Time Impact" heading being orphaned at the bottom of page 3, with its content flowing to page 4. The P3 orphan-heading rule was violated for this specific section boundary.
+
+**Root cause**:
+- The `section()` helper in `variation-order-pdf.js` reserved a fixed **80pt** of body space beyond the heading text via `ensureRoom(s, lines.length * lineH + 80)`. 80pt covers a **table-header row (22pt) + first data row (~30pt) + margin** — the default P3 assumption.
+- The Programme / Time Impact section renders a **KV table with no header row** (2–4 rows of ~22pt each = 44–88pt). Depending on how many rows fire (Impact type + Days + New PC Date + Notes), the actual body height can EXCEED 80pt. When it did, `ensureRoom` allowed the heading to render at the bottom of page 3 but the KV table's own per-row `ensureRoom` calls then paged over to page 4, leaving the heading orphaned.
+- The Cost Breakdown section had a related latent bug — `section()` reserved 80pt, but the table's OWN `ensureRoom` for `header + first data row` was measured internally and could exceed 80pt if the first row's description wrapped. In tight fixtures the heading orphaned on page 2 while the table jumped to page 3.
+
+**Fix (`frontend/src/lib/variation-order-pdf.js`)**:
+- `section(s, title, opts)` now accepts `opts.minBodyHeight` — the exact pixel height the caller knows its first meaningful block will need. Default remains 80pt so every unchanged callsite keeps the P3 baseline.
+- Programme / Time Impact call site now **pre-computes** its KV table's total row-height (each row = `max(22, lines * 12 + 10)` matching the internal `table()` math) and passes it as `minBodyHeight`. The heading is guaranteed to have room for EVERY row of the KV table below it before rendering.
+- Cost Breakdown call site pre-computes its **first data row's** wrapped height using the same padding + line-height math as `table()`, and passes `minBodyHeight: 22 (header) + firstRowH + 8 (margin)`. Section heading, table header AND first data row are now always on the same page.
+
+**Files changed**:
+- `frontend/src/lib/variation-order-pdf.js` — `section()` signature + Programme / Time Impact call site + Cost Breakdown call site.
+
+**Tests added**:
+- `frontend/tests/vo-pdf-01.test.mjs` — 7-case Node regression via existing ESM loader. Fixture matches the user's manual repro EXACTLY (4 cost items + VAT + long variation description + programme = Additional days + 1 supporting doc + `MEP-L2-REV03` reference). Uses jsPDF's `internal.pages` operator arrays and matches on `(N. Cost Breakdown) Tj` operator FORM so body-copy that happens to contain the heading phrase doesn't false-match. Asserts:
+  - Programme / Time Impact heading and its "Impact type" row on the same page.
+  - Programme / Time Impact "Days" row on the same page as the heading.
+  - Cost Breakdown heading and first line item on the same page.
+  - Subtotal £3,000, VAT £600, Total £3,600 all present.
+  - Both signature blocks render "Signature to follow" (no phantom).
+  - `MEP-L2-REV03` remains visible.
+  - Every content page has a "Page X of Y" footer.
+  - **7/7 pass.**
+
+**AI-vision browser verification (12 Sep 2026)**:
+- Rendered the same fixture PDF and analysed with vision AI:
+  - ✅ Section "5. Cost Breakdown" + first line item both on page 3.
+  - ✅ Section "6. Programme / Time Impact" + Impact type + Days rows all on page 3.
+  - ✅ Subtotal £3,000 · VAT £600 · TOTAL £3,600 all visible on page 3.
+  - ✅ Both signature blocks show "Signature to follow" placeholder on page 4.
+  - ✅ `MEP-L2-REV03` visible under Reference documents AND in the Materials line.
+  - ✅ Pages 2, 3, 4 all carry "Page X of 4" footer right-aligned. Page 1 is deliberately-clean dark cover.
+  - ✅ Overall layout: formal commercial document, no clipping / overflow / overlapping / orphan headings.
+
+**Aggregate Phase 1 automated coverage after this fix** — **73 assertions passing** (27 backend pytest · 13 legacy-VO bridge unit · 18 PDF smoke · 8 VO-STATE-01 unit · 7 VO-PDF-01 unit · 1 skipped).
+
+**Final PASS/FAIL**: **VO-PDF-01 — PASS**. Preview only. Nothing deployed.
+
+---
+
 ### 12 Sep 2026 — VO-STATE-01 stale bridged wizard state on "+ New Variation" (Preview only, undeployed)
 
 **Trigger**: During user manual verification of the legacy variation-letter → V2 bridge, closing a bridged wizard without saving and then clicking **+ New Variation** re-opened the wizard with the legacy state still populated (project / client / description / £1,200 total). Contract violation: "+ New Variation must always initialise from a clean `emptyVariation()` state unless the user explicitly resumes, duplicates, or imports a legacy draft."

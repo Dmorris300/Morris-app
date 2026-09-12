@@ -86,10 +86,33 @@ export function generateVariationPdf({ data, user, today }) {
   // 4. Cost breakdown
   const items = data.lineItems || [];
   if (items.length > 0) {
-    section(state, "Cost Breakdown");
+    // VO-PDF-01 (Sep 2026) — pre-compute the height of the cost table's
+    // header + first data row so section() reserves enough room for BOTH
+    // the section heading and the table's first meaningful block. Without
+    // this, the section heading fits on the current page but table() then
+    // inserts a page break before drawing the header row, orphaning the
+    // heading on the previous page.
+    const costColWidths = computeColumnWidths(state, [0.16, 0.36, 0.08, 0.10, 0.14, 0.16]);
+    const firstItem = items[0];
+    const firstRowCells = [
+      firstItem.category || "—",
+      firstItem.description || "—",
+      String(firstItem.qty || ""),
+      firstItem.unit || "",
+      fGBP(firstItem.unitPrice),
+      fGBP((Number(firstItem.qty) || 0) * (Number(firstItem.unitPrice) || 0)),
+    ];
+    // padX=8 assumed by the table() helper; splitTextToSize replicates its wrap.
+    const firstRowLineCounts = firstRowCells.map((c, i) =>
+      state.doc.splitTextToSize(String(c ?? ""), Math.max(0, costColWidths[i] - 16)).length
+    );
+    const firstRowLines = Math.max(...firstRowLineCounts, 1);
+    const firstRowH = firstRowLines * 12 + 12; // ~12pt line + padY
+    const costMinBody = 22 /* table header */ + firstRowH + 8 /* margin below rule */;
+    section(state, "Cost Breakdown", { minBodyHeight: costMinBody });
     table(state, ["Category", "Description", "Qty", "Unit", "Unit price", "Line total"],
       items.map(it => [it.category || "—", it.description || "—", it.qty || "", it.unit || "", fGBP(it.unitPrice), fGBP((Number(it.qty) || 0) * (Number(it.unitPrice) || 0))]),
-      { colWidths: computeColumnWidths(state, [0.16, 0.36, 0.08, 0.10, 0.14, 0.16]) });
+      { colWidths: costColWidths });
 
     const byCat = totals.byCategory || {};
     if (Object.keys(byCat).length > 1) {
@@ -113,7 +136,11 @@ export function generateVariationPdf({ data, user, today }) {
   }
 
   // 5. Programme impact
-  section(state, "Programme / Time Impact");
+  // VO-PDF-01 (Sep 2026) — pre-compute the exact body height so the
+  // heading is never rendered without at least the impact-type row + any
+  // additional-days rows fitting underneath it on the SAME page. Zebra
+  // table rows are ~20pt tall (single-line values); a wrapped notes row
+  // can be taller so we allow for the worst case at reservation time.
   const impact = data.programmeImpact || {};
   const impactKind = impact.kind || "No impact";
   const impactRows = [["Impact type", impactKind]];
@@ -124,7 +151,16 @@ export function generateVariationPdf({ data, user, today }) {
     if (impact.newPCDate) impactRows.push(["New Practical Completion date", fDate(impact.newPCDate)]);
   }
   if (impact.notes) impactRows.push(["Notes", impact.notes]);
-  table(state, null, impactRows, { colWidths: [state.pageWidth - MARGIN * 2 - 260, 260], header: false, zebra: true });
+  const impactColWidths = [state.pageWidth - MARGIN * 2 - 260, 260];
+  // Estimate row height per row: default 22pt; add 12pt per extra wrapped
+  // line for the second column (usually the notes / impact-type value).
+  const impactRowHeights = impactRows.map(([, val]) => {
+    const lines = state.doc.splitTextToSize(String(val ?? ""), impactColWidths[1] - 16); // padX = 8 on each side approx
+    return Math.max(22, lines.length * 12 + 10);
+  });
+  const impactTableHeight = impactRowHeights.reduce((a, b) => a + b, 0) + 8; // + spacing after
+  section(state, "Programme / Time Impact", { minBodyHeight: impactTableHeight });
+  table(state, null, impactRows, { colWidths: impactColWidths, header: false, zebra: true });
 
   // 6. Evidence
   const docsAttached = data.supportingDocs || [];
@@ -221,16 +257,20 @@ function newPage(s) {
   drawHeader(s.doc, s.pageWidth, MARGIN, s.user, s.company, s.todayStr, null);
   s.y = 110;
 }
-function section(s, title) {
+function section(s, title, opts = {}) {
   s.doc.setFont("helvetica", "bold"); s.doc.setFontSize(13); s.doc.setTextColor(...INK);
   const usable = s.pageWidth - MARGIN * 2;
   const lineH = 16;
   s.sectionNum = (s.sectionNum || 0) + 1;
   const lines = s.doc.splitTextToSize(`${s.sectionNum}. ${title}`, usable);
-  // P3 (Sep 2026) — reserve enough room for the section heading AND at
-  // least a minimum body block (~80pt: table header 22pt + first data row
-  // ~30pt + margin) so we never orphan a heading at the bottom of a page.
-  ensureRoom(s, lines.length * lineH + 80);
+  // P3 (Sep 2026) — reserve room for the heading AND a minimum first
+  // body block so a section heading never orphans at the page bottom.
+  // Callers can override the body reservation via `opts.minBodyHeight`
+  // when the exact first block is known (e.g. the Programme / Time
+  // Impact KV table — VO-PDF-01, 12 Sep 2026). Default 80pt covers
+  // heading + a 22pt table header + a ~30pt first data row + margin.
+  const minBody = typeof opts.minBodyHeight === "number" ? opts.minBodyHeight : 80;
+  ensureRoom(s, lines.length * lineH + minBody);
   lines.forEach((l, i) => s.doc.text(l, MARGIN, s.y + i * lineH));
   const lastY = s.y + (lines.length - 1) * lineH;
   s.doc.setDrawColor(...GOLD); s.doc.setLineWidth(0.6);
