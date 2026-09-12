@@ -250,7 +250,7 @@ async def collect_compliance_attention(db, user_id: str, now: datetime, limit: i
             "projectId": None,
             "projectName": None,
             "actionLabel": "Open Compliance Hub",
-            "actionRoute": "/app/compliance",
+            "actionRoute": f"/app/compliance?open={r.get('id')}" if r.get("id") else "/app/compliance",
             "severity": severity,
             "dueAt": exp_iso,
         })

@@ -4,7 +4,7 @@
 // full 12-step wizard in a full-screen sheet.
 
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   Plus, Search, RefreshCw, Trash2, Edit2, X, ChevronLeft, ChevronRight,
   ClipboardList, FlaskConical, AlertTriangle, ShieldCheck, User,
@@ -95,6 +95,17 @@ export default function CoshhV2() {
     } finally { setLoading(false); }
   };
   useEffect(() => { loadAll(); }, []);
+
+  // P2 (Sep 2026) — Command Centre deep-link: /app/coshh?open=<id> must
+  // auto-open the specific assessment for edit. Runs after `assessments`
+  // loads so the target row is guaranteed to be present.
+  const [searchParams] = useSearchParams();
+  const openParamId = searchParams.get("open") || "";
+  useEffect(() => {
+    if (!openParamId || assessments.length === 0 || wizardOpen) return;
+    const a = assessments.find((x) => x.id === openParamId);
+    if (a) openEdit(a);
+  }, [openParamId, assessments]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openNew = () => { setEditing(emptyAssessment()); setWizardOpen(true); };
   const openEdit = (a) => { setEditing({ ...emptyAssessment(), ...a }); setWizardOpen(true); };

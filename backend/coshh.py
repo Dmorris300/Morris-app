@@ -331,7 +331,7 @@ async def collect_coshh_attention(db, user_id: str, now: datetime, limit: int = 
             "projectId": r.get("projectId"),
             "projectName": r.get("projectName"),
             "actionLabel": "Open COSHH",
-            "actionRoute": "/app/coshh",
+            "actionRoute": f"/app/coshh?open={r.get('id')}" if r.get("id") else "/app/coshh",
             "severity": severity,
             "dueAt": rd,
         })

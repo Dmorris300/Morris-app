@@ -155,7 +155,7 @@ async def compute_attention(db, user: dict) -> List[Dict[str, Any]]:
             "projectId": None,
             "projectName": None,
             "actionLabel": "Open Tax Hub",
-            "actionRoute": "/app/finance",
+            "actionRoute": "/app/self-assessment-prep",
             "severity": "urgent" if sa_days <= 14 else "warning",
             "dueAt": sa.isoformat(),
         })
@@ -263,6 +263,14 @@ async def compute_attention(db, user: dict) -> List[Dict[str, Any]]:
         tool_name = (d.get("toolName") or d.get("toolId") or "Draft").replace("-", " ").title()
         job_id = (d.get("data") or {}).get("jobId")
         job = jobs_by_id.get(job_id)
+        # P2 (Sep 2026) — deep-link straight to the specific draft's Resume
+        # URL. GenericToolPage's TOOL_REDIRECTS map preserves the ?draft=<id>
+        # query when redirecting redirected tools to their dedicated page,
+        # so this single URL shape works for both generic and dedicated
+        # tools. Was `/app/drafts` — a generic landing that forced the user
+        # to hunt for the correct row.
+        tool_id = d.get("toolId") or ""
+        action_route = f"/app/tool/{tool_id}?draft={d['id']}" if tool_id else "/app/drafts"
         items.append({
             "id": f"draft-{d['id']}",
             "kind": "draft_stale",
@@ -271,7 +279,7 @@ async def compute_attention(db, user: dict) -> List[Dict[str, Any]]:
             "projectId": job_id,
             "projectName": (job or {}).get("clientName"),
             "actionLabel": "Resume Draft",
-            "actionRoute": f"/app/drafts",
+            "actionRoute": action_route,
             "severity": "info",
             "dueAt": None,
         })

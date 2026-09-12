@@ -3,7 +3,7 @@
 // Any item within 30 days of expiry surfaces here AND on the Command Centre.
 
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   ShieldCheck, IdCard, Truck, HardHat, AlertTriangle, Plus, Trash2,
   Edit2, X, ArrowRight, RefreshCw, CheckCircle2, Calendar,
@@ -248,7 +248,7 @@ function ProjectComplianceTab() {
 
 // ---------------- Category tab (CRUD) ----------------
 
-function CategoryTab({ category, typeSuggestions, refreshKey, onChange }) {
+function CategoryTab({ category, typeSuggestions, refreshKey, onChange, autoOpenId, onAutoOpenConsumed }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -266,6 +266,19 @@ function CategoryTab({ category, typeSuggestions, refreshKey, onChange }) {
     }
   };
   useEffect(() => { load(); }, [category, refreshKey]);
+
+  // P2 (Sep 2026) — /app/compliance?open=<id> auto-opens the specific
+  // credential for edit. The parent picks the correct tab first, then
+  // passes autoOpenId here; we consume once and clear via callback.
+  useEffect(() => {
+    if (!autoOpenId || items.length === 0 || modalOpen) return;
+    const target = items.find((x) => x.id === autoOpenId);
+    if (target) {
+      setEditing(target);
+      setModalOpen(true);
+      onAutoOpenConsumed && onAutoOpenConsumed();
+    }
+  }, [autoOpenId, items]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSave = async (payload) => {
     try {
@@ -352,6 +365,9 @@ export default function ComplianceHubV2() {
   const [summary, setSummary] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [types, setTypes] = useState({});
+  const [searchParams] = useSearchParams();
+  const openParamId = searchParams.get("open") || "";
+  const [autoOpenId, setAutoOpenId] = useState("");
 
   const loadSummary = async () => {
     try {
@@ -361,6 +377,27 @@ export default function ComplianceHubV2() {
     } catch { /* ignore */ }
   };
   useEffect(() => { loadSummary(); }, [refreshKey]);
+
+  // P2 (Sep 2026) — Command Centre emits /app/compliance?open=<id> when a
+  // credential is expiring. Fetch the record once, switch to the right tab
+  // and pass the id down so CategoryTab opens the edit modal automatically.
+  useEffect(() => {
+    if (!openParamId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await api.get("/compliance/items");
+        if (cancelled) return;
+        const target = (r.data || []).find((x) => x.id === openParamId);
+        if (!target) return;
+        const cat = target.category || "";
+        const tabForCat = TABS.find((t) => t.category === cat)?.id || "company";
+        setTab(tabForCat);
+        setAutoOpenId(openParamId);
+      } catch { /* ignore */ }
+    })();
+    return () => { cancelled = true; };
+  }, [openParamId]);
 
   const bump = () => setRefreshKey((n) => n + 1);
   const active = TABS.find((t) => t.id === tab);
@@ -434,6 +471,8 @@ export default function ComplianceHubV2() {
           typeSuggestions={types[active.category] || []}
           refreshKey={refreshKey}
           onChange={bump}
+          autoOpenId={autoOpenId}
+          onAutoOpenConsumed={() => setAutoOpenId("")}
         />
       )}
 

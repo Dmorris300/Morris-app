@@ -49,6 +49,49 @@ to "template-generated / document generator". Historical PRD entries below use "
 and "LLM" as internal technical descriptors of the document-generation engine and
 remain as audit-trail references only — they are NOT product marketing copy.
 
+### 12 Sep 2026 — Phase 1 Mega Fix P2 (Command Centre deep-links) (Preview only, undeployed)
+
+**Trigger**: User approved P1 sign-off and asked P2 to verify every actionable Command Centre item opens the correct module, correct record, correct tab/step, and hydrated state — no generic-landing redirects where a specific record was expected.
+
+**Audit results (backend actionRoute scan across every `collect_*_attention` in the codebase)**:
+| Kind | Before | After | Status |
+|---|---|---|---|
+| draft_stale | `/app/drafts` (generic list) | `/app/tool/<toolId>?draft=<id>` | ✅ FIXED |
+| sa_deadline | `/app/finance` (generic hub) | `/app/self-assessment-prep` (dedicated tool) | ✅ FIXED |
+| compliance_expiring | `/app/compliance` (generic hub) | `/app/compliance?open=<id>` + auto-tab-switch + auto-open modal | ✅ FIXED (backend + frontend) |
+| coshh_review_due | `/app/coshh` (generic hub) | `/app/coshh?open=<id>` + auto-open wizard | ✅ FIXED (backend + frontend) |
+| rams_incomplete | `/app/rams?draft=<id>` | unchanged (verified) | ✅ PASS |
+| diary_missing | `/app/site-diary?projectId=<id>` | unchanged (specific project filter) | ✅ PASS |
+| no_photos | `/app/photo-vault?jobId=<id>` | unchanged (specific project filter) | ✅ PASS |
+| variation_awaiting | `/app/tool/variation-letter?draft=<id>` | unchanged — legacy V1 draft round-trip via `TOOL_REDIRECTS` | ⚠️ LEGACY (VariationOrders v2 consumes `?open=` not `?draft=`, so legacy variation-letter drafts land on the list; documented limitation) |
+| All V2 tool kinds (`?open=<id>`) | already specific | already specific | ✅ PASS (invoice, afp, quote, po, contract, snag, incident, risk, team, variation-orders) |
+
+**Backend files changed**:
+- `/app/backend/command_centre.py` — `sa_deadline.actionRoute = "/app/self-assessment-prep"`. `draft_stale.actionRoute = "/app/tool/<toolId>?draft=<id>"`.
+- `/app/backend/compliance.py` — appends `?open=<credentialId>` when the credential has an id.
+- `/app/backend/coshh.py` — appends `?open=<assessmentId>` when the row has an id.
+
+**Frontend files changed**:
+- `/app/frontend/src/pages/ComplianceHub.jsx` — Parent reads `?open=<id>`, fetches the item, picks the correct tab by category, hands `autoOpenId` to `CategoryTab`. `CategoryTab` consumes it once and opens the edit modal populated from the fetched row.
+- `/app/frontend/src/pages/Coshh.jsx` — Reads `?open=<id>` on mount, finds the assessment in the loaded list, calls `openEdit(a)` to open the 12-step wizard on that record.
+
+**Verification (`/app/test_reports/iteration_42.json`, 12 Sep 2026)**:
+- ✅ P2.A **draft_stale RAMS branch** (`kind=rams_incomplete`): direct nav + Command Centre click both hydrated 5/5 distinctive fields (`rams-client`, `rams-pc`, `rams-site`, `rams-supervisor`, `rams-task`). "Draft restored" toast captured. Resolves the earlier iteration_41 P1.4 RAMS bug.
+- ✅ P2.A **draft_stale generic-tool branch** (`kind=draft_stale`, Subbi Payment Cert): direct nav + CC click both hydrated all 4 form fields.
+- ✅ P2.B **sa_deadline**: not currently in window (12 Sep is >60d from 31 Jan), but direct navigation to `/app/self-assessment-prep` loads the dedicated Self Assessment Prep tool. Backend regression test skips out-of-window and asserts the shape rule when in-window.
+- ✅ P2.C **compliance_expiring** (`?open=<id>`): direct nav + CC click both auto-selected the correct tab (Company) and opened the edit modal with all seeded fields populated.
+- ✅ P2.D **coshh_review_due** (`?open=<id>`): direct nav + CC click both auto-opened the Edit COSHH wizard on Step 1/12 populated with the seeded row.
+- ✅ P2.E specific-record V2 kinds: previewqa dataset had no jobs / invoices / quotes / POs / contracts / snags / incidents / risks / team certs to fire, so no items were emitted. Backend `test_p2_all_actionable_routes_target_specific_context` guards the shape rule for every kind currently emitted.
+
+**Regression tests (`/app/backend/tests/test_p2_command_centre_deeplinks.py`)**:
+- 5 tests: draft_stale route shape · sa_deadline dedicated route · compliance ?open=<id> · coshh ?open=<id> · blanket "no generic landings" assertion.
+- Result: **4 pass · 1 skip** (sa_deadline out-of-window).
+- Full P0+P1+P2 suite: **27 pass · 1 skip**.
+
+**Explicit scope lock**: Preview only. No deploy. Backend and frontend hot-reloaded into preview. P3 (PDF integrity + UX) still pending user go-ahead.
+
+---
+
 ### 12 Sep 2026 — Phase 1 Mega Fix P1 Verification Addendum (Preview only, undeployed)
 
 **Trigger**: User rejected the previous "no code defect" sign-off for P1.3, P1.4, P1.5. Required 5 browser-level checks with PASS/FAIL evidence before P2 could start.
