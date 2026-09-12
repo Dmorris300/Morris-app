@@ -250,18 +250,49 @@ def build_router(db, get_user):
         open_tasks = await db.project_tasks.count_documents({"userId": uid, "jobId": job_id, "status": {"$in": ["not_started", "in_progress"]}})
 
         # Financial roll-up
+        # P1.1 (Sep 2026) — project financial rules:
+        #   originalContractValue = jobs.contractValue (as agreed at award)
+        #   approvedVariationsValue = sum of Approved variation-orders' totals for this job
+        #   revisedContractValue = originalContractValue + approvedVariationsValue
+        #   amountPaid  = sum of ACTUAL payments recorded against invoices for
+        #                 THIS job (db.invoices.payments[].amount). We no
+        #                 longer parse project_events subtitle strings — that
+        #                 legacy path counted narrative text as money and was
+        #                 the root cause of the "£210k paid but £0 outstanding"
+        #                 anomaly.
+        #   outstanding = sum of open-invoice balances (status not in
+        #                 Draft/Cancelled/Paid) for THIS job. This is INVOICE
+        #                 outstanding, not contract outstanding — the two
+        #                 metrics are related but intentionally not forced to
+        #                 be equal. If the project has approved commercial
+        #                 value that is not yet invoiced, that gap belongs to
+        #                 revisedContractValue vs invoiced-to-date, not to
+        #                 outstanding.
         contract_value = float(job.get("contractValue") or 0)
-        # Approved variations extend the effective commercial value of the project
         revised_contract_value = round(contract_value + approved_variations_value, 2)
-        # Payments received — sum of payment_received event subtitles that parse to numbers
+
         received = 0.0
-        async for ev in db.project_events.find({"userId": uid, "jobId": job_id, "kind": "payment_received"}):
-            try:
-                received += float((ev.get("subtitle") or "").replace("£", "").replace(",", "").split()[0])
-            except (ValueError, IndexError):
-                pass
-        outstanding = revised_contract_value - received if job.get("status") not in ("paid", "completed") else 0.0
-        outstanding = max(0.0, outstanding)
+        outstanding_from_invoices = 0.0
+        try:
+            async for inv in db.invoices.find({"userId": uid, "jobId": job_id, "isDeleted": {"$ne": True}}):
+                status_i = inv.get("status") or "Draft"
+                totals_i = inv.get("totals") or {}
+                total_due = float(totals_i.get("totalDue") or 0)
+                paid_total = float(inv.get("paidTotal") or 0)
+                # Recorded payments contribute regardless of status.
+                received += paid_total
+                # Outstanding balance only counts invoices that are live.
+                if status_i not in ("Paid", "Cancelled", "Draft"):
+                    balance = inv.get("balance")
+                    if balance is None:
+                        balance = max(0.0, total_due - paid_total)
+                    outstanding_from_invoices += float(balance)
+        except Exception:
+            # If the invoices collection is not yet queryable, fall back to 0
+            # rather than a wrong number. Never invent value.
+            pass
+
+        outstanding = round(outstanding_from_invoices, 2)
 
         # Recent activity (last 3 events)
         recent = await db.project_events.find({"userId": uid, "jobId": job_id}).sort("createdAt", -1).to_list(3)
@@ -271,7 +302,7 @@ def build_router(db, get_user):
             "photos": media_counts.get("image", 0),
             "videos": media_counts.get("video", 0),
             "outstanding": outstanding,
-            "amountPaid": received,
+            "amountPaid": round(received, 2),
             "completedTasks": completed_tasks,
             "openTasks": open_tasks,
             "openVariations": open_variations,

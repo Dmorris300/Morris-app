@@ -167,17 +167,34 @@ export default function ApplicationsForPayment() {
       base = { ...base, ...(fromTemplate.payload || {}), id: undefined, status: "Draft",
         applicationRef: "", applicationNumber: 0, applicationDate: base.applicationDate,
         lineItems: (fromTemplate.payload?.lineItems || []).map(l => ({ ...l, id: crypto.randomUUID() })) };
-    } else {
-      const d = loadDraft(); if (d && !d.id) base = { ...base, ...d, id: undefined };
+      // P1.2 (Sep 2026) — a template intentionally carries scope, so it may
+      // reuse client details and line items, but MUST NOT carry the previous
+      // AFP's photo evidence or signatures over.
+      base.photoIds = []; base.supportingDocs = [];
+      base.preparedSignature = ""; base.certifierSignature = "";
     }
+    // P1.2 — starting a genuinely new AFP must always begin from a clean
+    // slate. The old `loadDraft()` merge here shared a single localStorage
+    // slot across every AFP, so it silently re-populated photoIds /
+    // supportingDocs / signatures from whichever AFP the user last touched.
+    // The authoritative draft store is `db.drafts` and per-AFP records —
+    // this local cache is retired.
+    try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
     if (filterProject && !base.projectId) {
       const j = jobs.find(x => x.id === filterProject);
       if (j) {
         base.projectId = j.id;
         base.projectName = j.projectName || j.clientName || "";
         base.projectAddress = j.address || "";
-        base.clientName = j.clientName || "";
-        base.clientCompany = j.company || "";
+        // P1.1 (Sep 2026) — semantic mapping from Job schema:
+        //   Job.clientContact  → AFP.clientName    (the human contact)
+        //   Job.clientName     → AFP.clientCompany (the client organisation)
+        //   Job.poNumber       → AFP.contractRef   (the commercial reference)
+        // Email / phone / contractDate are NOT stored on Job; they stay blank
+        // so the user can fill them in without a wrong auto-guess overwrite.
+        base.clientName = j.clientContact || "";
+        base.clientCompany = j.clientName || j.company || "";
+        base.contractRef = j.poNumber || "";
       }
     }
     setEditing(base); setWizardOpen(true);
@@ -189,6 +206,11 @@ export default function ApplicationsForPayment() {
     c.applicationDate = new Date().toISOString().slice(0, 10);
     c.certifiedAmount = 0; c.certifiedDate = ""; c.paidAmount = 0; c.paidDate = "";
     c.certifierSignature = ""; c.preparedSignature = "";
+    // P1.2 (Sep 2026) — duplicate copies scope + client, but MUST NOT carry
+    // the source AFP's photo evidence over. Duplicating is a "same client,
+    // next period" convenience — the evidence for that new period must be
+    // captured fresh.
+    c.photoIds = []; c.supportingDocs = [];
     c.lineItems = (c.lineItems || []).map(l => ({ ...l, id: crypto.randomUUID() }));
     setEditing({ ...emptyAfp(), ...c }); setWizardOpen(true);
   };
@@ -397,14 +419,16 @@ function AfpWizard({ initial, user, jobs, onClose, onSaved, onTemplatesChanged }
 
   const pickProject = (id) => {
     const j = jobs.find(x => x.id === id); if (!j) return;
+    // P1.1 (Sep 2026) — same semantic mapping as the create path. Preserve
+    // whatever the user already typed if the job doesn't carry that field.
     setData(d => ({
       ...d,
       projectId: j.id,
       projectName: j.projectName || j.clientName || d.projectName,
       projectAddress: j.address || d.projectAddress,
-      clientName: j.clientName || d.clientName,
-      clientCompany: j.company || d.clientCompany,
-      clientEmail: j.clientContact || d.clientEmail,
+      clientName: j.clientContact || d.clientName,               // contact person
+      clientCompany: j.clientName || j.company || d.clientCompany, // organisation
+      contractRef: j.poNumber || d.contractRef,
       contractSum: j.contractValue || d.contractSum,
     }));
   };

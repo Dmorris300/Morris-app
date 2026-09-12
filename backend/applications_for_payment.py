@@ -462,7 +462,11 @@ def build_router(db, get_user):
                 "id": r.get("id"),
                 "applicationRef": r.get("applicationRef"),
                 "projectName": r.get("projectName"),
-                "clientName": r.get("clientName") or r.get("clientCompany"),
+                # P1.1 — surface both fields separately. Callers can choose to
+                # display the contact name, the company, or a "Contact (Company)"
+                # concatenation without the backend baking in that choice.
+                "clientName": r.get("clientName") or "",
+                "clientCompany": r.get("clientCompany") or "",
                 "status": st,
                 "totalDue": due,
                 "certifiedAmount": certified,
