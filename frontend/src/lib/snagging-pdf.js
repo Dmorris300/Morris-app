@@ -3,7 +3,7 @@
 // snagging report bundling every snag with before/after photos.
 
 import { jsPDF } from "jspdf";
-import { drawHeader, addFooter } from "./pdf";
+import { drawHeader, addFooter, finalizeFooters } from "./pdf";
 
 const GOLD = [232, 160, 32], INK = [20, 20, 20], MUTED = [110, 110, 110], BORDER = [180, 180, 180], ZEBRA = [248, 246, 242];
 const MARGIN = 48;
@@ -95,6 +95,7 @@ export function generateSnaggingReportPdf({ project, snags, summary, user, today
   });
 
   addFooter(doc, pageWidth, pageHeight, user, ref, todayStr, userName);
+  finalizeFooters(doc, { user, ref, today: todayStr, userName, pageWidth, pageHeight, skipPages: [1] });
   return doc;
 }
 
@@ -124,6 +125,7 @@ export function generateSnagPdf({ data, user, today }) {
   renderSnagDetail(state, data);
 
   addFooter(doc, pageWidth, pageHeight, user, ref, todayStr, userName);
+  finalizeFooters(doc, { user, ref, today: todayStr, userName, pageWidth, pageHeight, skipPages: [1] });
   return doc;
 }
 export function downloadSnagPdf(args) {

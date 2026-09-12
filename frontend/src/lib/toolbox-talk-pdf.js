@@ -2,7 +2,7 @@
 // Premium document matching RAMS/Method Statement grammar.
 
 import { jsPDF } from "jspdf";
-import { drawHeader, addFooter } from "./pdf";
+import { drawHeader, addFooter, finalizeFooters } from "./pdf";
 
 const GOLD   = [232, 160, 32];
 const INK    = [20, 20, 20];
@@ -107,6 +107,7 @@ export function generateToolboxTalkPdf({ data, user, today }) {
   }
 
   addFooter(doc, pageWidth, pageHeight, user, ref, todayStr, userName);
+  finalizeFooters(doc, { user, ref, today: todayStr, userName, pageWidth, pageHeight, skipPages: [1] });
   return doc;
 }
 

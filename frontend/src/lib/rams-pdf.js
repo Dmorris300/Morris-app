@@ -4,7 +4,7 @@
 // gold rule, header bar and footer line stay identical to every other Morris doc.
 
 import { jsPDF } from "jspdf";
-import { drawHeader, addFooter } from "./pdf";
+import { drawHeader, addFooter, finalizeFooters } from "./pdf";
 
 // ===== Branding =====
 const GOLD = [232, 160, 32];
@@ -390,6 +390,7 @@ export function generateRamsPdf({ data, user, today }) {
   }
 
   addFooter(doc, pageWidth, pageHeight, user, ref, todayStr, userName);
+  finalizeFooters(doc, { user, ref, today: todayStr, userName, pageWidth, pageHeight });
   return doc;
 }
 

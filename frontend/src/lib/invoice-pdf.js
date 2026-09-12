@@ -3,7 +3,7 @@
 // + payment terms + bank details + remittance slip.
 
 import { jsPDF } from "jspdf";
-import { drawHeader, addFooter } from "./pdf";
+import { drawHeader, addFooter, finalizeFooters } from "./pdf";
 
 const GOLD = [232, 160, 32], INK = [20, 20, 20], MUTED = [110, 110, 110], BORDER = [180, 180, 180], ZEBRA = [248, 246, 242];
 const MARGIN = 48;
@@ -130,6 +130,7 @@ export function generateInvoicePdf({ data, user, today }) {
   if (data.notes) { section(state, "Notes"); para(state, data.notes); }
 
   addFooter(doc, pageWidth, pageHeight, user, ref, todayStr, userName);
+  finalizeFooters(doc, { user, ref, today: todayStr, userName, pageWidth, pageHeight, skipPages: [1] });
   return doc;
 }
 
@@ -194,7 +195,7 @@ function section(s, title) {
   const lineH = 16;
   s.sectionNum = (s.sectionNum || 0) + 1;
   const lines = s.doc.splitTextToSize(`${s.sectionNum}. ${title}`, usable);
-  ensureRoom(s, lines.length * lineH + 30);
+  ensureRoom(s, lines.length * lineH + 80); // P3: keep heading with first body row
   lines.forEach((l, i) => s.doc.text(l, MARGIN, s.y + i * lineH));
   const lastY = s.y + (lines.length - 1) * lineH;
   s.doc.setDrawColor(...GOLD); s.doc.setLineWidth(0.6);
@@ -248,7 +249,11 @@ function table(s, header, rows, opts = {}) {
   const colWidths = opts.colWidths || (header ? Array(header.length).fill(usable / header.length) : [usable]);
   const padX = 6, padY = 4;
   if (header && opts.header !== false) {
-    ensureRoom(s, 24);
+    // P3 — keep table header with its first data row.
+    const firstRowH = rows && rows.length > 0
+      ? Math.max(...rows[0].map((c, i) => s.doc.splitTextToSize(String(c ?? ""), colWidths[i] - padX * 2).length)) * 12 + padY * 2
+      : 22;
+    ensureRoom(s, 22 + firstRowH);
     s.doc.setFillColor(245, 240, 225);
     s.doc.rect(MARGIN, s.y, colWidths.reduce((a, b) => a + b, 0), 22, "F");
     s.doc.setDrawColor(...BORDER); s.doc.setLineWidth(0.4);

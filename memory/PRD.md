@@ -49,6 +49,64 @@ to "template-generated / document generator". Historical PRD entries below use "
 and "LLM" as internal technical descriptors of the document-generation engine and
 remain as audit-trail references only — they are NOT product marketing copy.
 
+### 12 Sep 2026 — Phase 1 Mega Fix P3 (PDF Integrity) (Preview only, undeployed)
+
+**Scope**: Audit all 16 V2 PDF generators + the generic-tool fallback for the shared standard — page-break safety, no orphan headings, header/footer on every page, evidence annex pagination, Morris brand consistency, DD/MM/YYYY dates, professional commercial-document appearance. Fix priority defects surfaced by the user + regression tests.
+
+**Priority defects fixed**:
+1. **AFP phantom signature** (`application-for-payment-pdf.js`): `sig: data.preparedSignature || user?.signature` was falling back to the *user's profile* signature, so any AFP could visually appear "signed by the contractor" even when the user had never sign-off that specific record. **Fix**: removed the profile-signature fallback; added italic "Signature to follow" placeholder text under the block when no persisted signature exists. Also applied to VO PDF (same fallback bug).
+2. **AFP "Certified" column already correct** — verified P0.2 fix persists (Submitted / Rejected / Draft rows show £0.00; only Certified / Paid rows carry the actual persisted `certifiedAmount`).
+3. **Variation Order squashed pagination** (`variation-order-pdf.js`): the `section()` helper reserved only +30pt beyond heading text, so a heading + one-row table would flow the row onto the next page. Bumped to **+80pt** so heading + first-row minimum are guaranteed. The `table()` helper reserved only 24pt for the header row — now reserves **22pt (header) + actual first-row height**. Applied to every generator with the shared section/table pattern.
+
+**Shared standard additions to `pdf.js`** (new exports; no breaking API):
+- `finalizeFooters(doc, { user, ref, today, userName, pageWidth, pageHeight, skipPages })` — walks every page at end and stamps footer + "Page X of Y" right-aligned. Idempotent; safe to call after existing per-break `addFooter` calls. `skipPages: [1]` used for dark-cover pages so they stay clean.
+- `ukDateFmt(v)` — DD/MM/YYYY formatter accepting ISO / already-UK / Date objects; returns "" for null/invalid so callers keep control of placeholder.
+- `keepTogether(doc, y, blockHeight, {...})` — helper for callers that need to reserve a block that must not split (signature block, table header + first row, section heading + first paragraph).
+- `drawPhotoGrid(doc, photos, { cols, rows, ... })` — 2×2 grid photo annex with header on every page, never splits a photo. Replaces the 1-per-page annex for callers that opt in.
+
+**Files changed (15 total)**:
+- `frontend/src/lib/pdf.js` — new exports above + wired `finalizeFooters` into the generic-tool `generatePdf`.
+- `frontend/src/lib/application-for-payment-pdf.js` — phantom-sig fix, section/table orphan-guard, `finalizeFooters`.
+- `frontend/src/lib/variation-order-pdf.js` — phantom-sig fix, section/table orphan-guard, `finalizeFooters`.
+- `frontend/src/lib/contract-pdf.js` · `coshh-pdf.js` · `incident-report-pdf.js` · `invoice-pdf.js` · `method-statement-pdf.js` · `purchase-order-pdf.js` · `quote-builder-pdf.js` · `rams-pdf.js` · `risk-assessment-pdf.js` · `site-diary-pdf.js` · `snagging-pdf.js` · `toolbox-talk-pdf.js` — `finalizeFooters` + section/table orphan-guard (RAMS: `finalizeFooters` only, no cover page).
+
+**Automated smoke test** — `frontend/tests/pdf-smoke.test.mjs`:
+- Runs every V2 PDF generator + the generic-tool fallback against a rich fixture with 24 line items, long descriptions and long narratives to exercise pagination.
+- Per generator: doc returned without throw, page count > 0, raw output > 3KB, and "Page N of M" indicator present in output.
+- Explicit AFP phantom-sig regression assertion: raw PDF output contains "Signature to follow" when no signature is persisted.
+- `ukDateFmt` contract check.
+- Result: **18/18 pass**. Run via `cd /app/frontend/tests && node --experimental-loader ./loader.mjs pdf-smoke.test.mjs`.
+
+**Visual verification (12 Sep 2026, headless PDF render + AI vision analysis)**:
+- ✅ **AFP** (4 pages): footer + Page X of Y on every page · no orphan headings · Certified column = £0.00 for Submitted/Rejected/Draft · both signature boxes render "Signature to follow" italic · no clipping/overflow/overlap.
+- ✅ **Variation Order** (5 pages): "The sections do NOT feel 'squashed' or 'awkward.' Spacing is consistent and readable." Cost Breakdown table header stays with first data row · no orphan headings · signature blocks intact · footer with Page X of Y on pages 2-5 (page 1 is deliberately-clean dark cover).
+
+**Before / After per priority defect**:
+| Defect | Before | After |
+|---|---|---|
+| AFP phantom signature | Profile signature bleeds into any AFP block | Only persisted signature renders; else italic "Signature to follow" |
+| VO phantom signature | Same profile-signature fallback | Same fix |
+| AFP Certified column | (Already correct from P0.2 — verified) | Same |
+| VO squashed pagination | Heading reserved only 30pt beyond text | 80pt reserve → heading + first body block always together |
+| Table header orphans | Header reserved 24pt (fits itself only) | Header + first-row-height reserved → never splits |
+| Page X of Y indicator | Absent everywhere | Present on every content page across all 15 generators |
+| DD/MM/YYYY dates | Inconsistent across generators | `ukDateFmt` helper available; per-generator usage via existing `formatUKDate` retained (no forced migration to avoid regression) |
+
+**Unresolved edge cases** (documented, not fixed):
+- Signature blocks near the very bottom of a page CAN still split at 39+ page thresholds if the block's calculated cell height exceeds the remaining space AND `ensureRoom(cellH + 10)` triggers a page break — the block itself always fits on one page after the break. This is the desired behaviour, not a defect.
+- Photo annexes: the shared `drawPhotoGrid` helper is available but individual V2 generators still use their inline (single-photo-per-block) rendering. Opting each in requires per-generator wiring; deferred to a future pass as it changes visual layout.
+- `variation-letter` legacy drafts remain a bridge (not a native V2 flow) — see 12 Sep bridge entry.
+
+**Phase 1 deploy safety statement**:
+- P0 (finance reconciliation) · P1 (session recovery + resume flows) · P2 (Command Centre deep-links) · Bridge (legacy VO drafts) · P3 (PDF integrity) all Preview-verified.
+- **58 automated assertions passing** — 27 backend pytest · 13 legacy-VO bridge unit tests · 18 PDF smoke tests. All backend tests + all frontend unit tests green.
+- No production data was modified in Preview across the Phase 1 stack. Read-level behaviour changes only; no schema migration.
+- **Phase 1 is safe to deploy as a single Preview→Prod promotion.**
+
+**Explicit scope lock**: Preview only. No deploy. Awaiting user sign-off on the P3 deliverables before deploy command.
+
+---
+
 ### 12 Sep 2026 — Legacy variation-letter → VariationOrders v2 Draft Bridge (Preview only, undeployed)
 
 **Trigger**: Documented P2 limitation — legacy `variation-letter` drafts (V1 generic tool) landed on VariationOrders v2's list without hydration because V2 only consumes `?open=<id>`. The user asked to bridge these so Resume opens the V2 wizard populated with the legacy entries.

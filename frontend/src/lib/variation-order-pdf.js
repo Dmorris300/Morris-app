@@ -3,7 +3,7 @@
 // + cost breakdown + programme impact + evidence + terms + dual sign-off.
 
 import { jsPDF } from "jspdf";
-import { drawHeader, addFooter } from "./pdf";
+import { drawHeader, addFooter, finalizeFooters } from "./pdf";
 import { formatUKDate } from "./uk-format";
 
 const GOLD = [232, 160, 32], INK = [20, 20, 20], MUTED = [110, 110, 110], BORDER = [180, 180, 180], ZEBRA = [248, 246, 242];
@@ -157,6 +157,7 @@ export function generateVariationPdf({ data, user, today }) {
   drawDualSignoff(state, data, user, todayStr);
 
   addFooter(doc, pageWidth, pageHeight, user, ref, todayStr, userName);
+  finalizeFooters(doc, { user, ref, today: todayStr, userName, pageWidth, pageHeight, skipPages: [1] });
   return doc;
 }
 
@@ -226,7 +227,10 @@ function section(s, title) {
   const lineH = 16;
   s.sectionNum = (s.sectionNum || 0) + 1;
   const lines = s.doc.splitTextToSize(`${s.sectionNum}. ${title}`, usable);
-  ensureRoom(s, lines.length * lineH + 30);
+  // P3 (Sep 2026) — reserve enough room for the section heading AND at
+  // least a minimum body block (~80pt: table header 22pt + first data row
+  // ~30pt + margin) so we never orphan a heading at the bottom of a page.
+  ensureRoom(s, lines.length * lineH + 80);
   lines.forEach((l, i) => s.doc.text(l, MARGIN, s.y + i * lineH));
   const lastY = s.y + (lines.length - 1) * lineH;
   s.doc.setDrawColor(...GOLD); s.doc.setLineWidth(0.6);
@@ -254,7 +258,12 @@ function table(s, header, rows, opts = {}) {
   const colWidths = opts.colWidths || (header ? Array(header.length).fill(usable / header.length) : [usable]);
   const padX = 6, padY = 4;
   if (header && opts.header !== false) {
-    ensureRoom(s, 24);
+    // P3 — reserve room for the header row AND the first body row so a
+    // table header never gets orphaned at the bottom of a page.
+    const firstRowH = rows && rows.length > 0
+      ? Math.max(...rows[0].map((c, i) => s.doc.splitTextToSize(String(c ?? ""), colWidths[i] - padX * 2).length)) * 12 + padY * 2
+      : 22;
+    ensureRoom(s, 22 + firstRowH);
     s.doc.setFillColor(245, 240, 225);
     s.doc.rect(MARGIN, s.y, colWidths.reduce((a, b) => a + b, 0), 22, "F");
     s.doc.setDrawColor(...BORDER); s.doc.setLineWidth(0.4);
@@ -286,7 +295,7 @@ function drawDualSignoff(s, data, user, todayStr) {
   ensureRoom(s, cellH + 10);
   const boxTop = s.y;
   const cells = [
-    { title: "PREPARED BY (CONTRACTOR)", name: data.preparedBy || user?.fullName || "—", sig: data.preparedSignature || user?.signature, date: fDate(data.variationDate) || todayStr },
+    { title: "PREPARED BY (CONTRACTOR)", name: data.preparedBy || user?.fullName || "—", sig: data.preparedSignature, date: fDate(data.variationDate) || todayStr },
     { title: "APPROVED BY (CLIENT)", name: data.clientApproverName || "—", sig: data.clientApproverSignature, date: fDate(data.approvedDate) },
   ];
   cells.forEach((cell, i) => {
@@ -304,7 +313,13 @@ function drawDualSignoff(s, data, user, todayStr) {
     s.doc.text("Date:", x + 8, boxTop + 80);
     s.doc.setFont("helvetica", "bold"); s.doc.setFontSize(10); s.doc.setTextColor(...INK);
     s.doc.text(cell.date, x + 8, boxTop + 94);
-    if (cell.sig) { try { s.doc.addImage(cell.sig, "PNG", x + 8, boxTop + 100, cellW - 16, 34, undefined, "FAST"); } catch { /* ignore */ } }
+    if (cell.sig) {
+      try { s.doc.addImage(cell.sig, "PNG", x + 8, boxTop + 100, cellW - 16, 34, undefined, "FAST"); } catch { /* ignore */ }
+    } else {
+      // P3 (Sep 2026) — no persisted signature → say so explicitly.
+      s.doc.setFont("helvetica", "italic"); s.doc.setFontSize(9); s.doc.setTextColor(...MUTED);
+      s.doc.text("Signature to follow", x + 8, boxTop + 120);
+    }
   });
   s.y = boxTop + cellH + 8;
 }

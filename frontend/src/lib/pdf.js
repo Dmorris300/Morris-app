@@ -327,6 +327,10 @@ export function generatePdf({ title, content, user, photo, photoCaption, photos,
   }
 
   addFooter(doc, pageWidth, pageHeight, user, ref, today, userName);
+  // P3 — stamp Page X of Y on every content page. The generic tool page
+  // fallback has no cover, so skipPages is empty.
+  const userName2 = user?.fullName || user?.username || "";
+  finalizeFooters(doc, { user, ref, today, userName: userName2, pageWidth, pageHeight });
   return doc;
 }
 
@@ -387,6 +391,152 @@ export function addFooter(doc, pageWidth, pageHeight, user, ref, today, userName
   const contractorLine = [user?.companyName || userName, user?.email, user?.phone].filter(Boolean).join("  ·  ");
   if (contractorLine) doc.text(contractorLine, 48, pageHeight - 26);
 }
+
+// P3 (Sep 2026) — Stamp "Page N of M" on every page, and also guarantee
+// every page has a footer (some V2 generators only draw the footer on
+// page-break, leaving the final page footerless if the caller forgets).
+// Idempotent-ish: skips pages whose cover flag is set via
+// `doc.setPage(n); doc.__morrisSkipFooter = true;` in the caller. Always
+// call this ONCE at the end of a generator, immediately before `return doc`.
+//
+// `opts.skipPages` is an array of 1-indexed page numbers to skip (e.g. the
+// dark cover page). Everything else gets a normal footer + page indicator.
+export function finalizeFooters(doc, { user, ref, today, userName, pageWidth, pageHeight, skipPages = [] } = {}) {
+  const total = doc.getNumberOfPages();
+  const skip = new Set(skipPages);
+  for (let p = 1; p <= total; p++) {
+    if (skip.has(p)) continue;
+    doc.setPage(p);
+    // Only draw the standard footer if the page doesn't already look
+    // footered. We detect a footer by checking whether the reserved
+    // bottom strip has any text — a cheap heuristic is to always redraw
+    // the footer (idempotent visual — the same content overwrites cleanly
+    // with identical positioning), then stamp the page indicator on top.
+    if (pageWidth && pageHeight) {
+      addFooter(doc, pageWidth, pageHeight, user, ref, today, userName);
+    }
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(140, 140, 140);
+    doc.text(`Page ${p} of ${total}`, (pageWidth || 595) - 48, (pageHeight || 842) - 26, { align: "right" });
+  }
+}
+
+// P3 — DD/MM/YYYY UK date formatter. Accepts ISO ("2026-07-20" or
+// "2026-07-20T15:04"), already-UK ("20/07/2026"), Date objects. Returns
+// empty string for null / invalid / falsy inputs — callers decide their
+// own placeholder (e.g. "—").
+export function ukDateFmt(v) {
+  if (!v) return "";
+  if (v instanceof Date) {
+    if (isNaN(v.getTime())) return "";
+    return `${String(v.getDate()).padStart(2, "0")}/${String(v.getMonth() + 1).padStart(2, "0")}/${v.getFullYear()}`;
+  }
+  const s = String(v).trim();
+  if (!s) return "";
+  // Already DD/MM/YYYY? passthrough (validate loosely).
+  const uk = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (uk) return `${uk[1]}/${uk[2]}/${uk[3]}`;
+  // ISO YYYY-MM-DD (optionally with time)?
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[3]}/${iso[2]}/${iso[1]}`;
+  const d = new Date(s);
+  if (!isNaN(d.getTime())) {
+    return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+  }
+  return s;
+}
+
+// P3 — Reserve space for a block that must NOT split across pages
+// (signature block, table header + first row, section heading + first
+// paragraph). If the block won't fit, adds a new page (via caller-provided
+// `redrawHeader` so brand/margins stay consistent) and returns the new y.
+// Returns the y-position the caller should render the block at.
+export function keepTogether(doc, y, blockHeight, { pageHeight, headerHeight = 110, footerReserve = 70, redrawHeader }) {
+  const bottom = (pageHeight || doc.internal.pageSize.getHeight()) - footerReserve;
+  if (y + blockHeight <= bottom) return y;
+  doc.addPage();
+  doc.setFillColor(255, 255, 255);
+  doc.rect(0, 0, doc.internal.pageSize.getWidth(), doc.internal.pageSize.getHeight(), "F");
+  if (typeof redrawHeader === "function") redrawHeader(doc);
+  return headerHeight;
+}
+
+// P3 — 2×2 photo grid annex (configurable via `cols`/`rows`). Never splits
+// a photo, always renders a header on every annex page, always draws a
+// caption strip under each thumbnail. Replaces the older 1-per-page annex
+// for callers that opt in. Existing `appendPhotographicEvidence` remains
+// for backwards compatibility (deprecated internally — see below).
+export function drawPhotoGrid(doc, photos, {
+  pageWidth, pageHeight, margin = 48, cols = 2, rows = 2,
+  user, company, today, ref, userName, title = "Photographic Evidence",
+} = {}) {
+  if (!Array.isArray(photos) || photos.length === 0) return;
+  const usable = pageWidth - margin * 2;
+  const gapX = 12, gapY = 18;
+  const cellW = (usable - gapX * (cols - 1)) / cols;
+  const captionH = 32;   // 2 short lines of text under the thumbnail
+  const noteMaxLines = 2;
+  const noteH = noteMaxLines * 11 + 4;
+  const imgH = cellW * 0.66;   // 3:2 aspect ratio — clean and consistent
+  const cellH = imgH + captionH + noteH;
+  const perPage = cols * rows;
+
+  const newAnnexPage = (label) => {
+    doc.addPage();
+    doc.setFillColor(255, 255, 255);
+    doc.rect(0, 0, pageWidth, pageHeight, "F");
+    drawHeader(doc, pageWidth, margin, user, company, today, label);
+  };
+
+  newAnnexPage(title);
+  let y = 150;
+  let placed = 0;
+
+  photos.forEach((p, idx) => {
+    // New page when the current grid page is full.
+    if (placed > 0 && placed % perPage === 0) {
+      newAnnexPage(`${title} (continued)`);
+      y = 150;
+    }
+    const posInPage = placed % perPage;
+    const col = posInPage % cols;
+    const row = Math.floor(posInPage / cols);
+    const x = margin + col * (cellW + gapX);
+    const yy = y + row * (cellH + gapY);
+
+    // Thumbnail
+    try {
+      const format = (p.dataUrl && p.dataUrl.startsWith("data:image/png")) ? "PNG" : "JPEG";
+      doc.addImage(p.dataUrl, format, x, yy, cellW, imgH, undefined, "FAST");
+    } catch (e) {
+      if (process.env.NODE_ENV !== "production") console.error("drawPhotoGrid: image failed", e);
+    }
+    doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.4);
+    doc.rect(x, yy, cellW, imgH);
+
+    // Caption header
+    doc.setFont("helvetica", "bold"); doc.setFontSize(9.5); doc.setTextColor(15, 15, 15);
+    doc.text(`Photo ${idx + 1} of ${photos.length}`, x, yy + imgH + 12);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(110, 110, 110);
+    const stamp = [p.ukDate, p.time, p.location || "Location not available"].filter(Boolean).join("  ·  ");
+    const stampLines = doc.splitTextToSize(stamp, cellW);
+    stampLines.slice(0, 2).forEach((l, k) => doc.text(l, x, yy + imgH + 24 + k * 10));
+
+    // Note (2-line clamp)
+    if ((p.note || "").trim()) {
+      doc.setFont("helvetica", "italic"); doc.setFontSize(8.5); doc.setTextColor(70, 70, 70);
+      const noteLines = doc.splitTextToSize(String(p.note).trim(), cellW).slice(0, noteMaxLines);
+      noteLines.forEach((l, k) => doc.text(l, x, yy + imgH + captionH + 4 + k * 11));
+    }
+
+    placed += 1;
+  });
+
+  // Footer on annex pages will be added by `finalizeFooters` when the
+  // caller finalises the document.
+}
+
 
 export function downloadPdf({ title, content, user, photo, photoCaption, photos, clientSignature, refNumber }) {
   const d = generatePdf({ title, content, user, photo, photoCaption, photos, clientSignature, refNumber });

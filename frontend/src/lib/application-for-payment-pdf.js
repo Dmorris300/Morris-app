@@ -4,7 +4,7 @@
 // (retention, CIS, VAT, adjustments) + supporting evidence + dual sign-off.
 
 import { jsPDF } from "jspdf";
-import { drawHeader, addFooter } from "./pdf";
+import { drawHeader, addFooter, finalizeFooters } from "./pdf";
 
 const GOLD = [232, 160, 32], INK = [20, 20, 20], MUTED = [110, 110, 110], BORDER = [180, 180, 180], ZEBRA = [248, 246, 242];
 const MARGIN = 48;
@@ -163,6 +163,7 @@ export function generateAfpPdf({ data, user, today }) {
   drawDualSignoff(state, data, user, todayStr);
 
   addFooter(doc, pageWidth, pageHeight, user, ref, todayStr, userName);
+  finalizeFooters(doc, { user, ref, today: todayStr, userName, pageWidth, pageHeight, skipPages: [1] });
   return doc;
 }
 
@@ -229,7 +230,7 @@ function section(s, title) {
   const lineH = 16;
   s.sectionNum = (s.sectionNum || 0) + 1;
   const lines = s.doc.splitTextToSize(`${s.sectionNum}. ${title}`, usable);
-  ensureRoom(s, lines.length * lineH + 30);
+  ensureRoom(s, lines.length * lineH + 80); // P3: keep heading with first body row
   lines.forEach((l, i) => s.doc.text(l, MARGIN, s.y + i * lineH));
   const lastY = s.y + (lines.length - 1) * lineH;
   s.doc.setDrawColor(...GOLD); s.doc.setLineWidth(0.6);
@@ -257,7 +258,11 @@ function table(s, header, rows, opts = {}) {
   const colWidths = opts.colWidths || (header ? Array(header.length).fill(usable / header.length) : [usable]);
   const padX = 6, padY = 4;
   if (header && opts.header !== false) {
-    ensureRoom(s, 24);
+    // P3 — keep table header with its first data row.
+    const firstRowH = rows && rows.length > 0
+      ? Math.max(...rows[0].map((c, i) => s.doc.splitTextToSize(String(c ?? ""), colWidths[i] - padX * 2).length)) * 12 + padY * 2
+      : 22;
+    ensureRoom(s, 22 + firstRowH);
     s.doc.setFillColor(245, 240, 225);
     s.doc.rect(MARGIN, s.y, colWidths.reduce((a, b) => a + b, 0), 22, "F");
     s.doc.setDrawColor(...BORDER); s.doc.setLineWidth(0.4);
@@ -289,7 +294,7 @@ function drawDualSignoff(s, data, user, todayStr) {
   ensureRoom(s, cellH + 10);
   const boxTop = s.y;
   const cells = [
-    { title: "PREPARED BY (CONTRACTOR)", name: data.preparedBy || user?.fullName || "—", sig: data.preparedSignature || user?.signature, date: data.applicationDate || todayStr },
+    { title: "PREPARED BY (CONTRACTOR)", name: data.preparedBy || user?.fullName || "—", sig: data.preparedSignature, date: data.applicationDate || todayStr },
     { title: "CERTIFIED BY (CLIENT / QS)", name: data.certifierName || "—", sig: data.certifierSignature, date: data.certifiedDate || "—", extra: data.certifierRole ? `Role: ${data.certifierRole}` : "" },
   ];
   cells.forEach((cell, i) => {
@@ -311,7 +316,15 @@ function drawDualSignoff(s, data, user, todayStr) {
     s.doc.text("Date:", x + 8, boxTop + 82);
     s.doc.setFont("helvetica", "bold"); s.doc.setFontSize(10); s.doc.setTextColor(...INK);
     s.doc.text(cell.date, x + 8, boxTop + 96);
-    if (cell.sig) { try { s.doc.addImage(cell.sig, "PNG", x + 8, boxTop + 100, cellW - 16, 34, undefined, "FAST"); } catch { /* ignore */ } }
+    if (cell.sig) {
+      try { s.doc.addImage(cell.sig, "PNG", x + 8, boxTop + 100, cellW - 16, 34, undefined, "FAST"); } catch { /* ignore */ }
+    } else {
+      // P3 (Sep 2026) — no persisted signature → say so explicitly. Never
+      // fall back to a profile signature or leave the block visually
+      // ambiguous; users have reported this reading as "signed" in the past.
+      s.doc.setFont("helvetica", "italic"); s.doc.setFontSize(9); s.doc.setTextColor(...MUTED);
+      s.doc.text("Signature to follow", x + 8, boxTop + 120);
+    }
   });
   s.y = boxTop + cellH + 8;
 }
