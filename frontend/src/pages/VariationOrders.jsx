@@ -19,6 +19,8 @@ import SignaturePad from "../components/SignaturePad";
 import { downloadVariationPdf, variationPdfBlobUrl } from "../lib/variation-order-pdf";
 import { formatUKDate } from "../lib/uk-format";
 import { listMedia, thumbSrc } from "../lib/media";
+import { fetchDraft, clearDraftQueryParam } from "../lib/drafts";
+import { mapLegacyVariationLetterDraft } from "../lib/legacy-variation-letter-bridge";
 
 const TOOL_ID = "variation-orders";
 const DRAFT_KEY = "morris.tool_draft.variation-orders";
@@ -104,6 +106,7 @@ export default function VariationOrders() {
   const { user } = useAuth();
   const [params] = useSearchParams();
   const openParamId = params.get("open") || "";
+  const draftParamId = params.get("draft") || "";
   const projectFilter = params.get("projectId") || "";
   const [variations, setVariations] = useState([]);
   const [stats, setStats] = useState(null);
@@ -141,6 +144,42 @@ export default function VariationOrders() {
       if (v) openEdit(v);
     }
   }, [openParamId, variations]);   
+
+  // Bridge: `/app/variation-orders?draft=<legacyId>` fetches a legacy
+  // variation-letter draft, maps its flat `values` payload into the V2
+  // shape and opens the wizard populated with the user's original entries.
+  // The legacy draft record is NOT rewritten — saving from the wizard
+  // creates a fresh V2 record and leaves the legacy row intact for audit.
+  useEffect(() => {
+    if (!draftParamId || wizardOpen) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const d = await fetchDraft(draftParamId);
+        if (cancelled || !d) return;
+        if (d.toolId !== "variation-letter" && d.toolId !== "variation-orders") return;
+        const payload = d.data || {};
+        // V2-native drafts (already the correct shape) can be opened directly.
+        if (d.toolId === "variation-orders") {
+          setEditing({ ...emptyVariation(), ...payload });
+          setWizardOpen(true);
+          toast.success("Draft restored");
+          return;
+        }
+        // Legacy variation-letter drafts store the user inputs under `values`.
+        const legacyValues = payload.values || payload;
+        const mapped = mapLegacyVariationLetterDraft(legacyValues);
+        setEditing({ ...emptyVariation(), ...mapped });
+        setWizardOpen(true);
+        toast.success("Legacy Variation restored — review and save as a Variation Order");
+      } catch (e) {
+        if (process.env.NODE_ENV !== "production") console.error("Legacy variation-letter bridge failed", e);
+      } finally {
+        clearDraftQueryParam();
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [draftParamId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openNew = (fromTemplate = null) => {
     let base = emptyVariation();

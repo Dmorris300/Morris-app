@@ -49,6 +49,38 @@ to "template-generated / document generator". Historical PRD entries below use "
 and "LLM" as internal technical descriptors of the document-generation engine and
 remain as audit-trail references only — they are NOT product marketing copy.
 
+### 12 Sep 2026 — Legacy variation-letter → VariationOrders v2 Draft Bridge (Preview only, undeployed)
+
+**Trigger**: Documented P2 limitation — legacy `variation-letter` drafts (V1 generic tool) landed on VariationOrders v2's list without hydration because V2 only consumes `?open=<id>`. The user asked to bridge these so Resume opens the V2 wizard populated with the legacy entries.
+
+**Implementation**:
+- **NEW** `/app/frontend/src/lib/legacy-variation-letter-bridge.js` — pure, non-mutating mapper. `mapLegacyVariationLetterDraft(values) → partial V2 shape`. Coerces reason / method / role to the V2 enum sets (unknowns fall back to safe defaults), strips datetime-local suffixes to date-only, builds cost line items only for non-zero rows, composes a `notes` field from legacy `raisedBy` + `clauseRef` (fields V2 has no home for).
+- **`/app/frontend/src/pages/VariationOrders.jsx`** — reads `?draft=<id>`, fetches the draft via existing `fetchDraft` helper, dispatches:
+  - `d.toolId === "variation-orders"` → open wizard with `payload` directly (V2-native drafts, forward-compatible).
+  - `d.toolId === "variation-letter"` → map `payload.values` through the bridge and open wizard on the mapped record. Toast: *"Legacy Variation restored — review and save as a Variation Order"*.
+- The legacy draft record is NEVER rewritten. Saving from the wizard creates a fresh V2 record via the existing POST path so the audit trail stays truthful.
+
+**Files changed**:
+- `frontend/src/lib/legacy-variation-letter-bridge.js` (NEW)
+- `frontend/src/pages/VariationOrders.jsx` (add `?draft=` handler; imports `fetchDraft` + `mapLegacyVariationLetterDraft`).
+
+**Tests added**:
+- `frontend/tests/legacy-variation-letter-bridge.test.mjs` — 13-case Node script (run with `node tests/legacy-variation-letter-bridge.test.mjs`). Covers happy-path field-by-field mapping, empty/null resilience, reason/method/role coercion, programme-impact edge cases, cost extraction (dropped zeros + negative sanitisation), VAT defaults, and internal `_dateOnly` behaviour. **13/13 pass**.
+- Backend regression suite unchanged: **27 pass · 1 skip** (P0 + P1 + P2 all green).
+
+**Verification (browser reproduction, 12 Sep 2026)**:
+- Seeded a legacy `variation-letter` draft with distinctive values (Riverside-style project, PM Michael Turner, £1500 labour + £750 materials + £250 prelims, 20% VAT, 2 additional days, new PC 2026-10-01, JCT clause).
+- Direct navigation `/app/variation-orders?draft=<legacyId>` → wizard opens on Step 1/9 with header `NEW VARIATION · LEGACY VARIATION DESCRIPTION NARRATIVE · £3,000.00` (proves description narrative + line items + 20% VAT all summed correctly), Project name `Legacy Bridge Test Site` and Client contact name `Legacy Client Ltd` populated on Step 1.
+- Seed cleaned up. No production data touched.
+
+**Known limitations documented**:
+- The legacy `raisedBy` value has no dedicated V2 field; it appears in `notes` alongside `clauseRef`. Contracts Manager users can move the note into a formal field manually on save.
+- Legacy `instructorRole` values outside V2's enum (e.g. "Contracts Manager") coerce to blank — the user is prompted to pick a canonical role in the wizard.
+
+**Explicit scope lock**: Preview only. No deploy. Nothing was deployed as part of P2 either — the whole P0+P1+P2 bundle remains staged for a single Preview→Prod promotion after user sign-off.
+
+---
+
 ### 12 Sep 2026 — Phase 1 Mega Fix P2 (Command Centre deep-links) (Preview only, undeployed)
 
 **Trigger**: User approved P1 sign-off and asked P2 to verify every actionable Command Centre item opens the correct module, correct record, correct tab/step, and hydrated state — no generic-landing redirects where a specific record was expected.
