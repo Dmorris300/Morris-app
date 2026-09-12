@@ -92,6 +92,13 @@ export default function Dashboard() {
   const [drafts, setDrafts] = useState([]);
   const [docs, setDocs] = useState([]);
   const [mediaStats, setMediaStats] = useState({ total: 0 });
+  // P0.3 (Sep 2026) — authoritative invoice dataset. Business Snapshot used
+  // to sum `jobs.contractValue where status='invoiced'`, which is a legacy
+  // pre-InvoiceBuilder relic and had nothing to do with real invoices. That
+  // is why Business Snapshot could show £0 outstanding while Payment Tracker
+  // knew about an overdue invoice. We now read the same collection Finance
+  // Hub and Payment Tracker use.
+  const [invoices, setInvoices] = useState([]);
 
   // Load everything in parallel.
   useEffect(() => {
@@ -100,6 +107,7 @@ export default function Dashboard() {
     api.get("/drafts").then((r) => setDrafts(r.data || [])).catch(() => setDrafts([]));
     api.get("/documents").then((r) => setDocs(r.data || [])).catch(() => setDocs([]));
     api.get("/media/stats").then((r) => setMediaStats(r.data || { total: 0 })).catch(() => {});
+    api.get("/invoice-builder/invoices").then((r) => setInvoices(r.data || [])).catch(() => setInvoices([]));
   }, []);
 
   const period = greeting();
@@ -107,8 +115,22 @@ export default function Dashboard() {
   const sub = subline(period, daySeed());
 
   // ---- Business snapshot ----
-  const invoicedJobs = jobs.filter((j) => j.status === "invoiced");
-  const outstanding = invoicedJobs.reduce((a, j) => a + (Number(j.contractValue) || 0), 0);
+  // Outstanding = sum of balances on invoices that are not fully paid /
+  // cancelled / draft. Same rule Payment Tracker and Finance Hub use.
+  const { outstanding, outstandingCount } = useMemo(() => {
+    let total = 0;
+    let count = 0;
+    for (const inv of invoices) {
+      const status = inv.status;
+      if (status === "Paid" || status === "Cancelled" || status === "Draft") continue;
+      const totalDue = ((inv.totals || {}).totalDue) || 0;
+      const paid = inv.paidTotal || 0;
+      const balance = inv.balance != null ? inv.balance : Math.max(0, totalDue - paid);
+      total += balance;
+      count += 1;
+    }
+    return { outstanding: total, outstandingCount: count };
+  }, [invoices]);
   const activeJobs = jobs.filter((j) => j.status === "active").length;
   const openDocs = drafts.length + Math.max(0, (docs || []).length);
 
@@ -238,7 +260,7 @@ export default function Dashboard() {
       {/* -------- 3. Business Snapshot -------- */}
       <Section title="Business Snapshot" testId="cc-snapshot">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3" data-testid="cc-snapshot-grid">
-          <SnapshotTile label="Outstanding" value={fGBP(outstanding)} sub={`${invoicedJobs.length} invoice${invoicedJobs.length === 1 ? "" : "s"}`} to="/app/finance" testId="cc-snap-outstanding" />
+          <SnapshotTile label="Outstanding" value={fGBP(outstanding)} sub={`${outstandingCount} invoice${outstandingCount === 1 ? "" : "s"}`} to="/app/finance" testId="cc-snap-outstanding" />
           <SnapshotTile label="Active Projects" value={activeJobs} sub="in progress" to="/app/jobs" testId="cc-snap-projects" />
           <SnapshotTile label="Open Documents" value={openDocs} sub="drafts + saved" to="/app/drafts" testId="cc-snap-docs" />
           <SnapshotTile label="Media Stored" value={mediaStats.total || 0} sub="photos & videos" to="/app/photo-vault" testId="cc-snap-media" />

@@ -71,26 +71,16 @@ async def compute_attention(db, user: dict) -> List[Dict[str, Any]]:
 
     jobs_by_id = {j["id"]: j for j in jobs}
 
-    # --- 1. Overdue invoices (jobs with status=invoiced past dueDate) ---
-    for j in jobs:
-        if j.get("status") != "invoiced":
-            continue
-        due = _parse_date(j.get("dueDate") or j.get("invoiceDueDate"))
-        if not due or due >= now:
-            continue
-        days_over = (now.date() - due.date()).days
-        items.append({
-            "id": f"invoice-{j['id']}",
-            "kind": "invoice_overdue",
-            "title": f"Invoice {j.get('ref') or j['id'][:6]} overdue by {days_over} day{'s' if days_over != 1 else ''}.",
-            "subtitle": j.get("clientName") or j.get("projectName") or "Project",
-            "projectId": j["id"],
-            "projectName": j.get("clientName") or j.get("projectName"),
-            "actionLabel": "Open Invoice",
-            "actionRoute": f"/app/jobs/{j['id']}?tab=finance",
-            "severity": "urgent" if days_over >= 7 else "warning",
-            "dueAt": due.isoformat(),
-        })
+    # --- 1. Overdue invoices — DISABLED (P0.3 fix, Sep 2026) ---
+    # The legacy path here read `db.jobs.status == "invoiced"` and treated the
+    # job's own `dueDate` as an invoice due date. This is a pre-InvoiceBuilder
+    # relic. Real invoices live in `db.invoices` and are surfaced through the
+    # authoritative `collect_invoice_attention` merge at line ~376. Reading
+    # jobs.status here produced duplicate or missing alerts depending on which
+    # collection the invoice happened to be in and was the root cause of the
+    # "overdue alert coexists with £0 outstanding" reconciliation defect
+    # (Finance Hub / Command Centre disagreed with Payment Tracker).
+    # Kept the loop deliberately empty so the numbering below stays stable.
 
     # --- 2. Variations awaiting approval (drafts of variation-letter with status metadata) ---
     for d in drafts:
@@ -112,30 +102,12 @@ async def compute_attention(db, user: dict) -> List[Dict[str, Any]]:
                 "dueAt": None,
             })
 
-    # --- 3. Payment chaser recommended (overdue invoice + no chase in last 14 days) ---
-    for j in jobs:
-        if j.get("status") != "invoiced":
-            continue
-        due = _parse_date(j.get("dueDate") or j.get("invoiceDueDate"))
-        if not due or due >= now:
-            continue
-        # No chase in last 14 days = has no chaseHistory or latest chase > 14 days old
-        last_chase = _parse_date((j.get("chaseHistory") or [{}])[-1].get("date")) if j.get("chaseHistory") else None
-        if last_chase and (now - last_chase) < timedelta(days=14):
-            continue
-        days_over = (now.date() - due.date()).days
-        items.append({
-            "id": f"chase-{j['id']}",
-            "kind": "chase_recommended",
-            "title": "Payment chaser recommended.",
-            "subtitle": f"{j.get('ref') or 'Invoice'} — {days_over} day{'s' if days_over != 1 else ''} overdue",
-            "projectId": j["id"],
-            "projectName": j.get("clientName"),
-            "actionLabel": "Start Chase",
-            "actionRoute": f"/app/payment-chaser?jobId={j['id']}",
-            "severity": "warning",
-            "dueAt": due.isoformat(),
-        })
+    # --- 3. Payment chaser recommended — DISABLED (P0.3 fix, Sep 2026) ---
+    # Same reason as #1. The authoritative chase-recommended signal is emitted
+    # by `collect_invoice_attention` (invoice_builder.py) via the merged path
+    # at line ~376. Keeping this legacy jobs.status branch active caused
+    # duplicate chaser alerts and, more importantly, alerts for invoices that
+    # do not exist in the real invoice collection.
 
     # --- 4. Compliance credentials expiring in <=30 days ---
     for label, field, route in [
