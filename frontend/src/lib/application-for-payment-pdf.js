@@ -79,12 +79,26 @@ export function generateAfpPdf({ data, user, today }) {
   }
 
   // 4. Previous applications (if any provided as `previousApplications` on the payload)
+  // P0.2 (Sep 2026) — split Application Value from Certified. A Submitted or
+  // Rejected row must NEVER show a Certified amount derived from gross
+  // valuation; the PDF must remain commercially accurate.
   const prev = data.previousApplications || [];
   if (prev.length > 0) {
     section(state, "Previous Applications for this Project");
-    table(state, ["#", "Ref", "Date", "Status", "Certified"],
-      prev.map(p => [String(p.applicationNumber || ""), p.applicationRef || "—", p.applicationDate || "—", p.status || "—", fGBP(p.certifiedAmount || p.grossIncludingVariations || 0)]),
-      { colWidths: computeColumnWidths(state, [0.08, 0.24, 0.20, 0.20, 0.28]) });
+    table(state, ["#", "Ref", "Date", "Status", "Application Value", "Certified"],
+      prev.map(p => {
+        const isCert = p.status === "Certified" || p.status === "Paid";
+        const certified = isCert ? (Number(p.certifiedAmount) || 0) : 0;
+        return [
+          String(p.applicationNumber || ""),
+          p.applicationRef || "—",
+          p.applicationDate || "—",
+          p.status || "—",
+          fGBP(p.grossIncludingVariations || 0),
+          fGBP(certified),
+        ];
+      }),
+      { colWidths: computeColumnWidths(state, [0.06, 0.20, 0.16, 0.16, 0.20, 0.22]) });
   }
 
   // 5. Certification summary

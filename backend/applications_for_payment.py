@@ -509,8 +509,15 @@ def build_router(db, get_user):
             num = int(r.get("applicationNumber") or 0)
             if num > highest_number:
                 highest_number = num
-            if status in ("Certified", "Paid") or (status == "Submitted" and certified > 0):
-                previously_certified_total += certified if certified > 0 else gross_incl
+            # P0.1 (Sep 2026) — "Amount Actually Certified" is defined as the
+            # explicit persisted `certifiedAmount` field. Only applications
+            # that have GENUINELY reached Certified or Paid may contribute to
+            # cumulative "Previously Certified". Submitted / Rejected / Draft
+            # contribute £0. A Certified application with certifiedAmount = £0
+            # contributes £0. We NEVER fall back to grossIncludingVariations,
+            # applicationValue or any other monetary field.
+            if status in ("Certified", "Paid"):
+                previously_certified_total += certified
                 previous_retention_held += retention
             previous_apps.append({
                 "id": r.get("id"),

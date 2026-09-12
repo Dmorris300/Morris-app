@@ -562,11 +562,19 @@ function AfpWizard({ initial, user, jobs, onClose, onSaved, onTemplatesChanged }
                     ) : (
                       <div className="overflow-x-auto">
                         <table className="w-full text-xs">
-                          <thead className="text-[#A19D94]"><tr><th className="text-left py-2">#</th><th className="text-left">Reference</th><th className="text-left">Date</th><th className="text-left">Status</th><th className="text-right">Certified</th></tr></thead>
+                          <thead className="text-[#A19D94]"><tr><th className="text-left py-2">#</th><th className="text-left">Reference</th><th className="text-left">Date</th><th className="text-left">Status</th><th className="text-right">Application Value</th><th className="text-right">Certified</th></tr></thead>
                           <tbody className="text-[#F0EDE8]">
-                            {projectSummary.previousApplications.map(p => (
-                              <tr key={p.id} className="border-t border-[#2a2620]"><td className="py-2">{p.applicationNumber}</td><td>{p.applicationRef}</td><td>{p.applicationDate}</td><td>{p.status}</td><td className="text-right">{fGBP(p.certifiedAmount || p.grossIncludingVariations || 0)}</td></tr>
-                            ))}
+                            {projectSummary.previousApplications.map(p => {
+                              // P0.2 (Sep 2026) — split Application Value from
+                              // Certified. Only Certified/Paid rows show a
+                              // Certified amount; everything else shows £0
+                              // (no fallback to gross valuation).
+                              const isCert = p.status === "Certified" || p.status === "Paid";
+                              const certified = isCert ? (Number(p.certifiedAmount) || 0) : 0;
+                              return (
+                                <tr key={p.id} className="border-t border-[#2a2620]"><td className="py-2">{p.applicationNumber}</td><td>{p.applicationRef}</td><td>{p.applicationDate}</td><td>{p.status}</td><td className="text-right">{fGBP(p.grossIncludingVariations || 0)}</td><td className="text-right">{fGBP(certified)}</td></tr>
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>

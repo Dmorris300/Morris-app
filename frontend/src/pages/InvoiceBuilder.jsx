@@ -272,7 +272,7 @@ export default function InvoiceBuilder() {
                 catch { toast.error("Failed"); }
               }} className="card-dark p-3 text-left hover:border-[#E8A020] border border-transparent" data-testid={`inv-ready-afp-${a.id}`}>
                 <div className="flex items-center gap-2 text-[10px] text-[#E8A020]"><LinkIcon size={11} /> Certified AFP</div>
-                <div className="text-sm text-[#F0EDE8] mt-1 truncate">{a.applicationRef} · {fGBP(a.certifiedAmount || (a.totals || {}).totalDue || 0)}</div>
+                <div className="text-sm text-[#F0EDE8] mt-1 truncate">{a.applicationRef} · {fGBP(Number(a.certifiedAmount) || 0)}</div>
                 <div className="text-[11px] text-[#A19D94] truncate">{a.projectName || a.clientCompany}</div>
               </button>
             ))}
@@ -581,7 +581,7 @@ function InvoiceWizard({ initial, user, jobs, applications, variations, onClose,
                 <select value={data.linkedApplicationId} onChange={(e) => linkApplication(e.target.value)} className={inputClass} data-testid="inv-link-afp">
                   <option value="">Not linked</option>
                   {applications.filter(a => ["Certified", "Paid"].includes(a.status)).map(a => (
-                    <option key={a.id} value={a.id}>{a.applicationRef} · {a.projectName || a.clientCompany} · {fGBP(a.certifiedAmount || (a.totals || {}).totalDue || 0)}</option>
+                    <option key={a.id} value={a.id}>{a.applicationRef} · {a.projectName || a.clientCompany} · {fGBP(Number(a.certifiedAmount) || 0)}</option>
                   ))}
                 </select>
               </Field>
