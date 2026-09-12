@@ -49,6 +49,37 @@ to "template-generated / document generator". Historical PRD entries below use "
 and "LLM" as internal technical descriptors of the document-generation engine and
 remain as audit-trail references only — they are NOT product marketing copy.
 
+### 12 Sep 2026 — Phase 1 Mega Fix P1 Verification Addendum (Preview only, undeployed)
+
+**Trigger**: User rejected the previous "no code defect" sign-off for P1.3, P1.4, P1.5. Required 5 browser-level checks with PASS/FAIL evidence before P2 could start.
+
+**Browser-level results (iteration 41 testing_agent + main-agent manual reproduction)**:
+- ✅ **P1.3 AFP signature persistence** — PASS. `openEdit()` spread + backend `_shape()` return preserve `preparedSignature` / `certifierSignature` intact across save → close → reopen and across partial PATCH. No code change needed.
+- ❌ → ✅ **P1.4 RAMS Resume from Drafts** — FAIL reproduced, then FIXED.
+- ✅ **P1.5 Subbi Payment Cert Resume** — PASS (already correct; hydrates all fields via `GenericToolPage.draftRestoredFor` effect).
+- 📄 **P1.1 AFP client mapping** — HARDENED against legacy combined-contact strings.
+- ✅ **P0.3 Finance Hub vs Payment Tracker parity** — PASS. Both surfaces + `/api/invoice-builder/stats` all consistent (£0.00) for the QA dataset. No code change needed.
+
+**P1.4 root cause**: When Drafts.jsx routes a Resume click to `/app/tool/rams?draft=<id>`, `GenericToolPage` renders and BOTH its `useEffect` hooks run before the `<RedirectTo>` navigation completes. The draft-restore effect fires with the RAMS draft id, correctly fetches the draft, but reads `payload.values` — which doesn't exist on RAMS drafts (RAMS uses a flat `data` shape). The effect's `finally { clearDraftQueryParam(); }` still runs, stripping `?draft=<id>` from the URL. By the time `<RedirectTo>` navigates to `/app/rams`, the query param is already gone, so `Rams.jsx.draftRestoredFor` sees no id and never hydrates. Fields render blank; no "Draft restored" toast.
+
+**Fix (`/app/frontend/src/pages/GenericToolPage.jsx`)**:
+- Consolidated the 52-line `if (tool.id === "...") return <RedirectTo path="..." />` chain into a single `TOOL_REDIRECTS` map at module scope.
+- Both mount effects (values reset + draft restore) now `if (TOOL_REDIRECTS[toolId]) return;` — dedicated-page tools like RAMS, Method Statement, Site Diary, etc. no longer have their `?draft=<id>` param consumed and cleared by `GenericToolPage` before the redirect fires.
+- `<RedirectTo>` still preserves `window.location.search` via `nav(\`${path}${search}\`, {replace: true})`, so the dedicated page mounts with the correct query and its own hydration effect runs cleanly.
+
+**P1.1 hardening (`/app/frontend/src/pages/ApplicationsForPayment.jsx`)**:
+- Added `isLegacyCombinedContact(s)` + `safeAfpClientNameFromJob(clientContact)` helpers. A Job `clientContact` value that contains BOTH a recognisable separator (em-dash / en-dash / hyphen-with-spaces / pipe / middot) AND a UK-phone-shaped digit block (6+ consecutive digits with optional spaces/dashes) is treated as a legacy combined string; the AFP `clientName` is left blank in that case so the user enters the real contact by hand.
+- We do NOT heuristically split (a surname could contain digits or dashes). Non-combined strings pass through untouched. Applied in both `openNew()` (line 195) and the wizard's `pickProject()` (line 458).
+
+**Verification**:
+- ✅ Manual browser reproduction of the P1.4 Resume flow at 1920×800: FIELD VALUES `{rams-client: "curl QA", rams-pc: "curl PC", rams-task: "curl task"}` correctly hydrated (was all blank before fix).
+- ✅ `/app/backend/tests/test_p1_verification_addendum.py` — 12 new tests (RAMS flat-shape round-trip + 10 parameterised legacy-combined-contact detection cases + Job schema email/phone assertion). All 12 pass.
+- ✅ Full regression against `test_p1_1_and_p1_3.py`, `test_p1_4_and_p1_5.py`, `test_afp_previously_certified_p0_1.py`, `test_finance_reconciliation_p0_3.py`: **23/23 pass**.
+
+**Explicit scope lock**: Preview only. No deploy. P2 remains blocked until user confirms preview verification and issues deploy command.
+
+---
+
 ### 8 Sep 2026 — P1a Signature Fidelity Fix (Preview-verified, deploy dispatched)
 
 **Bug**: After the first P1a production deploy, fresh Measurement Record PDFs still rendered the Contractor Sign-Off signature as faint/light-grey and detached/floating above the sign-off line. Three other P1a checks (no role placeholder, single sign-off, DD/MM/YYYY dates) already passing.

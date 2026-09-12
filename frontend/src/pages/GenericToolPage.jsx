@@ -13,6 +13,66 @@ import { toast } from "sonner";
 import { Loader2, AlertTriangle } from "lucide-react";
 import { registerRecoverySource, consumeRecoverySnapshot } from "../lib/session-recovery";
 
+// Tools that have a dedicated page and should redirect out of the generic
+// tool page. This map is the single source of truth: both the render-time
+// redirect (below) and the mount-effect early-returns (draft restore +
+// values reset) read from it, so a `?draft=<id>` deep-link is preserved for
+// the dedicated page instead of being consumed and cleared by this
+// component's effects.
+const TOOL_REDIRECTS = {
+  "earnings-dashboard": "/app/earnings",
+  "mileage-tracker": "/app/mileage",
+  "vat-threshold": "/app/vat",
+  "cis-refund-predictor": "/app/cis-predictor",
+  "payment-chaser": "/app/payment-chaser",
+  "self-assessment-prep": "/app/self-assessment-prep",
+  "measurement-record": "/app/measurement-record",
+  "prestart-meeting": "/app/prestart-meeting",
+  "tool-register": "/app/tool-register",
+  "noise-assessment": "/app/noise-assessment",
+  "working-at-height-rescue": "/app/working-at-height-rescue",
+  "manual-handling": "/app/manual-handling",
+  "variation-instruction-log": "/app/variation-instruction-log",
+  "retention-chaser": "/app/retention-chaser",
+  "subbie-mgmt": "/app/subbie-mgmt",
+  "meeting-notes": "/app/meeting-notes",
+  "weather-log": "/app/weather-log",
+  "risk-register": "/app/risk-register",
+  "apprentice-manager": "/app/apprentice-manager",
+  "procurement-schedule": "/app/procurement-schedule",
+  "price-work-quote": "/app/price-work-quote",
+  "rate-increase-letter": "/app/rate-increase-letter",
+  "snagging-list": "/app/snagging-list",
+  "contract-review": "/app/contract-review",
+  "hmrc-correspondence": "/app/hmrc-correspondence",
+  "bad-debt-letter": "/app/bad-debt-letter",
+  "pricework-variation-tracker": "/app/pricework-variation-tracker",
+  "tender-letter": "/app/tender-letter",
+  "payment-tracker": "/app/payment-tracker",
+  "cis-calculator": "/app/cis-calculator",
+  "delivery-record": "/app/delivery-record",
+  "labour-allocation": "/app/labour-allocation",
+  "purchase-order": "/app/purchase-order",
+  "dispute-timeline": "/app/dispute-timeline",
+  "incident-report": "/app/incident-report",
+  "incident-log": "/app/incident-log",
+  "site-access-permit": "/app/site-access-permit",
+  "rams-library": "/app/rams-library",
+  "contract-mgmt": "/app/contract-mgmt",
+  "multiuser-site-diary": "/app/multiuser-site-diary",
+  "commercial-report": "/app/commercial-report",
+  "new-starter-pack": "/app/new-starter-pack",
+  "rams": "/app/rams",
+  "method-statement": "/app/method-statement",
+  "toolbox-talk": "/app/toolbox-talk",
+  "coshh": "/app/coshh",
+  "site-diary": "/app/site-diary",
+  "quote-builder": "/app/quote-builder",
+  "variation-letter": "/app/variation-orders",
+  "application-for-payment": "/app/applications-for-payment",
+  "cis-invoice": "/app/invoice-builder",
+};
+
 const todayIso = () => new Date().toISOString().slice(0, 10);
 const inOneYearIso = () => {
   const d = new Date(); d.setFullYear(d.getFullYear() + 1);
@@ -91,6 +151,10 @@ export default function GenericToolPage() {
   const recoveredFor = useRef(null);
   useEffect(() => {
     if (!tool) return;
+    // Tools with a dedicated page redirect out via <RedirectTo> below. Do NOT
+    // reset state or consume the recovery snapshot on their behalf — the
+    // dedicated page (e.g. Rams.jsx) owns hydration for those tools.
+    if (TOOL_REDIRECTS[toolId]) return;
 
     // If we already restored a snapshot for this toolId in a previous run
     // of this effect, DO NOT reset state — the user's restored values must
@@ -163,6 +227,12 @@ export default function GenericToolPage() {
   const draftRestoredFor = useRef(null);
   useEffect(() => {
     if (!tool) return;
+    // Tools with a dedicated page redirect out via <RedirectTo> below. The
+    // dedicated page owns draft hydration for those tools — if we ran this
+    // effect first it would fetch the draft, fail to hydrate (wrong shape),
+    // and then `clearDraftQueryParam()` would strip `?draft=<id>` from the
+    // URL so the redirect target lands on a blank form. Skip entirely.
+    if (TOOL_REDIRECTS[toolId]) return;
     const id = draftIdFromQuery();
     if (!id) return;
     if (draftRestoredFor.current === id) return;
@@ -204,59 +274,12 @@ export default function GenericToolPage() {
     return <div className="p-8 text-[#A19D94]">Tool not found.</div>;
   }
 
-  // Tools that are widgets, not generic forms
-  if (tool.id === "earnings-dashboard") return <RedirectTo path="/app/earnings" />;
-  if (tool.id === "mileage-tracker") return <RedirectTo path="/app/mileage" />;
-  if (tool.id === "vat-threshold") return <RedirectTo path="/app/vat" />;
-  if (tool.id === "cis-refund-predictor") return <RedirectTo path="/app/cis-predictor" />;
-  if (tool.id === "payment-chaser") return <RedirectTo path="/app/payment-chaser" />;
-  if (tool.id === "self-assessment-prep") return <RedirectTo path="/app/self-assessment-prep" />;
-  if (tool.id === "measurement-record") return <RedirectTo path="/app/measurement-record" />;
-  if (tool.id === "prestart-meeting") return <RedirectTo path="/app/prestart-meeting" />;
-  if (tool.id === "tool-register") return <RedirectTo path="/app/tool-register" />;
-  if (tool.id === "noise-assessment") return <RedirectTo path="/app/noise-assessment" />;
-  if (tool.id === "working-at-height-rescue") return <RedirectTo path="/app/working-at-height-rescue" />;
-  if (tool.id === "manual-handling") return <RedirectTo path="/app/manual-handling" />;
-  if (tool.id === "variation-instruction-log") return <RedirectTo path="/app/variation-instruction-log" />;
-  if (tool.id === "retention-chaser") return <RedirectTo path="/app/retention-chaser" />;
-  if (tool.id === "subbie-mgmt") return <RedirectTo path="/app/subbie-mgmt" />;
-  if (tool.id === "meeting-notes") return <RedirectTo path="/app/meeting-notes" />;
-  if (tool.id === "weather-log") return <RedirectTo path="/app/weather-log" />;
-  if (tool.id === "risk-register") return <RedirectTo path="/app/risk-register" />;
-  if (tool.id === "apprentice-manager") return <RedirectTo path="/app/apprentice-manager" />;
-  if (tool.id === "procurement-schedule") return <RedirectTo path="/app/procurement-schedule" />;
-  if (tool.id === "price-work-quote") return <RedirectTo path="/app/price-work-quote" />;
-  if (tool.id === "rate-increase-letter") return <RedirectTo path="/app/rate-increase-letter" />;
-  if (tool.id === "snagging-list") return <RedirectTo path="/app/snagging-list" />;
-  if (tool.id === "contract-review") return <RedirectTo path="/app/contract-review" />;
-  if (tool.id === "hmrc-correspondence") return <RedirectTo path="/app/hmrc-correspondence" />;
-  if (tool.id === "bad-debt-letter") return <RedirectTo path="/app/bad-debt-letter" />;
-  if (tool.id === "pricework-variation-tracker") return <RedirectTo path="/app/pricework-variation-tracker" />;
-  if (tool.id === "tender-letter") return <RedirectTo path="/app/tender-letter" />;
-  if (tool.id === "payment-tracker") return <RedirectTo path="/app/payment-tracker" />;
-  if (tool.id === "cis-calculator") return <RedirectTo path="/app/cis-calculator" />;
-  if (tool.id === "delivery-record") return <RedirectTo path="/app/delivery-record" />;
-  if (tool.id === "labour-allocation") return <RedirectTo path="/app/labour-allocation" />;
-  if (tool.id === "purchase-order") return <RedirectTo path="/app/purchase-order" />;
-  if (tool.id === "dispute-timeline") return <RedirectTo path="/app/dispute-timeline" />;
-  if (tool.id === "incident-report") return <RedirectTo path="/app/incident-report" />;
-  if (tool.id === "incident-log") return <RedirectTo path="/app/incident-log" />;
-  if (tool.id === "site-access-permit") return <RedirectTo path="/app/site-access-permit" />;
-  if (tool.id === "rams-library") return <RedirectTo path="/app/rams-library" />;
-  if (tool.id === "contract-mgmt") return <RedirectTo path="/app/contract-mgmt" />;
-  if (tool.id === "multiuser-site-diary") return <RedirectTo path="/app/multiuser-site-diary" />;
-  if (tool.id === "commercial-report") return <RedirectTo path="/app/commercial-report" />;
-  if (tool.id === "new-starter-pack") return <RedirectTo path="/app/new-starter-pack" />;
-  if (tool.id === "rams") return <RedirectTo path="/app/rams" />;
-  if (tool.id === "method-statement") return <RedirectTo path="/app/method-statement" />;
-  if (tool.id === "toolbox-talk") return <RedirectTo path="/app/toolbox-talk" />;
-  if (tool.id === "coshh") return <RedirectTo path="/app/coshh" />;
-  if (tool.id === "site-diary") return <RedirectTo path="/app/site-diary" />;
-  if (tool.id === "quote-builder") return <RedirectTo path="/app/quote-builder" />;
-  if (tool.id === "variation-letter") return <RedirectTo path="/app/variation-orders" />;
-  if (tool.id === "application-for-payment") return <RedirectTo path="/app/applications-for-payment" />;
-  if (tool.id === "cis-invoice") return <RedirectTo path="/app/invoice-builder" />;
-  if (tool.id === "purchase-order") return <RedirectTo path="/app/purchase-orders" />;
+  // Tools that are widgets / have a dedicated page — redirect out. The map
+  // is defined at module scope so the mount effects above can also skip
+  // work for these tools, keeping the `?draft=<id>` query param intact for
+  // the dedicated page to consume.
+  const redirectPath = TOOL_REDIRECTS[tool.id];
+  if (redirectPath) return <RedirectTo path={redirectPath} />;
 
   const onGenerate = async () => {
     if (missingRequired.length > 0) {

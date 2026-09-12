@@ -46,6 +46,35 @@ const Field = ({ label, children, hint }) => (
 const fGBP = (n) => `£${(Number(n) || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
 
 const emptyLine = () => ({ id: crypto.randomUUID(), category: "Labour", description: "", valueToDate: 0 });
+
+// P1.1 addendum (Sep 2026) — some legacy Job records store the client
+// contact as a combined "Name — Phone" or "Name - Phone" string (e.g.
+// "Sarah Mitchell — 07700 912846"). We must NOT paste that whole string
+// wholesale into AFP.clientName, and we must NOT heuristically split it
+// (the surname or company suffix could carry digits or dashes). Instead
+// we detect the pattern and leave the AFP contact-name blank so the user
+// enters the real contact person by hand. `isLegacyCombinedContact` is
+// intentionally strict: only strings that clearly encode a separator +
+// a UK-phone-shaped digit block trigger the guard.
+function isLegacyCombinedContact(s) {
+  if (typeof s !== "string") return false;
+  const trimmed = s.trim();
+  if (!trimmed) return false;
+  // Require a separator so we don't blank a normal name like "Jean-Luc Picard".
+  const hasSeparator = /[—–]|(\s-\s)|(\s\|\s)|(\s·\s)/.test(trimmed);
+  if (!hasSeparator) return false;
+  // Require a phone-shaped block of 6+ consecutive digits (with optional
+  // spaces / dashes inside) on either side of the separator.
+  const phoneLike = /(?:\+?\d[\d\s\-]{5,})/;
+  return phoneLike.test(trimmed);
+}
+// Returns the AFP client-name we should pre-fill from a Job's clientContact.
+// Blanks out combined legacy strings so the user isn't left with a wrong
+// merged value. Non-combined strings pass through untouched.
+function safeAfpClientNameFromJob(clientContact) {
+  return isLegacyCombinedContact(clientContact) ? "" : (clientContact || "");
+}
+
 const emptyAfp = () => ({
   projectId: "", projectName: "", projectAddress: "",
   clientName: "", clientCompany: "", clientEmail: "", clientPhone: "",
@@ -192,7 +221,7 @@ export default function ApplicationsForPayment() {
         //   Job.poNumber       → AFP.contractRef   (the commercial reference)
         // Email / phone / contractDate are NOT stored on Job; they stay blank
         // so the user can fill them in without a wrong auto-guess overwrite.
-        base.clientName = j.clientContact || "";
+        base.clientName = safeAfpClientNameFromJob(j.clientContact);
         base.clientCompany = j.clientName || j.company || "";
         base.contractRef = j.poNumber || "";
       }
@@ -426,7 +455,7 @@ function AfpWizard({ initial, user, jobs, onClose, onSaved, onTemplatesChanged }
       projectId: j.id,
       projectName: j.projectName || j.clientName || d.projectName,
       projectAddress: j.address || d.projectAddress,
-      clientName: j.clientContact || d.clientName,               // contact person
+      clientName: safeAfpClientNameFromJob(j.clientContact) || d.clientName,  // contact person
       clientCompany: j.clientName || j.company || d.clientCompany, // organisation
       contractRef: j.poNumber || d.contractRef,
       contractSum: j.contractValue || d.contractSum,
