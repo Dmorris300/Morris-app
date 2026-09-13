@@ -24,9 +24,50 @@ export default function Drafts() {
   const [query, setQuery] = useState("");
   const [refreshing, setRefreshing] = useState(false);
 
+  // SUBBI-DRAFT-01 (Sep 2026) — the previous load() silently blanked the
+  // list on ANY error (including transient network hiccups and the
+  // Emergent-preview backend hot-reload 502 → plaintext "404 page not
+  // found" from the ingress). One coincidental restart between a Resume
+  // and the Back button would show "Could not load drafts" and 0 of 0.
+  // Now: retry once with a short backoff for transient failures, KEEP
+  // the previous list on error instead of blanking it, and only surface
+  // the toast when we truly have nothing to show.
+  const _isTransientListError = (e) => {
+    if (!e) return false;
+    if (!e.response) return true; // network drop / abort
+    const s = e.response.status;
+    if (s === 502 || s === 503 || s === 504) return true;
+    if (s === 404) {
+      const body = e.response.data;
+      if (typeof body === "string" && /404 page not found/i.test(body)) return true;
+    }
+    return false;
+  };
   const load = async () => {
-    try { setDrafts(await listDrafts()); }
-    catch { toast.error("Could not load drafts"); setDrafts([]); }
+    try {
+      const rows = await listDrafts();
+      setDrafts(rows);
+      return;
+    } catch (e1) {
+      if (!_isTransientListError(e1)) {
+        if (process.env.NODE_ENV !== "production") console.error("[SUBBI-DRAFT-01] listDrafts failed", e1); // eslint-disable-line no-console
+        toast.error("Could not load drafts");
+        // Preserve the existing list — user's other drafts must not vanish
+        // from the UI because of one bad response.
+        setDrafts((prev) => (prev == null ? [] : prev));
+        return;
+      }
+    }
+    // Transient — wait 1.2s and retry once. Do NOT blank the list.
+    await new Promise((r) => setTimeout(r, 1200));
+    try {
+      const rows = await listDrafts();
+      setDrafts(rows);
+    } catch (e2) {
+      if (process.env.NODE_ENV !== "production") console.error("[SUBBI-DRAFT-01] listDrafts retry failed", e2); // eslint-disable-line no-console
+      toast.error("Drafts are momentarily unavailable — pull to refresh in a few seconds.");
+      setDrafts((prev) => (prev == null ? [] : prev));
+    }
   };
   useEffect(() => { load(); }, []);
 

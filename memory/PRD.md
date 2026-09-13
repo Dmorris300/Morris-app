@@ -49,6 +49,44 @@ to "template-generated / document generator". Historical PRD entries below use "
 and "LLM" as internal technical descriptors of the document-generation engine and
 remain as audit-trail references only — they are NOT product marketing copy.
 
+### 13 Sep 2026 — SUBBI-DRAFT-01: Resume-draft race + Drafts list wipe on transient error (Preview only, undeployed)
+
+**User report** (two coupled symptoms):
+1. Filling the Subbi Payment Certificate → Save Draft → toast "Draft saved" → draft visible in `/app/drafts`.
+2. Click **Resume** on the draft → tool reopens with **all fields blank** (the persisted values did not hydrate).
+3. Browser **Back** → `/app/drafts` shows toast **"Could not load drafts"** and reads **"0 of 0 drafts / No drafts yet"** — the whole list is wiped from the UI even though the backend still has the drafts.
+
+**Root causes**:
+- **Resume race** in `frontend/src/pages/GenericToolPage.jsx`: on mount two effects fire in parallel with the same deps `[toolId, tool]`. The FIRST — values-reset — synchronously resets `values` to `autoDefaults`. The SECOND — draft-restore — asynchronously fetches the draft and calls `setValues(payload.values)`. On a happy render the async callback wins the last write, but any subsequent re-fire of the values-reset effect (e.g. `useAuth().refresh` causing `tool` to be re-derived, or React 18 concurrent re-render) would blank the restored values because the `recoveredFor` guard was only wired to the session-recovery path, not to the draft-restore path. There was also a visible one-paint flash of blank fields even in the happy case.
+- **Drafts list wipe** in `frontend/src/pages/Drafts.jsx`: `load()` was `try { setDrafts(await listDrafts()); } catch { toast.error("Could not load drafts"); setDrafts([]); }`. Any transient failure — a coincidental backend hot-reload emitting the ingress plaintext `404 page not found`, a 502/503/504 from the pod during restart, or a momentary network drop — silently BLANKED the list to `[]`, so even a user with 25 drafts saw "No drafts yet".
+
+**Fixes**:
+- **`GenericToolPage.jsx` — deterministic hydration order**: when the URL carries `?draft=<id>`, the values-reset effect now marks `recoveredFor.current = toolId` and returns **without** setting `values`. The async draft-restore then owns the first write. Values stay `{}` (empty) for one paint, then populate — no flash of stale autoDefaults, no risk of the reset re-firing and blanking the draft. The draft-restore branch now also (a) falls back to autoDefaults + surfaces a specific toast (`"Could not load that draft — please try again from the Drafts list."`) if `fetchDraft` throws, and (b) falls back to autoDefaults if the draft belongs to another tool or was deleted, instead of leaving the form stuck blank.
+- **`Drafts.jsx` — resilient list load**: `load()` now (a) retries once with a 1.2s backoff on the exact transient signatures (network drop, 502/503/504, or ingress plaintext `404 page not found` — same shape as the VO-SAVE-01 fix), (b) preserves the previously-loaded list on ANY failure so the UI never blanks to 0-of-0, (c) uses a more specific toast (`"Drafts are momentarily unavailable — pull to refresh in a few seconds."`) for transient-retry-failed cases so the user knows to retry rather than assume everything is gone.
+
+**Tests added**:
+- `frontend/tests/subbi-draft-01.test.mjs` — NEW, **10/10 pass**. Cases:
+  - Resume happy path → fields hydrated + "Draft restored" toast + query cleared.
+  - Resume with a wrong-tool draft → autoDefaults + no toast + query cleared.
+  - Resume where fetchDraft throws (network) → autoDefaults + explicit "Could not load that draft" toast.
+  - Resume where fetchDraft returns null → autoDefaults + query cleared.
+  - Drafts happy path → list loaded once.
+  - Drafts 502 first attempt, 200 on retry → single ok-after-retry, no error toast.
+  - Drafts ingress plaintext `404 page not found` → retried, no error toast when retry succeeds.
+  - Drafts transient failure both attempts → **previously-loaded list preserved** + specific "momentarily unavailable" toast.
+  - Drafts non-transient 500 → NOT retried + previous list preserved + generic "Could not load drafts" toast.
+  - Drafts first-load with no prior list AND non-transient → drafts is `[]` (empty state), not stuck loading.
+
+**Live Preview verification (13 Sep 2026, darrenhustle300)**:
+- Full Playwright flow: fill Subbi Payment Certificate → Save Draft → toast "Draft saved" → `/app/drafts` → Resume → **all 4 fields populated verbatim** (`Morris Ductwork Ltd (POST-FIX)`, `SUB-TEST-01`, `4250`, `£250 withheld pending completion.`) + "Draft restored" toast → browser Back → `/app/drafts` reads **7 of 7 drafts** with zero "Could not load drafts" errors.
+- Test drafts cleaned up afterwards.
+
+**Aggregate coverage after this pass**: 84 mjs assertions across 9 suites (new `subbi-draft-01` 10/10) + 14 backend pytest = **98/98 passing**.
+
+**Final PASS/FAIL**: **SUBBI-DRAFT-01 — PASS**. Preview only. Nothing deployed.
+
+---
+
 ### 13 Sep 2026 — CC-VARIATION-ROUTE-01: Command Centre Quick Action → Variation misroutes to /app/history (Preview only, undeployed)
 
 **User report**: From Command Centre → Quick Actions, clicking the **Variation** tile navigated to `/app/history` (Document Vault) instead of `/app/variation-orders`. Reproduced twice after a hard refresh.

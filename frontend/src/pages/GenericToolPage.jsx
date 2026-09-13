@@ -162,6 +162,19 @@ export default function GenericToolPage() {
     // reloads, or React 18 concurrent re-render passes.
     if (recoveredFor.current === toolId) return;
 
+    // SUBBI-DRAFT-01 (Sep 2026) — if the URL carries a ?draft=<id> the
+    // draft-restore effect below will hydrate `values` shortly. Do NOT
+    // race that effect by resetting to autoDefaults in the meantime; the
+    // reset would render one paint of blank fields (visible flicker) and,
+    // if any later dep-change ever re-fired this effect, would wipe the
+    // restored values entirely. Instead: leave `values` at `{}` so the
+    // form paints empty exactly once, then the draft-restore promise
+    // resolves and populates the fields with the persisted payload.
+    if (draftIdFromQuery()) {
+      recoveredFor.current = toolId;
+      return;
+    }
+
     // Peek-and-consume the recovery snapshot before deciding whether to
     // reset. Only claim it if it belongs to THIS tool.
     const snap = consumeRecoverySnapshot(toolId);
@@ -240,7 +253,19 @@ export default function GenericToolPage() {
     (async () => {
       try {
         const d = await fetchDraft(id);
-        if (!d || d.toolId !== toolId) return;
+        if (!d || d.toolId !== toolId) {
+          // Draft belongs to another tool or was deleted — fall back to
+          // autoDefaults so the form isn't stuck blank while the URL
+          // still advertises a stale draft id. The finally block clears
+          // the query param.
+          const init = {};
+          (tool.fields || []).forEach((f) => {
+            const dv = autoDefaultFor(f);
+            if (dv) init[f.name] = dv;
+          });
+          setValues(init);
+          return;
+        }
         const payload = d.data || {};
         if (payload.values && typeof payload.values === "object") setValues(payload.values);
         if (typeof payload.result === "string") setResult(payload.result);
@@ -249,7 +274,18 @@ export default function GenericToolPage() {
         if (payload.attachedPhoto) setAttachedPhoto(payload.attachedPhoto);
         toast.success("Draft restored");
       } catch (e) {
-        if (process.env.NODE_ENV !== "production") console.error("Draft restore failed", e);
+        // SUBBI-DRAFT-01 — if the fetch fails (transient network, 401
+        // race), fall back to autoDefaults so the form remains usable,
+        // and surface a specific message rather than leaving the user
+        // staring at an empty form with no explanation.
+        if (process.env.NODE_ENV !== "production") console.error("[SUBBI-DRAFT-01] Draft restore failed", e); // eslint-disable-line no-console
+        toast.error("Could not load that draft — please try again from the Drafts list.");
+        const init = {};
+        (tool.fields || []).forEach((f) => {
+          const dv = autoDefaultFor(f);
+          if (dv) init[f.name] = dv;
+        });
+        setValues(init);
       } finally {
         clearDraftQueryParam();
       }
