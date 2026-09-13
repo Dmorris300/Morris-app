@@ -280,6 +280,21 @@ def build_router(db, get_user):
             updates["totals"] = _totals(merged)
             if "lineItems" in updates:
                 updates["lineItems"] = merged["lineItems"]
+        # VO-STATUS-01 (Sep 2026) — clean up stale approval metadata when a
+        # variation leaves the Approved state. Previously, flipping a
+        # record Submitted → Approved auto-stamped `approvedDate = today`,
+        # but flipping Approved → Submitted left the stamped date in
+        # place; the PDF's "APPROVED BY (CLIENT)" block then showed that
+        # date even though the record was no longer Approved. Now the
+        # backend actively clears `approvedDate` and the client-approver
+        # name / signature that go with it whenever the caller sets
+        # status to any non-Approved value — even if the caller replayed
+        # the full wizard payload including the stale approval trio (the
+        # frontend's edit-flow does exactly this on every PATCH).
+        if "status" in updates and updates.get("status") != "Approved":
+            updates["approvedDate"] = ""
+            updates["clientApproverName"] = ""
+            updates["clientApproverSignature"] = ""
         # If moving to Approved and no approvedDate given, stamp today
         if updates.get("status") == "Approved" and not (existing.get("approvedDate") or updates.get("approvedDate")):
             updates["approvedDate"] = datetime.now(timezone.utc).date().isoformat()

@@ -408,6 +408,20 @@ function VariationWizard({ initial, user, jobs, quotes, onClose, onSaved, onTemp
   const delLine = (id) => setData(d => ({ ...d, lineItems: d.lineItems.filter(x => x.id !== id) }));
   const dupLine = (id) => setData(d => { const l = d.lineItems.find(x => x.id === id); if (!l) return d; return { ...d, lineItems: [...d.lineItems, { ...l, id: crypto.randomUUID() }] }; });
 
+  // VO-PRICE-INPUT-01 (Sep 2026) — strip leading zeros from numeric
+  // inputs so typing `1400` into a `0`-initialised Unit-price field
+  // doesn't stack up as `01400`. Preserves `0.5`, `0`, and empty. Also
+  // exposes a shared onFocus handler that selects the current value so
+  // a user tapping into the field just retypes the amount.
+  const _stripLeadingZeros = (v) => {
+    const s = String(v ?? "");
+    if (s === "" || s === "-") return s;
+    // Preserve "0", "0.5", "-0.25"; strip "01400" → "1400", "-0007" → "-7"
+    return s.replace(/^(-?)0+(?=\d)/, "$1");
+  };
+  const _numChange = (setter) => (e) => setter(_stripLeadingZeros(e.target.value));
+  const _numFocus = (e) => { try { e.target.select(); } catch { /* older browsers */ } };
+
   // Photos
   const togglePhoto = (mediaId) => {
     setData(d => {
@@ -632,13 +646,13 @@ function VariationWizard({ initial, user, jobs, quotes, onClose, onSaved, onTemp
                       </select>
                     </Field>
                     <div className="md:col-span-2"><Field label="Description"><input className={inputClass} value={it.description} onChange={(e) => updLine(it.id, { description: e.target.value })} data-testid={`vo-line-desc-${i + 1}`} /></Field></div>
-                    <Field label="Qty"><input type="number" step="0.01" className={inputClass} value={it.qty} onChange={(e) => updLine(it.id, { qty: e.target.value })} data-testid={`vo-line-qty-${i + 1}`} /></Field>
+                    <Field label="Qty"><input type="number" step="0.01" className={inputClass} value={it.qty} onFocus={_numFocus} onChange={_numChange((v) => updLine(it.id, { qty: v }))} data-testid={`vo-line-qty-${i + 1}`} /></Field>
                     <Field label="Unit">
                       <select className={inputClass} value={it.unit} onChange={(e) => updLine(it.id, { unit: e.target.value })}>
                         {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                       </select>
                     </Field>
-                    <Field label="Unit price (£)"><input type="number" step="0.01" className={inputClass} value={it.unitPrice} onChange={(e) => updLine(it.id, { unitPrice: e.target.value })} data-testid={`vo-line-price-${i + 1}`} /></Field>
+                    <Field label="Unit price (£)"><input type="number" step="0.01" className={inputClass} value={it.unitPrice} onFocus={_numFocus} onChange={_numChange((v) => updLine(it.id, { unitPrice: v }))} data-testid={`vo-line-price-${i + 1}`} /></Field>
                   </div>
                 </div>
               ))}
@@ -650,7 +664,7 @@ function VariationWizard({ initial, user, jobs, quotes, onClose, onSaved, onTemp
                     <div className="text-[11px] text-[#A19D94]">Tick if VAT is charged separately (leave un-ticked for reverse charge / non-VAT jobs).</div>
                   </div>
                 </label>
-                <Field label="VAT rate (%)"><input type="number" step="0.01" className={inputClass} value={data.vatRate ?? 20} onChange={(e) => set("vatRate")(Number(e.target.value))} disabled={!data.addVat} data-testid="vo-vatRate" /></Field>
+                <Field label="VAT rate (%)"><input type="number" step="0.01" className={inputClass} value={data.vatRate ?? 20} onFocus={_numFocus} onChange={_numChange((v) => set("vatRate")(v === "" ? 0 : Number(v)))} disabled={!data.addVat} data-testid="vo-vatRate" /></Field>
               </div>
               <div className="card-dark p-4">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
@@ -672,7 +686,7 @@ function VariationWizard({ initial, user, jobs, quotes, onClose, onSaved, onTemp
               {(progrKind === "Additional days" || progrKind === "Reduction in days") && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <Field label={`${progrKind === "Reduction in days" ? "Days saved" : "Additional working days"}`}>
-                    <input type="number" className={inputClass} value={(data.programmeImpact || {}).days || 0} onChange={(e) => set("programmeImpact")({ ...(data.programmeImpact || {}), days: Number(e.target.value) })} data-testid="vo-impact-days" />
+                    <input type="number" className={inputClass} value={(data.programmeImpact || {}).days || 0} onFocus={_numFocus} onChange={_numChange((v) => set("programmeImpact")({ ...(data.programmeImpact || {}), days: v === "" ? 0 : Number(v) }))} data-testid="vo-impact-days" />
                   </Field>
                   <Field label="New Practical Completion date (optional)"><input type="date" className={inputClass} value={(data.programmeImpact || {}).newPCDate || ""} onChange={(e) => set("programmeImpact")({ ...(data.programmeImpact || {}), newPCDate: e.target.value })} /></Field>
                 </div>

@@ -49,6 +49,37 @@ to "template-generated / document generator". Historical PRD entries below use "
 and "LLM" as internal technical descriptors of the document-generation engine and
 remain as audit-trail references only — they are NOT product marketing copy.
 
+### 13 Sep 2026 — VO-STATUS-01 + VO-DOC-REF-01 + VO-PRICE-INPUT-01 (Preview only, undeployed)
+
+**Three bugs surfaced during user manual verification after VO-SAVE-01 was signed off:**
+
+1. **VO-STATUS-01** — VO-005 was accidentally flipped `Submitted → Approved` via the dashboard row's Mark-as-Approved quick action. Opening the row via Edit, changing the Status pill back to Submitted, and clicking Save & Generate PDF appeared to succeed but the generated PDF still printed **APPROVED** on the cover pill and the dashboard KPI cards still counted the row under Approved with its £3,600 in `Approved Value` and +2 days in `Approved Additional Days`.
+2. **VO-DOC-REF-01** — a supporting-document reference `MEP-L2-REV03` typed into Step 6's "Reference / link (optional)" field was dropped from the generated PDF.
+3. **VO-PRICE-INPUT-01** — numeric Qty and Unit-price inputs on Step 4 stacked leading zeros: typing `1400` into a field showing the initial `0` produced `01400` on-screen and `"01400"` in state / payload.
+
+**Root causes**:
+- **VO-STATUS-01** — the backend PATCH endpoint auto-stamped `approvedDate = today` when a caller set `status = "Approved"`, but did nothing on the reverse transition. The frontend wizard's Save & Generate PDF replayed the *full* record (including the stale `approvedDate`, `clientApproverName` and `clientApproverSignature` trio) so backend simply persisted them. The PDF renderer then always drew the "APPROVED BY (CLIENT)" block from those three fields regardless of `data.status`, effectively lying to the user.
+- **VO-DOC-REF-01** — the PDF renderer's Documents-attached row was `d.name || d.id || "Document"`. The wizard's Reference/link field maps to `supportingDoc.url`, which was never inspected — so a supporting doc whose reference number lived only in the Reference/link column got silently replaced with its UUID.
+- **VO-PRICE-INPUT-01** — numeric inputs stored raw `e.target.value` strings on change without stripping leading zeros; and the inputs did not select-all on focus, so tapping into a `0`-initialised field and typing digits appended them after the `0`.
+
+**Fixes**:
+- **Backend `backend/variation_orders.py`** — PATCH endpoint now actively clears `approvedDate`, `clientApproverName`, `clientApproverSignature` whenever the caller sets `status` to any non-"Approved" value, *even if the caller replayed the stale trio in the same PATCH payload* (which the frontend edit-flow does on every save). Approve-side auto-stamp of `approvedDate = today` is unchanged.
+- **Frontend `frontend/src/lib/variation-order-pdf.js`** — Documents-attached row now renders `${name} — ${ref}` when both are present, or whichever single field is filled, before falling back to the id. Preserves MEP-L2-REV03 whether the user typed it into the Document-name or Reference/link field.
+- **Frontend `frontend/src/pages/VariationOrders.jsx`** — new `_stripLeadingZeros / _numChange / _numFocus` helpers wired to the four numeric inputs on the wizard (line qty, line unitPrice, VAT rate, programme days). Behaviour: onFocus selects the current value so a user tapping in and typing just replaces it; onChange strips leading zeros from the string (preserving `0`, `0.5`, `-0.25` and empty).
+
+**Tests added / updated**:
+- `frontend/tests/vo-doc-ref-01.test.mjs` — NEW, **7/7 pass**. Cases: reference-only in referenceDocs, reference-only in supportingDoc.name, supportingDoc.url only, bare reference (no filename), both name+url populated, mixed 3-doc scenario, and a URL-that-isn't-a-URL scenario. Directly regresses the missing MEP-L2-REV03 case.
+- `backend/tests/test_variation_orders.py` — added `test_vo_status_01_revert_from_approved_clears_approval_metadata`, `test_vo_status_01_revert_to_rejected_also_clears_trio`, and `test_vo_status_01_reapproving_restamps_today`. Full suite **14/14 pass**.
+- All existing suites remain green — legacy-VO bridge 13 · PDF smoke 18 · VO-PDF-01 7 · VO-STATE-01 8 · VO-SAVE-01 jsPDF 3 · VO-SAVE-01 split-flow 11. **Aggregate 84 mjs + 14 backend pytest passing, 1 skipped.**
+
+**Live Preview verification (13 Sep 2026, darrenhustle300 account)**:
+- End-to-end Playwright flow verified all three fixes together in a single session: numeric inputs strip leading zeros (`0`+`1400`→`1400`, `1`+`2`→`2`), supporting doc with url-only `MEP-L2-REV03` persists correctly, and Edit → status revert → Save cleared the approval trio server-side (`approvedDate=''`, `clientApproverName=''`, `clientApproverSignature=''`) with dashboard KPIs snapping Approved→0 / Submitted→1 correctly.
+- Testing subagent E2E (iteration_43): 14/14 backend pytest, 18/18 frontend headless, 9/9 live UI assertions — all pass, zero backend or frontend issues raised.
+
+**Final PASS/FAIL**: **VO-STATUS-01, VO-DOC-REF-01, VO-PRICE-INPUT-01 — ALL PASS**. Preview only. Nothing deployed.
+
+---
+
 ### 13 Sep 2026 — VO-SAVE-01 root cause + retry safety-net (Preview only, undeployed)
 
 **Root cause confirmed** (from user DevTools capture):

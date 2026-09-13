@@ -169,7 +169,22 @@ export function generateVariationPdf({ data, user, today }) {
     section(state, "Supporting Evidence");
     if (docsAttached.length > 0) {
       subSection(state, "Documents attached");
-      const rows = docsAttached.map((d, i) => [String(i + 1), d.name || d.id || "Document"]);
+      // VO-DOC-REF-01 (Sep 2026) — render BOTH the document name AND the
+      // reference/URL field. Previously the row was `d.name || d.id ||
+      // "Document"` so a supporting doc whose reference number (e.g.
+      // "MEP-L2-REV03") lived in the Reference/link column got silently
+      // dropped from the PDF. Now the row shows both, or the reference
+      // alone when the name is blank.
+      const rows = docsAttached.map((d, i) => {
+        const name = (d.name || "").trim();
+        const ref = (d.url || d.reference || "").trim();
+        let label;
+        if (name && ref) label = `${name} — ${ref}`;
+        else if (name) label = name;
+        else if (ref) label = ref;
+        else label = d.id || "Document";
+        return [String(i + 1), label];
+      });
       table(state, null, rows, { colWidths: [40, state.pageWidth - MARGIN * 2 - 40], header: false, zebra: true });
     }
     if (photoIds.length > 0) {

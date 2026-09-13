@@ -116,6 +116,88 @@ class TestCrud:
         today = datetime.now(timezone.utc).date().isoformat()
         assert d["approvedDate"] == today
 
+    def test_vo_status_01_revert_from_approved_clears_approval_metadata(self, s, h, created_ids):
+        """VO-STATUS-01 — after Approved → Submitted, backend must clear
+        approvedDate + client-approver name + signature (even if the
+        caller replays the stale approval trio in a full wizard payload)
+        so the PDF no longer shows an APPROVED BY CLIENT block."""
+        vid = created_ids["variations"][0]
+        # Ensure record is Approved with a stamped approvedDate and a
+        # populated approver name/signature.
+        r = s.patch(f"{API}/variation-orders/variation-orders/{vid}",
+                    json={"status": "Approved", "clientApproverName": "Jane Client",
+                          "clientApproverSignature": "data:image/png;base64,iVBORw0KGgo="},
+                    headers=h, timeout=15)
+        assert r.status_code == 200
+        d = r.json()
+        assert d["status"] == "Approved"
+        assert d.get("approvedDate")
+        assert d.get("clientApproverName") == "Jane Client"
+        assert d.get("clientApproverSignature", "").startswith("data:image/png")
+
+        # Now flip back to Submitted, replaying the full stale payload
+        # (exactly what the wizard's Save & Generate PDF does).
+        stale = dict(d)
+        stale["status"] = "Submitted"
+        # Keep the stale trio present in the PATCH body to prove backend
+        # overrides them regardless of what the caller sends.
+        r = s.patch(f"{API}/variation-orders/variation-orders/{vid}", json=stale, headers=h, timeout=15)
+        assert r.status_code == 200
+        d2 = r.json()
+        assert d2["status"] == "Submitted"
+        assert d2.get("approvedDate", "") == "", (
+            f"approvedDate must clear when status leaves Approved (got: {d2.get('approvedDate')!r})"
+        )
+        assert d2.get("clientApproverName", "") == "", (
+            f"clientApproverName must clear when status leaves Approved (got: {d2.get('clientApproverName')!r})"
+        )
+        assert d2.get("clientApproverSignature", "") == "", (
+            "clientApproverSignature must clear when status leaves Approved"
+        )
+
+        # Confirm dashboard KPIs reflect the revert: this record is now
+        # in submittedValue, NOT approvedValue.
+        r = s.get(f"{API}/variation-orders/stats", headers=h, timeout=15)
+        assert r.status_code == 200
+        stats = r.json()
+        # We can't assert exact totals (other test rows exist) but the
+        # record shape returned from the PATCH is what the PDF renderer
+        # receives, so those assertions above are sufficient.
+        assert stats["submitted"] >= 1
+
+    def test_vo_status_01_revert_to_rejected_also_clears_trio(self, s, h, created_ids):
+        vid = created_ids["variations"][0]
+        # Approve first so the trio is populated by the previous test
+        s.patch(f"{API}/variation-orders/variation-orders/{vid}",
+                json={"status": "Approved", "clientApproverName": "Approver X"},
+                headers=h, timeout=15)
+        # Move to Rejected — trio must clear
+        r = s.patch(f"{API}/variation-orders/variation-orders/{vid}",
+                    json={"status": "Rejected", "rejectionReason": "Value too high"},
+                    headers=h, timeout=15)
+        assert r.status_code == 200
+        d = r.json()
+        assert d["status"] == "Rejected"
+        assert d.get("approvedDate", "") == ""
+        assert d.get("clientApproverName", "") == ""
+        assert d.get("clientApproverSignature", "") == ""
+        assert d.get("rejectionReason") == "Value too high"
+
+    def test_vo_status_01_reapproving_restamps_today(self, s, h, created_ids):
+        """After a revert, re-approving must stamp today's date (not
+        restore the previously cleared value)."""
+        vid = created_ids["variations"][0]
+        # Ensure not Approved
+        s.patch(f"{API}/variation-orders/variation-orders/{vid}",
+                json={"status": "Submitted"}, headers=h, timeout=15)
+        # Approve
+        r = s.patch(f"{API}/variation-orders/variation-orders/{vid}",
+                    json={"status": "Approved"}, headers=h, timeout=15)
+        assert r.status_code == 200
+        today = datetime.now(timezone.utc).date().isoformat()
+        assert r.json().get("approvedDate") == today
+
+
     def test_list_filters_and_search(self, s, h, created_ids):
         # Create a second variation for filter/search tests
         payload = {

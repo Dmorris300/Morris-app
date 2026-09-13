@@ -1,0 +1,25 @@
+{
+  "summary": "Iteration 43 — verified VO-STATUS-01, VO-DOC-REF-01, VO-PRICE-INPUT-01 fixes plus VO-SAVE-01 regression. Full backend pytest suite (14 tests, incl. 3 new VO-STATUS-01 cases) all PASS. Frontend Node harness suites vo-doc-ref-01 (7/7) and vo-save-01-split-flow (11/11) PASS. Live Playwright end-to-end against Preview URL confirms every fix.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_variation_orders.py",
+    "/app/test_reports/pytest/vo_iter43.xml",
+    "/app/frontend/tests/vo-doc-ref-01.test.mjs",
+    "/app/frontend/tests/vo-save-01-split-flow.test.mjs"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "VariationOrders.jsx is 869 lines — nearing the 700-line threshold; consider extracting each wizard step into its own component for maintainability (not blocking).",
+    "frontend/tests/register-loader.mjs invokes register() with a pathToFileURL(url) second arg that resolves incorrectly under Node 20 --import (results in an ERR_MODULE_NOT_FOUND with a doubled `file:` prefix). Workaround: run tests with `--loader ./tests/loader.mjs`. Suggest fixing register() call to `register('./loader.mjs', import.meta.url)`.",
+    "test_variation_orders.py imports os and calls .rstrip('/') on REACT_APP_BACKEND_URL — but pytest run outside of Emergent context won't have that env; consider a conftest that loads /app/frontend/.env, matching sibling test files."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (14/14 pytest)", "frontend": "100% (18/18 mjs + 9/9 live UI assertions)"},
+  "test_credentials": "previewqa / Preview1234 (used); token endpoint returns `token` key",
+  "seed_data_creation": "Created 1 VO row (id 57d2226b-49d6-4de4-bde4-16798c12b364) during Playwright E2E — DELETED at end of run (verified ok:true).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Live UI verifications proved: (1) VO-PRICE-INPUT-01 — typing '1400' into unit-price initialised '0' yields '1400'; typing '2' into qty init '1' yields '2'; VAT rate init 20 → typing '15' yields '15'; impact-days init 0 → typing '5' yields '5'. onFocus select-all + strip-leading-zeros both working. (2) VO-DOC-REF-01 — supportingDocs POST response payload contained {name:'', url:'MEP-L2-REV03'} exactly. (3) VO-STATUS-01 — after marking a fresh Submitted VO Approved via row quick-action and populating clientApproverName+signature via PATCH, editing → Step 8 → clicking `vo-status-Submitted` → Step 9 → Save & Generate PDF produced PATCH response with status='Submitted', approvedDate='', clientApproverName='', clientApproverSignature='' (all cleared server-side per backend lines 283-293). Dashboard KPIs updated to submitted=5, approved=1 (approved row is a pre-existing 'Additional external ductwork' seed, unrelated). Save toast reads 'Variation saved' in both flows (VO-SAVE-01 regression intact). Note for future runs: page.evaluate localStorage.getItem('token') returned 401 — the frontend stores auth under a different key/uses cookies; capture responses via Playwright's expect_response instead of ad-hoc fetch in page context, OR use `curl` against the login endpoint (see cleanup command).",
+  "rca of the issue": "N/A — all three P43 bug fixes verified working. Backend PATCH endpoint correctly nulls approvedDate/clientApproverName/clientApproverSignature whenever status transitions away from 'Approved' (Submitted, Rejected, Draft, In Progress). Frontend numeric handler _stripLeadingZeros + _numFocus/select() cleanly kills leading-zero stacking and makes select-all-on-focus the default. Frontend saveEntry() persists supportingDocs entries even when name is blank so PDF renderer's `${url}` fallback (variation-order-pdf.js lines 165-190) can surface the raw reference."
+}
