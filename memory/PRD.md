@@ -49,6 +49,53 @@ to "template-generated / document generator". Historical PRD entries below use "
 and "LLM" as internal technical descriptors of the document-generation engine and
 remain as audit-trail references only — they are NOT product marketing copy.
 
+### 13 Sep 2026 — AFP-CLIENT-MAP-01: Job → AFP client field mapping (Preview only, undeployed)
+
+**User report**: Creating a new Application for Payment and linking the "Riverside Apartments External Works" project auto-filled Step 2 as `Client Contact Name = Harrington Developments Ltd`, `Client Company = Harrington Developments Ltd`, `Client Email = "Sarah Mitchell — 07700 912846"`, `Client Phone = blank` — proving the legacy combined `clientContact` string was leaking into the wrong AFP inputs and, in the reporter's case, into the Email field.
+
+**Investigation**:
+- Fetched the live Riverside job — `clientContact: null`, `clientName: "Harrington Developments Ltd"`, no email/phone stored. On the current bundle the fields render correctly, but the reporter's DB carries a legacy combined-string `clientContact = "Sarah Mitchell — 07700 912846"` somewhere that the previous guard blanked out entirely instead of splitting.
+- The previous fix (`safeAfpClientNameFromJob`) *blanked* combined strings but never split them, so the user lost the phone. The email path had no guard at all and would carry whatever the model tools set.
+
+**Fixes**:
+- **New shared module `frontend/src/lib/afp-client-map.js`** with three pure exports:
+  - `isLegacyCombinedContact(s)` — unchanged strict guard (separator + phone-shaped block).
+  - `parseClientContact(raw)` — returns `{ name, phone }`. Splits `"Sarah Mitchell — 07700 912846"` cleanly on the first separator, keeping the phone-shaped block in `phone` and the human name in `name`. Handles plain names, plain phone numbers (routed to `phone`), reversed order, `|`/`·`/em-dash separators, and empty/non-string inputs.
+  - `buildAfpClientFromJob(job, prev)` — returns strictly disjoint `{ clientName, clientCompany, clientEmail, clientPhone }`. Priority for each field:
+    - `clientName` ← `parseClientContact(job.clientContact).name` → `prev.clientName` → `""`
+    - `clientCompany` ← `job.clientName` → `job.company` → `prev.clientCompany` → `""`
+    - `clientEmail` ← `job.clientEmail` → `job.email` → `prev.clientEmail` → `""`
+    - `clientPhone` ← `job.clientPhone` → `job.phone` → `parseClientContact(job.clientContact).phone` → `prev.clientPhone` → `""`
+- **`frontend/src/pages/ApplicationsForPayment.jsx`** — `openNew()` and `pickProject()` now call `buildAfpClientFromJob(j, base|d)` in a single `Object.assign(...)` write. The previous ad-hoc concatenation lines are gone. Added `data-testid` to `afp-clientCompany`, `afp-clientEmail`, `afp-clientPhone` so E2E can target them.
+- **Nothing is ever concatenated** — verified by explicit regression tests that inspect every non-target field for company/phone substrings.
+
+**Tests added** (`frontend/tests/afp-client-map-01.test.mjs`, **25/25 pass**):
+- `isLegacyCombinedContact` — plain name (not combined), combined with em-dash, combined with `|`, and empty/null/non-string.
+- `parseClientContact` — plain name, plain phone digits, `+44 20 7946 0000`, combined with `—`, combined with `|`, combined with `·`, reversed `"Phone — Name"`, `Jean-Luc Picard` (hyphen in name, NOT combined), and empty/null/undefined/non-string.
+- `buildAfpClientFromJob`:
+  - Riverside repro (`clientContact:null`) → contact blank, company correct, email/phone blank.
+  - Combined `"Sarah Mitchell — 07700 912846"` → split into `clientName: "Sarah Mitchell"` + `clientPhone: "07700 912846"`, email untouched.
+  - Modern Job with explicit `clientEmail`/`clientPhone` → routed exactly.
+  - `company` alias, `email` alias, `phone` alias fallbacks.
+  - User's manually-typed overrides preserved when the Job doesn't carry that field.
+  - Job's parsed phone wins over `prev.clientPhone` (fresh pick supplies authoritative data).
+  - **NEVER-concatenate guards**: company string must not appear in `clientName`/`clientEmail`/`clientPhone`; phone digits must not appear in `clientName`/`clientEmail`.
+  - Empty / null / undefined Job → all four fields default blank.
+
+**Live Preview verification (13 Sep 2026, darrenhustle300, Riverside job)**:
+- New AFP → link Riverside on Step 1 → Step 2 shows `Client Contact Name = ""`, `Client Company = "Harrington Developments Ltd"`, `Client Email = ""`, `Client Phone = ""`. Zero concatenation, zero cross-field leakage.
+
+**Aggregate coverage after this pass**: 109 mjs across 10 suites (new `afp-client-map-01` 25/25) + 54 backend pytest = **163/163 passing**.
+
+**What changed (for manual regression)**:
+1. `frontend/src/lib/afp-client-map.js` — NEW shared module (parser + builder).
+2. `frontend/src/pages/ApplicationsForPayment.jsx` — imports the shared module; `openNew()` and `pickProject()` now call `buildAfpClientFromJob(j, prev)`; Client Company/Email/Phone inputs picked up `data-testid` attributes for testing.
+3. `frontend/tests/afp-client-map-01.test.mjs` — NEW regression suite (25 cases).
+
+**Final PASS/FAIL**: **AFP-CLIENT-MAP-01 — PASS**. Preview only. Nothing deployed.
+
+---
+
 ### 13 Sep 2026 — SUBBI-WITHHOLD-01: Amount Withheld must be a dedicated numeric input, never inferred from free-text (Preview only, undeployed)
 
 **User report**: On the Subbi Payment Certificate the user filled `Certified Value = £4,250` and typed `"£250 withheld pending completion of outstanding snagging works."` into `Pay Less Reason`. The generated document printed:

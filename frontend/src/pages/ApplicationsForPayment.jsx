@@ -16,6 +16,7 @@ import { useAuth } from "../lib/auth";
 import api from "../lib/api";
 import SignaturePad from "../components/SignaturePad";
 import { downloadAfpPdf, afpPdfBlobUrl } from "../lib/application-for-payment-pdf";
+import { parseClientContact, buildAfpClientFromJob, isLegacyCombinedContact } from "../lib/afp-client-map";
 import { listMedia, thumbSrc } from "../lib/media";
 
 const TOOL_ID = "applications-for-payment";
@@ -56,23 +57,15 @@ const emptyLine = () => ({ id: crypto.randomUUID(), category: "Labour", descript
 // enters the real contact person by hand. `isLegacyCombinedContact` is
 // intentionally strict: only strings that clearly encode a separator +
 // a UK-phone-shaped digit block trigger the guard.
-function isLegacyCombinedContact(s) {
-  if (typeof s !== "string") return false;
-  const trimmed = s.trim();
-  if (!trimmed) return false;
-  // Require a separator so we don't blank a normal name like "Jean-Luc Picard".
-  const hasSeparator = /[—–]|(\s-\s)|(\s\|\s)|(\s·\s)/.test(trimmed);
-  if (!hasSeparator) return false;
-  // Require a phone-shaped block of 6+ consecutive digits (with optional
-  // spaces / dashes inside) on either side of the separator.
-  const phoneLike = /(?:\+?\d[\d\s\-]{5,})/;
-  return phoneLike.test(trimmed);
-}
-// Returns the AFP client-name we should pre-fill from a Job's clientContact.
-// Blanks out combined legacy strings so the user isn't left with a wrong
-// merged value. Non-combined strings pass through untouched.
+// AFP-CLIENT-MAP-01 (Sep 2026) — legacy `clientContact` parsing +
+// disjoint Job → AFP client mapping now lives in
+// `../lib/afp-client-map` so the regression tests can exercise it
+// headlessly without spinning up React. The imports at the top of this
+// file bring in `parseClientContact`, `buildAfpClientFromJob`, and
+// `isLegacyCombinedContact`. `safeAfpClientNameFromJob` is kept as a
+// thin wrapper because a few call sites still read cleaner that way.
 function safeAfpClientNameFromJob(clientContact) {
-  return isLegacyCombinedContact(clientContact) ? "" : (clientContact || "");
+  return parseClientContact(clientContact).name;
 }
 
 const emptyAfp = () => ({
@@ -215,14 +208,13 @@ export default function ApplicationsForPayment() {
         base.projectId = j.id;
         base.projectName = j.projectName || j.clientName || "";
         base.projectAddress = j.address || "";
-        // P1.1 (Sep 2026) — semantic mapping from Job schema:
-        //   Job.clientContact  → AFP.clientName    (the human contact)
-        //   Job.clientName     → AFP.clientCompany (the client organisation)
-        //   Job.poNumber       → AFP.contractRef   (the commercial reference)
-        // Email / phone / contractDate are NOT stored on Job; they stay blank
-        // so the user can fill them in without a wrong auto-guess overwrite.
-        base.clientName = safeAfpClientNameFromJob(j.clientContact);
-        base.clientCompany = j.clientName || j.company || "";
+        // AFP-CLIENT-MAP-01 (Sep 2026) — every AFP client field is a
+        // strictly-disjoint slice of the Job. `buildAfpClientFromJob`
+        // parses the legacy combined `clientContact` string into a clean
+        // name + phone and NEVER concatenates values into a foreign
+        // field. Email / phone remain blank if the Job doesn't carry
+        // them — no auto-guess overwrite.
+        Object.assign(base, buildAfpClientFromJob(j, base));
         base.contractRef = j.poNumber || "";
       }
     }
@@ -448,15 +440,16 @@ function AfpWizard({ initial, user, jobs, onClose, onSaved, onTemplatesChanged }
 
   const pickProject = (id) => {
     const j = jobs.find(x => x.id === id); if (!j) return;
-    // P1.1 (Sep 2026) — same semantic mapping as the create path. Preserve
-    // whatever the user already typed if the job doesn't carry that field.
+    // AFP-CLIENT-MAP-01 (Sep 2026) — same disjoint mapping as the create
+    // path. `buildAfpClientFromJob` parses the legacy combined contact
+    // string into name + phone and never concatenates. Fields the Job
+    // doesn't carry preserve whatever the user already typed.
     setData(d => ({
       ...d,
       projectId: j.id,
       projectName: j.projectName || j.clientName || d.projectName,
       projectAddress: j.address || d.projectAddress,
-      clientName: safeAfpClientNameFromJob(j.clientContact) || d.clientName,  // contact person
-      clientCompany: j.clientName || j.company || d.clientCompany, // organisation
+      ...buildAfpClientFromJob(j, d),
       contractRef: j.poNumber || d.contractRef,
       contractSum: j.contractValue || d.contractSum,
     }));
@@ -576,9 +569,9 @@ function AfpWizard({ initial, user, jobs, onClose, onSaved, onTemplatesChanged }
             <div className="space-y-4" data-testid="afp-step-2-contract">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Field label="Client contact name"><input className={inputClass} value={data.clientName} onChange={(e) => set("clientName")(e.target.value)} data-testid="afp-clientName" /></Field>
-                <Field label="Client company"><input className={inputClass} value={data.clientCompany} onChange={(e) => set("clientCompany")(e.target.value)} /></Field>
-                <Field label="Client email"><input type="email" className={inputClass} value={data.clientEmail} onChange={(e) => set("clientEmail")(e.target.value)} /></Field>
-                <Field label="Client phone"><input className={inputClass} value={data.clientPhone} onChange={(e) => set("clientPhone")(e.target.value)} /></Field>
+                <Field label="Client company"><input className={inputClass} value={data.clientCompany} onChange={(e) => set("clientCompany")(e.target.value)} data-testid="afp-clientCompany" /></Field>
+                <Field label="Client email"><input type="email" className={inputClass} value={data.clientEmail} onChange={(e) => set("clientEmail")(e.target.value)} data-testid="afp-clientEmail" /></Field>
+                <Field label="Client phone"><input className={inputClass} value={data.clientPhone} onChange={(e) => set("clientPhone")(e.target.value)} data-testid="afp-clientPhone" /></Field>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <Field label="Contract reference"><input className={inputClass} value={data.contractRef} onChange={(e) => set("contractRef")(e.target.value)} data-testid="afp-contractRef" /></Field>
