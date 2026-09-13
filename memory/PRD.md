@@ -94,6 +94,40 @@ remain as audit-trail references only — they are NOT product marketing copy.
 
 **Final PASS/FAIL**: **AFP-CLIENT-MAP-01 — PASS**. Preview only. Nothing deployed.
 
+### 13 Sep 2026 — AFP-PROJECT-LINK-01: Step 1 "Link to Project" selector always renders (Preview only, undeployed)
+
+**User report**: After a hard refresh, opening the New Application for Payment wizard showed only *Project Name* and *Site Address* in Step 1. The "Link to Project (Recommended)" dropdown was missing, preventing manual regression of AFP-CLIENT-MAP-01 (couldn't pick Riverside).
+
+**Root cause**: `ApplicationsForPayment.jsx` gated the entire selector behind `{jobs.length > 0 && (...)}`. When `/api/jobs` returned an empty list, was still loading, or transiently failed (401 during token race, cold hot reload), the selector — including the "Not linked" default option — was silently hidden.
+
+**Fix (minimal, per user's chosen scope)**:
+- `frontend/src/pages/ApplicationsForPayment.jsx` — removed the `jobs.length > 0` guard so the `<Field label="Link to project (recommended)">` always renders. "Not linked" remains the first option, so the unlinked/manual flow is preserved even when jobs are empty. `pickProject` handler and `buildAfpClientFromJob` mapping are unchanged.
+
+**Regression coverage added**:
+- `frontend/tests/afp-project-link-01.test.mjs` — **6/6 pass**. Static JSX assertions locking:
+  1. Step 1 contains `data-testid="afp-link-project"`.
+  2. Step 1 does NOT wrap the selector in any `jobs.length > 0 && …` guard.
+  3. `<option value="">Not linked</option>` is always the first option.
+  4. `jobs.map(j => <option key={j.id} value={j.id}>)` still renders every job when the list is populated.
+  5. `onChange={pickProject(...)}` handler preserved (Step 2 mapping unchanged).
+  6. `afp-projectName` and `afp-projectAddress` inputs still render alongside the selector.
+- Playwright E2E (via `mcp_screenshot_tool`) — logged in as `darrenhustle300`, opened New AFP:
+  - `afp-link-project` selector visible ✔
+  - "Not linked" option present ✔
+  - "Riverside Apartments External Works" option present ✔
+  - Selecting Riverside populates `projectName` and `projectAddress` on Step 1 ✔
+  - Step 2 client mapping: `clientCompany = "Harrington Developments Ltd"`, `clientName / clientEmail / clientPhone = ""`, zero concatenation ✔
+  - Reselecting "Not linked" and manually typing "Manual Only Project XYZ" still works ✔
+
+**Aggregate coverage after this pass**: 115 mjs across 11 suites (new `afp-project-link-01` 6/6) + 57 AFP-scope pytest = **172/172 passing** for AFP + related tools. AFP-CLIENT-MAP-01 unaffected.
+
+**What changed (for manual regression)**:
+1. `frontend/src/pages/ApplicationsForPayment.jsx` — removed `{jobs.length > 0 && …}` guard in the Step 1 render block.
+2. `frontend/tests/afp-project-link-01.test.mjs` — NEW regression suite (6 assertions).
+
+**Final PASS/FAIL**: **AFP-PROJECT-LINK-01 — PASS**. Preview only. Nothing deployed.
+
+
 ---
 
 ### 13 Sep 2026 — SUBBI-WITHHOLD-01: Amount Withheld must be a dedicated numeric input, never inferred from free-text (Preview only, undeployed)

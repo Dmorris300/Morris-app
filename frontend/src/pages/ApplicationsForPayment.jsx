@@ -550,14 +550,19 @@ function AfpWizard({ initial, user, jobs, onClose, onSaved, onTemplatesChanged }
 
           {step === 1 && (
             <div className="space-y-4" data-testid="afp-step-1-project">
-              {jobs.length > 0 && (
-                <Field label="Link to project (recommended)">
-                  <select value={data.projectId} onChange={(e) => pickProject(e.target.value)} className={inputClass} data-testid="afp-link-project">
-                    <option value="">Not linked</option>
-                    {jobs.map(j => <option key={j.id} value={j.id}>{j.projectName || j.clientName}</option>)}
-                  </select>
-                </Field>
-              )}
+              {/* AFP-PROJECT-LINK-01 (Sep 2026) — always render the "Link to
+                  project" selector, even while jobs are still loading or if
+                  the /api/jobs fetch transiently fails. Previously this was
+                  gated by `jobs.length > 0`, which silently hid the entire
+                  dropdown on a slow/failing fetch and prevented users from
+                  ever linking a Job to a new AFP. "Not linked" is always the
+                  first option, so the manual (unlinked) flow is preserved. */}
+              <Field label="Link to project (recommended)">
+                <select value={data.projectId} onChange={(e) => pickProject(e.target.value)} className={inputClass} data-testid="afp-link-project">
+                  <option value="">Not linked</option>
+                  {jobs.map(j => <option key={j.id} value={j.id}>{j.projectName || j.clientName}</option>)}
+                </select>
+              </Field>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Field label="Project name"><input className={inputClass} value={data.projectName} onChange={(e) => set("projectName")(e.target.value)} data-testid="afp-projectName" /></Field>
                 <Field label="Site address"><textarea className={`${inputClass} min-h-[52px]`} value={data.projectAddress} onChange={(e) => set("projectAddress")(e.target.value)} data-testid="afp-projectAddress" /></Field>
