@@ -384,8 +384,24 @@ function SnapshotTile({ label, value, sub, to, testId }) {
 
 function ProjectCard({ job, pinned }) {
   const s = STATUS_COLORS[job.status] || STATUS_COLORS.active;
+  const navigate = useNavigate();
+  // CC-VARIATION-ROUTE-01 (Sep 2026) — the outer card was a <Link> and
+  // the "Photos" inline shortcut was a nested <Link>, producing the
+  // classic React "<a> cannot be a descendant of <a>" hydration warning.
+  // The browser silently repairs the invalid HTML by hoisting anchors,
+  // which reshuffled sibling anchor targets and made the Command Centre
+  // Quick-Action tiles land on the wrong route (e.g. Variation → /app/
+  // history). Refactored to a div-with-onClick outer card so no nested
+  // anchor is generated.
   return (
-    <Link to={`/app/jobs/${job.id}`} className="card-dark p-4 hover:border-[#E8A020]/40 transition block" data-testid={`cc-project-${job.id}`}>
+    <div
+      role="link"
+      tabIndex={0}
+      onClick={() => navigate(`/app/jobs/${job.id}`)}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); navigate(`/app/jobs/${job.id}`); } }}
+      className="card-dark p-4 hover:border-[#E8A020]/40 transition block cursor-pointer"
+      data-testid={`cc-project-${job.id}`}
+    >
       <div className="flex items-center justify-between gap-2 mb-2">
         <span className="text-[9px] uppercase tracking-[0.2em] text-[#706D66]">{job.ref || (pinned ? "Pinned" : "")}</span>
         <span className="text-[9px] uppercase tracking-[0.2em] px-2 py-0.5 rounded-full" style={{ color: s.fg, background: s.bg, border: `1px solid ${s.border}` }}>{job.status}</span>
@@ -398,7 +414,7 @@ function ProjectCard({ job, pinned }) {
           <Link to={`/app/photo-vault?jobId=${encodeURIComponent(job.id)}`} onClick={(e) => e.stopPropagation()} className="hover:text-[#E8A020] inline-flex items-center gap-1" data-testid={`cc-project-photos-${job.id}`}><Images size={11} /> Photos</Link>
         </span>
       </div>
-    </Link>
+    </div>
   );
 }
 

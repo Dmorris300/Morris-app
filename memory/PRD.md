@@ -49,6 +49,34 @@ to "template-generated / document generator". Historical PRD entries below use "
 and "LLM" as internal technical descriptors of the document-generation engine and
 remain as audit-trail references only — they are NOT product marketing copy.
 
+### 13 Sep 2026 — CC-VARIATION-ROUTE-01: Command Centre Quick Action → Variation misroutes to /app/history (Preview only, undeployed)
+
+**User report**: From Command Centre → Quick Actions, clicking the **Variation** tile navigated to `/app/history` (Document Vault) instead of `/app/variation-orders`. Reproduced twice after a hard refresh.
+
+**Root cause**: `Dashboard.jsx > ProjectCard` wrapped an entire project card in `<Link to={`/app/jobs/${job.id}`}>` and then rendered a **nested** `<Link to="/app/photo-vault?…">Photos</Link>` inside it. React logged the hydration warning `In HTML, <a> cannot be a descendant of <a>` on every mount. Chrome's HTML parser silently repairs the invalid tree by *hoisting* the inner `<a>` out to become a sibling — which shifts every downstream anchor into the wrong DOM position. On the reporting device this reshuffle made the click coordinates of the Variation Quick Action tile land on a different `<a>` — the `/app/history` link surfaced by the Continue Working section — instead of the intended `/app/variation-orders` anchor.
+
+**Fix (`frontend/src/pages/Dashboard.jsx`)**:
+- Refactored `ProjectCard` from `<Link>...<Link/>...</Link>` to `<div role="link" tabIndex={0} onClick={() => navigate(…)} onKeyDown={handles Enter/Space}>` around the outer card, keeping the inner "Photos" `<Link>` (now the only anchor in the card). Zero nested anchors, zero hydration warnings, keyboard-accessible.
+- No changes to the `QUICK_ACTIONS` array itself — the `to: "/app/variation-orders"` mapping was already correct; the routing corruption was purely DOM-side.
+
+**Tests added**:
+- `frontend/tests/cc-variation-route-01.test.mjs` — NEW, **7/7 pass**. Static regression that parses `Dashboard.jsx` source and asserts:
+  1. `variation-letter` Quick Action `to = "/app/variation-orders"` (plus `cis-invoice`, `quote-builder`, `rams` sanity).
+  2. `ProjectCard` outer element MUST be `<div role="link">`, never `<Link>` — regression-locks the fix.
+  3. `ProjectCard` contains exactly one `<Link>` (the Photos shortcut).
+  4. No `<Link>` component anywhere in `Dashboard.jsx` is nested inside another `<Link>` (comment-stripped scan with self-close awareness).
+  5. Quick Action tiles wear `data-testid={`cc-quick-${qa.id}`}` for E2E anchoring.
+
+**Live Preview verification (13 Sep 2026, darrenhustle300)**:
+- Playwright end-to-end: `[data-testid="cc-quick-variation-letter"]` now navigates to `https://prompt-web-4.preview.emergentagent.com/app/variation-orders` (framenavigated event captured); `[data-testid="variation-orders-page"]` is present after the click; console shows **zero** `cannot be a descendant` warnings.
+- Cross-checked adjacent tiles: `cc-quick-cis-invoice` → `/app/invoice-builder` (already worked, remains working).
+
+**Aggregate coverage after this pass**: 74 mjs assertions across 8 suites (new `cc-variation-route-01` 7/7) + 14 backend pytest = **88/88 passing**.
+
+**Final PASS/FAIL**: **CC-VARIATION-ROUTE-01 — PASS**. Preview only. Nothing deployed.
+
+---
+
 ### 13 Sep 2026 — VO-STATUS-01 + VO-DOC-REF-01 + VO-PRICE-INPUT-01 (Preview only, undeployed)
 
 **Three bugs surfaced during user manual verification after VO-SAVE-01 was signed off:**
