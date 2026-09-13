@@ -49,6 +49,46 @@ to "template-generated / document generator". Historical PRD entries below use "
 and "LLM" as internal technical descriptors of the document-generation engine and
 remain as audit-trail references only — they are NOT product marketing copy.
 
+### 13 Sep 2026 — SUBBI-WITHHOLD-01: Amount Withheld must be a dedicated numeric input, never inferred from free-text (Preview only, undeployed)
+
+**User report**: On the Subbi Payment Certificate the user filled `Certified Value = £4,250` and typed `"£250 withheld pending completion of outstanding snagging works."` into `Pay Less Reason`. The generated document printed:
+```
+Gross value certified: £4,250.00
+Amount withheld: £250.00
+Net sum due: £4,000.00
+```
+— i.e. the £250 was inferred from the free-text reason. There was no dedicated Amount Withheld input and no numeric contract for the financial calculation.
+
+**Root cause**: The tool config in `tools-config.js` defined only `subbie / appNo / certifiedValue / paylessReason`. The LLM had no numeric withheld input to work from and, seeing a £-figure inside the reason narrative, extracted it for the arithmetic. Nothing in the backend prompt or a post-process pass locked the numbers.
+
+**Fixes**:
+- **Frontend `frontend/src/lib/tools-config.js`** — added a new **optional** numeric field `amountWithheld` (placeholder `0.00`) to the `subbie-payment-cert` field list, positioned right after `certifiedValue` and before `paylessReason`. Being optional keeps existing drafts backward-compatible (they simply open with the new field blank).
+- **Backend `backend/server.py` — LLM prompt (system_prompt block)** — added a `SUBBI PAYMENT CERTIFICATE — TOOL-SPECIFIC RULES` block that:
+  1. Marks the withheld amount as coming EXCLUSIVELY from the numeric `amountWithheld` input; explicitly forbids inferring or extracting numbers from `paylessReason` under any circumstance.
+  2. Defines the four canonical output shapes (missing/blank → Gross only; > 0 → 3-line Gross/Withheld/Net; over-withhold → warning line + Net £0.00; non-numeric → treat as zero).
+  3. Requires 2-dp formatting with UK thousand separators and forbids adding CIS/VAT/retention.
+  4. Requires the PAY LESS NOTICE section to print the user's reason verbatim.
+- **Backend `backend/server.py` — deterministic Python safety-net** — added module-level helpers `_parse_money`, `_fmt_gbp`, `_build_subbi_financial_block`, and `_enforce_subbi_financials`. After the LLM response is generated and cleaned, `_enforce_subbi_financials` matches lines that begin with `Gross value certified`, `Amount withheld`, or `Net sum due` (regex tolerant to bullet prefixes and indentation) and rewrites them with the canonical values computed in Python — locking the numbers to `certifiedValue` and `amountWithheld` even if the LLM's arithmetic drifts or it hallucinates numbers from the reason. Over-withhold cases collapse the 3-line block to a single warning + `Net sum due: £0.00`.
+- **Backward compatibility (per user request)**: Existing Subbi drafts saved before this field existed still open normally — the wizard just shows `amountWithheld` as blank (placeholder `0.00`) with the pre-existing `certifiedValue` and `paylessReason` fully populated. The safety-net treats a blank/missing `amountWithheld` as zero and does NOT infer £250 from the legacy reason text.
+
+**Tests added**:
+- `backend/tests/test_subbi_withhold.py` — NEW, **40/40 pass**. Cases:
+  - `_parse_money` — 20 parametrised edge cases (None, blank, int, float, '£', ',', thousand-separators, negative, bool, whitespace, alphabetic).
+  - `_fmt_gbp` — thousand-separator + 2dp formatting.
+  - `_build_subbi_financial_block` — 7 cases: no certified → empty; zero withheld → gross only; missing withheld → gross only; normal 3-line; decimal £123.45; £0.01 penny; over-withhold warning; exact full withhold (Net £0.00).
+  - `_enforce_subbi_financials` end-to-end on synthesised LLM outputs — 10 cases: the exact user-reported bug (LLM inferred £250 from reason → override to Gross only), LLM correct → no-op, LLM arithmetic wrong → corrected, over-withhold → single warning + Net £0.00, penny arithmetic locked, non-numeric input → treated as zero, bullet-prefixed lines preserved with correct indentation, empty LLM output no-op, missing certifiedValue → unchanged.
+- Live LLM verification via `POST /api/generate` — three end-to-end calls confirm:
+  1. User's exact repro (reason mentions £250, no `amountWithheld`) → output has ONLY "Gross value certified: £4,250.00", no Withheld/Net line, reason preserved verbatim.
+  2. `amountWithheld=250` → clean 3-line block: Gross £4,250 / Withheld £250 / Net £4,000.
+  3. Over-withhold £5,000 from £4,250 → single warning line ("Amount withheld (£5,000.00) exceeds certified value (£4,250.00) — please check inputs before issuing this certificate.") + Net £0.00 (LLM's duplicate warning was collapsed by the safety-net after we broadened the regex).
+- Frontend backward-compat check via Playwright: the pre-fix draft (`037c610f-…`, saved 13 Sep 09:58 UTC with reason mentioning £250, no `amountWithheld`) opens correctly — every legacy field populated, `field-amountWithheld` is blank as expected, no crash, no data loss.
+
+**Aggregate coverage after this pass**: 84 mjs across 9 suites + 54 backend pytest (14 VO + 40 SUBBI-WITHHOLD) = **138/138 passing**.
+
+**Final PASS/FAIL**: **SUBBI-WITHHOLD-01 — PASS**. Preview only. Nothing deployed.
+
+---
+
 ### 13 Sep 2026 — SUBBI-DRAFT-01: Resume-draft race + Drafts list wipe on transient error (Preview only, undeployed)
 
 **User report** (two coupled symptoms):

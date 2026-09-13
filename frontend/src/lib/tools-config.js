@@ -1944,7 +1944,7 @@ Rules:
     [],
     "Produce a UK Purchase Order (see the dedicated page for full inputs)."
   ),
-  t("subbie-payment-cert", "Subbi Payment Certificate", "contractors", "A payment certificate to a subcontractor under HGCRA 1996.", [f("subbie", "Subcontractor"), f("appNo", "Application number"), f("certifiedValue", "Certified value (£)"), f("paylessReason", "Pay less reason (if any)")], "Produce a UK Payment Certificate / Pay Less Notice to a subcontractor under HGCRA 1996. including final date for payment."),
+  t("subbie-payment-cert", "Subbi Payment Certificate", "contractors", "A payment certificate to a subcontractor under HGCRA 1996.", [f("subbie", "Subcontractor"), f("appNo", "Application number"), f("certifiedValue", "Certified value (£)"), fo("amountWithheld", "Amount withheld (£)", "number", "0.00"), f("paylessReason", "Pay less reason (if any)")], "Produce a UK Payment Certificate / Pay Less Notice to a subcontractor under HGCRA 1996. including final date for payment."),
   t("hs-policy", "H&S Policy", "contractors", "A short, signed Health & Safety policy statement.", [
       f("companyTradingName", "Trading name (if different to profile company name)", "text"),
       f("directorName", "Responsible person / Director / Proprietor (full name)"),

@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
+import re
 import logging
 import secrets
 import uuid
@@ -314,6 +315,148 @@ BANK_DETAILS_TOOLS = {
     "quote-builder",
     "price-work-quote",
 }
+
+
+# --- SUBBI-WITHHOLD-01 (Sep 2026) --------------------------------------------
+# Deterministic Python safety-net for the Subbi Payment Certificate. Whatever
+# the LLM emits, the financial figures (Gross / Withheld / Net) MUST be
+# computed from the numeric inputs `certifiedValue` and `amountWithheld` —
+# never from the free-text `paylessReason` field. This helper parses those
+# inputs defensively, decides which of the four canonical financial shapes
+# apply, and rewrites the corresponding lines in the LLM output.
+
+_SUBBI_MONEY_RE = re.compile(
+    r"^(\s*)([\-*•\s]*)("
+    r"gross\s+value\s+certified|"
+    r"amount\s+withheld|"
+    r"net\s+sum\s+due"
+    r")\b(.*)$",
+    re.IGNORECASE,
+)
+
+
+def _parse_money(v) -> Optional[float]:
+    """Return a non-negative float from a numeric input, else None.
+
+    Accepts int, float, and strings like '4,250', '£4,250.00', '  4250 '.
+    Empty/None/non-numeric → None. Negative values → None (invalid input).
+    """
+    if v is None:
+        return None
+    if isinstance(v, bool):  # bool is a subclass of int in Python
+        return None
+    if isinstance(v, (int, float)):
+        return float(v) if v >= 0 else None
+    if isinstance(v, str):
+        s = v.strip()
+        if not s:
+            return None
+        # Strip currency symbols and thousands separators only. Keep the
+        # decimal point — a European ',' as decimal is out of scope here
+        # (the UI is en-GB).
+        cleaned_s = re.sub(r"[£$,\s]", "", s)
+        try:
+            f = float(cleaned_s)
+            return f if f >= 0 else None
+        except ValueError:
+            return None
+    return None
+
+
+def _fmt_gbp(n: float) -> str:
+    """Format a float as UK money with thousand separators and 2 decimals."""
+    # Guard NaN / inf just in case; treat as £0.00.
+    if n != n or n in (float("inf"), float("-inf")):
+        return "£0.00"
+    return f"£{n:,.2f}"
+
+
+def _build_subbi_financial_block(certified: Optional[float], withheld: Optional[float]) -> List[str]:
+    """Return the canonical list of financial lines the certificate must
+    contain, given the parsed numeric inputs. See tool-specific rules 2–4
+    in the LLM prompt for the four cases enforced here."""
+    if certified is None:
+        return []  # No certified value → nothing to enforce numerically.
+    if withheld is None or withheld <= 0:
+        return [f"Gross value certified: {_fmt_gbp(certified)}"]
+    if withheld > certified:
+        return [
+            f"Amount withheld ({_fmt_gbp(withheld)}) exceeds certified value "
+            f"({_fmt_gbp(certified)}) — please check inputs before issuing this certificate.",
+            "Net sum due: £0.00",
+        ]
+    net = round(certified - withheld, 2)
+    return [
+        f"Gross value certified: {_fmt_gbp(certified)}",
+        f"Amount withheld: {_fmt_gbp(withheld)}",
+        f"Net sum due: {_fmt_gbp(net)}",
+    ]
+
+
+def _enforce_subbi_financials(text: str, user_inputs: dict) -> str:
+    """Rewrite the Gross/Withheld/Net lines in the LLM output so they
+    always match the numeric inputs. Non-destructive: only the three
+    named lines are replaced; the LLM's narrative, header, footer, and
+    Pay Less Notice reason paragraph are left alone."""
+    if not text:
+        return text
+    certified = _parse_money(user_inputs.get("certifiedValue"))
+    withheld = _parse_money(user_inputs.get("amountWithheld"))
+    canonical = _build_subbi_financial_block(certified, withheld)
+    if not canonical:
+        return text  # No certifiedValue — nothing to enforce.
+
+    lines = text.split("\n")
+    # Track which of the canonical lines have already been substituted so
+    # the same LLM line isn't matched twice.
+    seen_gross = seen_withheld = seen_net = False
+    canonical_by_key = {
+        "gross": canonical[0] if canonical and canonical[0].lower().startswith("gross value") else None,
+        "withheld": next((c for c in canonical if c.lower().startswith("amount withheld")), None),
+        "net": next((c for c in canonical if c.lower().startswith("net sum due")), None),
+        "over": next((c for c in canonical if "exceeds certified value" in c.lower()), None),
+    }
+    over = canonical_by_key["over"] is not None
+    new_lines: List[str] = []
+    for line in lines:
+        m = _SUBBI_MONEY_RE.match(line)
+        if not m:
+            new_lines.append(line)
+            continue
+        key = m.group(3).lower()
+        indent, bullet = m.group(1), m.group(2)
+        # Over-withholding: drop any existing Gross / Withheld / Net line
+        # and let the caller stitch the two-line over-withholding block in
+        # place of the first match.
+        if over:
+            if not (seen_gross or seen_withheld or seen_net):
+                new_lines.append(f"{indent}{bullet}{canonical_by_key['over']}")
+                new_lines.append(f"{indent}{bullet}{canonical_by_key['net']}")
+                seen_gross = seen_withheld = seen_net = True
+            # Otherwise drop the duplicate line silently.
+            continue
+        if "gross value certified" in key and canonical_by_key["gross"]:
+            new_lines.append(f"{indent}{bullet}{canonical_by_key['gross']}")
+            seen_gross = True
+        elif "amount withheld" in key and canonical_by_key["withheld"]:
+            new_lines.append(f"{indent}{bullet}{canonical_by_key['withheld']}")
+            seen_withheld = True
+        elif "net sum due" in key and canonical_by_key["net"]:
+            new_lines.append(f"{indent}{bullet}{canonical_by_key['net']}")
+            seen_net = True
+        elif "amount withheld" in key and not canonical_by_key["withheld"]:
+            # withheld is 0 / missing but LLM printed a line — drop it.
+            continue
+        elif "net sum due" in key and not canonical_by_key["net"]:
+            # withheld is 0 but LLM printed a Net line — drop it (Gross
+            # already IS the net).
+            continue
+        else:
+            new_lines.append(line)
+    return "\n".join(new_lines)
+# --- end SUBBI-WITHHOLD-01 ----------------------------------------------------
+
+
 
 
 def _bank_details_block(user: dict) -> str:
@@ -872,6 +1015,22 @@ async def generate(req: GenerateReq, authorization: Optional[str] = Header(None)
             "10. TONE: professional, factual, contractually aware, concise but detailed, non-emotional. Preserve the Contractor's position WITHOUT making unsupported legal claims. Do NOT make the document unnecessarily aggressive.\n\n"
             if req.toolId == "eot-claim" else ""
         )
+        + (
+            # ---------- Subbi Payment Certificate — tool-specific tightening ----------
+            "SUBBI PAYMENT CERTIFICATE — TOOL-SPECIFIC RULES (SUBBI-WITHHOLD-01, Sep 2026):\n"
+            "1. WITHHELD AMOUNT IS NUMERIC ONLY: The withheld amount MUST come EXCLUSIVELY from the numeric input 'amountWithheld' provided in User details. It MUST NOT be inferred, extracted, parsed, or estimated from the free-text 'paylessReason' field under any circumstances, even if paylessReason mentions a specific £ amount like '£250 withheld'. paylessReason is EXPLANATION TEXT ONLY; it never controls the financial calculation.\n"
+            "2. IF 'amountWithheld' IS MISSING, BLANK, ZERO, OR NON-NUMERIC: treat withheld as £0.00. In this case do NOT print any 'Amount withheld' line, do NOT print any 'Net sum due' line, and do NOT print a 'PAY LESS NOTICE' section. Print only 'Gross value certified: £<certifiedValue>' and treat the whole sum as due. If paylessReason is also blank, omit the Pay Less Notice section entirely.\n"
+            "3. IF 'amountWithheld' IS PRESENT AND > 0: print the calculation block EXACTLY in this order, each on its own line, ALL prefixed with '£', ALL to 2 decimal places, with UK thousand-separators:\n"
+            "     Gross value certified: £<certifiedValue>\n"
+            "     Amount withheld: £<amountWithheld>\n"
+            "     Net sum due: £<certifiedValue - amountWithheld>\n"
+            "   The subtraction MUST be exact — do NOT round intermediate values, do NOT add or subtract any other line items (no CIS, no VAT, no retention — this tool is a bare Subbi Pay Certificate). If the reason field contains a £ amount that DIFFERS from amountWithheld, IGNORE it silently — the numeric field wins.\n"
+            "4. OVER-WITHHOLDING GUARDRAIL: If amountWithheld > certifiedValue, do NOT print a negative Net sum due. Instead print exactly this line in place of the calculation block: 'Amount withheld (£<amountWithheld>) exceeds certified value (£<certifiedValue>) — please check inputs before issuing this certificate.' Then still print 'Net sum due: £0.00' underneath so the numeric structure is preserved.\n"
+            "5. PAY LESS NOTICE SECTION: If amountWithheld > 0 OR paylessReason is not blank, include a 'PAY LESS NOTICE' section under s.111 HGCRA 1996 with two subsections: (a) 'Amount withheld: £<amountWithheld>' (£0.00 if reason present but withheld is 0), and (b) 'Reason:' followed by the verbatim paylessReason text — never paraphrase, never truncate, never add or drop numbers. If amountWithheld is 0 AND paylessReason is blank, OMIT the Pay Less Notice section entirely.\n"
+            "6. NO NUMBER INFERENCE FROM TEXT: You are strictly forbidden from reading numeric values out of paylessReason and using them anywhere in the printed financial figures. The only permitted numeric inputs are 'certifiedValue' and 'amountWithheld'.\n"
+            "7. FINAL DATE FOR PAYMENT: Continue to include the statutory final date for payment under HGCRA 1996 s.110A(2), based on today's date + 17 days (matching the standard subcontract default) unless the user provided a different value.\n\n"
+            if req.toolId == "subbie-payment-cert" else ""
+        )
         + _signoff_instructions(req.toolId, user, bool(user.get("signature")))
     )
 
@@ -953,6 +1112,15 @@ async def generate(req: GenerateReq, authorization: Optional[str] = Header(None)
                     # Last resort: stick it at the very top of the body.
                     lines.insert(0, f"NI No: {ni_number}")
                 cleaned = "\n".join(lines)
+
+        # SUBBI-WITHHOLD-01 (Sep 2026) — deterministic Python safety-net.
+        # Regardless of what the LLM wrote, the financial calculation lines
+        # in a Subbi Payment Certificate MUST be computed from the numeric
+        # inputs 'certifiedValue' and 'amountWithheld' — never from the
+        # free-text 'paylessReason'. We rewrite the three canonical lines
+        # here to lock the numbers in.
+        if req.toolId == "subbie-payment-cert":
+            cleaned = _enforce_subbi_financials(cleaned, req.userInputs or {})
 
         await record_usage(db, user, req.toolId)
         # Auto-save every generated document to the user's Document Vault
