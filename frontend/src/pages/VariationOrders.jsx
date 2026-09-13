@@ -426,29 +426,85 @@ function VariationWizard({ initial, user, jobs, quotes, onClose, onSaved, onTemp
     catch { toast.error("Preview failed"); }
   };
 
+  // VO-SAVE-01 (Sep 2026) — split the flow so a PDF-generation failure
+  // never falsely reports "Save failed" on a record that has already
+  // persisted. Also surface the real backend/JS error message and log the
+  // exception to the console so support can diagnose live incidents. When
+  // the failure looks transient (network drop, 502/503/504, or the ingress
+  // "404 page not found" plaintext body that fires during a backend
+  // hot-reload) we retry once with a short backoff instead of giving up —
+  // Preview environments in particular can restart the backend pod under
+  // the user without warning.
+  const _isTransientSaveError = (e) => {
+    if (!e) return false;
+    if (!e.response) return true; // network drop / abort
+    const s = e.response.status;
+    if (s === 502 || s === 503 || s === 504) return true;
+    if (s === 404) {
+      // FastAPI 404 is JSON `{"detail":"Not Found"}`. The ingress-level
+      // 404 that fires when the backend pod is briefly down responds with
+      // the Go `http.NotFound` plaintext "404 page not found" — different
+      // signal, transient. Only retry the ingress-shape 404.
+      const body = e.response.data;
+      if (typeof body === "string" && /404 page not found/i.test(body)) return true;
+    }
+    return false;
+  };
+  const _sleep = (ms) => new Promise(r => setTimeout(r, ms));
+  const _postOrPatch = async (payload) => {
+    if (data.id) { const r = await api.patch(`/variation-orders/variation-orders/${data.id}`, payload); return r.data; }
+    const r = await api.post("/variation-orders/variation-orders", payload); return r.data;
+  };
+
   const saveEntry = async () => {
     if (!data.projectName && !data.projectId) { toast.error("Project is required"); setStep(1); return; }
     setSaving(true);
+    let saved;
     try {
-      let saved;
       const payload = { ...data };
-      if (data.id) { const r = await api.patch(`/variation-orders/variation-orders/${data.id}`, payload); saved = r.data; }
-      else { const r = await api.post("/variation-orders/variation-orders", payload); saved = r.data; }
-      // Save summary to Document Library
       try {
-        await api.post("/documents/save", {
-          title: `Variation Order — ${data.projectName || data.clientCompany || data.clientName || "Client"}`,
-          toolId: TOOL_ID, refNumber: saved.variationRef, jobId: data.projectId || null,
-          content: `VARIATION ORDER ${saved.variationRef}\n${data.projectName || ""} · ${data.clientName || data.clientCompany || ""}\nReason: ${data.reason || "—"}\nStatus: ${saved.status}\nTotal: ${fGBP((saved.totals || {}).total || 0)}\n\n${data.descriptionOfChange || ""}`,
-          metadata: { ...saved },
-        });
-      } catch { /* soft-fail */ }
+        saved = await _postOrPatch(payload);
+      } catch (e1) {
+        if (!_isTransientSaveError(e1)) throw e1;
+        if (process.env.NODE_ENV !== "production") console.warn("[VO-SAVE-01] transient save error, retrying once", e1?.response?.status || e1?.message); // eslint-disable-line no-console
+        await _sleep(1200);
+        saved = await _postOrPatch(payload);
+      }
+    } catch (e) {
+      if (process.env.NODE_ENV !== "production") console.error("[VO-SAVE-01] save failed", e); // eslint-disable-line no-console
+      const detail = e?.response?.data?.detail;
+      const detailMsg = typeof detail === "string" ? detail : Array.isArray(detail) ? detail.map(d => d?.msg || d).join("; ") : "";
+      const bodyStr = typeof e?.response?.data === "string" ? e.response.data : "";
+      const status = e?.response?.status;
+      const infraHint = _isTransientSaveError(e) ? " — backend was momentarily unavailable, please try again in a few seconds" : "";
+      const msg = (detailMsg || bodyStr || e?.message || "Save failed") + (status ? ` (${status})` : "") + infraHint;
+      toast.error(msg);
+      setSaving(false);
+      return;
+    }
+    // Persist to Document Library (soft fail — the record itself is saved).
+    try {
+      await api.post("/documents/save", {
+        title: `Variation Order — ${data.projectName || data.clientCompany || data.clientName || "Client"}`,
+        toolId: TOOL_ID, refNumber: saved.variationRef, jobId: data.projectId || null,
+        content: `VARIATION ORDER ${saved.variationRef}\n${data.projectName || ""} · ${data.clientName || data.clientCompany || ""}\nReason: ${data.reason || "—"}\nStatus: ${saved.status}\nTotal: ${fGBP((saved.totals || {}).total || 0)}\n\n${data.descriptionOfChange || ""}`,
+        metadata: { ...saved },
+      });
+    } catch { /* soft-fail */ }
+    // Record is safely saved — clear the autosave draft now so a follow-up
+    // "+ New Variation" starts clean even if the PDF step below fails.
+    try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+    // Generate + download PDF. Errors here (popup block, malformed data,
+    // jsPDF regression) must NOT mislabel the outcome as "Save failed".
+    try {
       downloadVariationPdf({ data: saved, user, today: new Date().toLocaleDateString("en-GB") });
-      try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
       toast.success("Variation saved");
-      onSaved();
-    } catch (e) { toast.error(e?.response?.data?.detail || "Save failed"); }
-    finally { setSaving(false); }
+    } catch (e) {
+      if (process.env.NODE_ENV !== "production") console.error("[VO-SAVE-01] PDF generation failed", e); // eslint-disable-line no-console
+      toast.success("Variation saved — PDF download failed, open the record to retry");
+    }
+    onSaved();
+    setSaving(false);
   };
 
   const saveAsTemplate = async () => {

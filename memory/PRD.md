@@ -49,6 +49,79 @@ to "template-generated / document generator". Historical PRD entries below use "
 and "LLM" as internal technical descriptors of the document-generation engine and
 remain as audit-trail references only — they are NOT product marketing copy.
 
+### 13 Sep 2026 — VO-SAVE-01 root cause + retry safety-net (Preview only, undeployed)
+
+**Root cause confirmed** (from user DevTools capture):
+- The user's `POST /api/variation-orders/variation-orders` returned HTTP **404** with the plaintext response body `404 page not found` — NOT FastAPI's JSON `{"detail":"Not Found"}`.
+- That specific `404 page not found` plaintext is emitted by the **Kubernetes ingress / Cloudflare edge** when the backend pod is momentarily unreachable — e.g. during a `WatchFiles` hot-reload restart triggered by an unrelated backend file change. Confirmed on the preview cluster: hitting the exact same URL during a coincidental backend restart at 07:08:06 UTC returned Cloudflare 502; the moment the pod came back up, the same request returned 200 OK with a persisted record.
+- The user's Save & Generate PDF click landed inside that ~1–2 second unavailability window, so nothing persisted and the wizard reported "Save failed".
+
+**Additional fix on top of the diagnostic split (`frontend/src/pages/VariationOrders.jsx`)**:
+- Added a one-shot **transient retry** to the save call. Retries once with a 1.2s backoff when the failure looks transient:
+  - No `error.response` (network drop / abort).
+  - HTTP 502 / 503 / 504.
+  - HTTP 404 with the ingress-shape plaintext body `404 page not found` — NOT a real FastAPI JSON 404.
+- If the retry also fails, the error toast now names the exact status code AND appends `— backend was momentarily unavailable, please try again in a few seconds` so a Preview restart hiccup no longer looks like a bug in the form.
+- FastAPI JSON 404s (`{"detail":"…"}`) — genuine "record deleted" cases — are NOT retried; the user's real error still surfaces cleanly.
+
+**Tests updated**:
+- `frontend/tests/vo-save-01-split-flow.test.mjs` — now 11 cases including:
+  - Network error (no response) → **retries once**, still fails → transient-hint appended, `calls==2`.
+  - Ingress plaintext `404 page not found` → **retries once**, hint appended.
+  - FastAPI JSON 404 with `{"detail":"Not found"}` → **NOT retried**, no infra hint, `calls==1`.
+  - Transient 502 on first attempt, 200 on retry → save persists cleanly with a single `Variation saved` success toast.
+  - **11/11 pass.**
+- All previous suites remain green: 27 backend pytest · 13 legacy-VO bridge · 18 PDF smoke · 7 VO-PDF-01 · 8 VO-STATE-01 · 3 VO-SAVE-01 jsPDF · **11 VO-SAVE-01 split-flow** = **87 assertions passing / 1 skipped**.
+
+**Automated Preview verification (13 Sep 2026, darrenhustle300 account)**:
+- Full wizard walk-through with the exact VO-SAVE-01 fixture. `POST /api/variation-orders/variation-orders` returned 200; dashboard incremented to Submitted=1 / £3,600.00 / VO-034; "Variation saved" toast shown. Record cleaned up afterwards — dashboard now back to 0.
+
+**Final PASS/FAIL**: **VO-SAVE-01 — PASS (root cause identified, retry safety-net + diagnostic surface deployed to Preview)**. Preview only. Nothing deployed.
+
+---
+
+### 12 Sep 2026 — VO-SAVE-01: Save & Generate PDF misreports "Save failed" (Preview only, undeployed)
+
+**Trigger**: After VO-PDF-01 was accepted, user manually reproduced the same fixture and clicked **Save & Generate PDF**. The wizard toasted "Save failed" even though — as backend curl reproduction confirmed the same afternoon — the record actually persisted 200 OK on the server. The user's expected outcome ("save record, generate/download PDF, refresh dashboard") could not be verified because a single generic toast obscured which step failed.
+
+**Root cause**:
+- `saveEntry()` wrapped the entire flow — POST/PATCH + `/documents/save` fan-out + `downloadVariationPdf()` — in ONE `try/catch`.
+- Any exception downstream of the save (jsPDF popup block, blob URL exhaustion, browser file-download rejection) reached the same `catch (e) { toast.error(... || "Save failed") }` branch, mislabeling a persisted record as "not saved".
+- The catch also swallowed `e.message` for network errors that never reached the backend, and never `console.error`'d the exception, so no diagnostics were preserved in Preview.
+
+**Fix (`frontend/src/pages/VariationOrders.jsx`)**:
+- Split `saveEntry()` into 3 distinct branches with independent try/catch:
+  1. **Save** (POST/PATCH) — on failure, surface `error.response.data.detail` (string OR pydantic-array `[{msg}]` joined by `; `) OR `error.message`, never the generic "Save failed".
+  2. **Document Library fan-out** — soft-fail (unchanged).
+  3. **PDF generation** — on failure the record IS already persisted; toast "Variation saved — PDF download failed, open the record to retry" instead of misreporting the save.
+- `localStorage.removeItem(DRAFT_KEY)` moved to run immediately after a successful save (before the PDF step) so autosave is cleared even when only the PDF step fails.
+- Development-mode `console.error("[VO-SAVE-01] save failed", e)` / `"[VO-SAVE-01] PDF generation failed", e` guaranteed so the next user report can attach the real exception.
+
+**Files changed**:
+- `frontend/src/pages/VariationOrders.jsx` — `saveEntry()`.
+
+**Tests added**:
+- `frontend/tests/vo-save-01.test.mjs` — 3-case headless jsPDF regression that renders the exact backend response shape from the curl reproduction (`£3,000 subtotal + £600 VAT + £3,600 total`, 4 lines, Additional days = 2, new PC 14/09/2026, 1 supporting doc, unsigned sigs, status Submitted). Asserts the PDF stream renders ≥ 2 pages, is > 1KB, and contains the £3,000 / £600 / £3,600 amounts verbatim.
+- `frontend/tests/vo-save-01-split-flow.test.mjs` — 8-case behavioural spec that exercises the split flow against stubbed axios / toast / storage / pdf collaborators. Asserts:
+  - Happy path → single `success("Variation saved")` toast + autosave cleared.
+  - Backend 400 `detail:"Project is required"` → error toast carries the real detail, NOT "Save failed".
+  - Backend 422 pydantic `detail:[{msg},{msg}]` → joined error toast, NOT "Save failed".
+  - Network error (no `response`) → error toast falls back to `error.message`, NOT "Save failed".
+  - PDF generation throws AFTER successful save → record marked saved (success toast with PDF caveat) + autosave STILL cleared.
+  - Documents/save soft-fail never surfaces to user.
+  - Missing project name AND projectId → validation-only, no API call.
+  - Existing `data.id` → PATCH not POST.
+  - **8/8 pass.**
+
+**Automated preview verification**: Playwright end-to-end run (previewqa account) — full wizard walk, Generate Preview succeeds, Save & Generate PDF completes with "Variation saved" toast, dashboard `submitted` count and `submittedValue` both increment, record persists via `GET /api/variation-orders/variation-orders`. Reproduction of the reported bug via Playwright was NOT observed — the split-flow fix therefore serves two purposes: (a) prevent the misleading toast if the same user hits an environment-specific failure again, (b) capture the exact underlying exception in the console + toast for the next report.
+
+**Aggregate Phase 1 automated coverage after this fix** — **84 assertions passing** (27 backend pytest · 13 legacy-VO bridge unit · 18 PDF smoke · 8 VO-STATE-01 unit · 7 VO-PDF-01 unit · 3 VO-SAVE-01 jsPDF unit · 8 VO-SAVE-01 split-flow unit · 1 skipped).
+
+**Final PASS/FAIL**: **VO-SAVE-01 — PASS (defensive fix, awaiting user re-verify)**. Preview only. Nothing deployed.
+
+---
+
+
 ### 12 Sep 2026 — VO-PDF-01: Programme / Time Impact + Cost Breakdown orphan-heading fix (Preview only, undeployed)
 
 **Trigger**: During manual P3 preview verification the user reported the "6. Programme / Time Impact" heading being orphaned at the bottom of page 3, with its content flowing to page 4. The P3 orphan-heading rule was violated for this specific section boundary.
