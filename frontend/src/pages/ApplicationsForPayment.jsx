@@ -154,6 +154,12 @@ export default function ApplicationsForPayment() {
   const [stats, setStats] = useState(null);
   const [templates, setTemplates] = useState([]);
   const [jobs, setJobs] = useState([]);
+  // AFP-PROJECT-LINK-01 safety-net (Sep 2026) — track the jobs-list load
+  // state separately so the wizard can surface a "Loading projects…" or
+  // "Couldn't load projects" hint under the selector instead of silently
+  // showing an empty dropdown.
+  const [jobsLoading, setJobsLoading] = useState(true);
+  const [jobsError, setJobsError] = useState(false);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
@@ -163,6 +169,8 @@ export default function ApplicationsForPayment() {
 
   const loadAll = async () => {
     setLoading(true);
+    setJobsLoading(true);
+    setJobsError(false);
     try {
       const [aRes, sRes, tRes, jRes] = await Promise.allSettled([
         api.get("/applications-for-payment/applications"),
@@ -173,8 +181,26 @@ export default function ApplicationsForPayment() {
       if (aRes.status === "fulfilled") setApps(aRes.value.data);
       if (sRes.status === "fulfilled") setStats(sRes.value.data);
       if (tRes.status === "fulfilled") setTemplates(tRes.value.data);
-      if (jRes.status === "fulfilled") setJobs(jRes.value.data);
-    } finally { setLoading(false); }
+      if (jRes.status === "fulfilled") {
+        setJobs(jRes.value.data);
+        setJobsError(false);
+      } else {
+        // AFP-PROJECT-LINK-01 safety-net — a failed /api/jobs fetch used to
+        // render as a silent empty selector. Surface the error so the user
+        // knows why no projects are showing. 401 is already handled globally
+        // by the axios interceptor (session-expiry redirect), so we only
+        // toast non-401 failures here.
+        setJobs([]);
+        const status = jRes.reason?.response?.status;
+        if (status !== 401) {
+          setJobsError(true);
+          try { toast.error("Couldn't load your projects — please try refreshing."); } catch { /* ignore */ }
+        }
+      }
+    } finally {
+      setLoading(false);
+      setJobsLoading(false);
+    }
   };
   useEffect(() => { loadAll(); }, []);
   useEffect(() => {
@@ -338,6 +364,7 @@ export default function ApplicationsForPayment() {
 
       {wizardOpen && editing && (
         <AfpWizard initial={editing} user={user} jobs={jobs}
+          jobsLoading={jobsLoading} jobsError={jobsError}
           onClose={() => { setWizardOpen(false); setEditing(null); }}
           onSaved={async () => { await loadAll(); setWizardOpen(false); setEditing(null); }}
           onTemplatesChanged={setTemplates}
@@ -389,7 +416,7 @@ function AfpRow({ a, onEdit, onDelete, onDuplicate, onFav, onMark }) {
 // ================================================================
 // WIZARD
 // ================================================================
-function AfpWizard({ initial, user, jobs, onClose, onSaved, onTemplatesChanged }) {
+function AfpWizard({ initial, user, jobs, jobsLoading, jobsError, onClose, onSaved, onTemplatesChanged }) {
   const [data, setData] = useState(initial);
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
@@ -562,6 +589,16 @@ function AfpWizard({ initial, user, jobs, onClose, onSaved, onTemplatesChanged }
                   <option value="">Not linked</option>
                   {jobs.map(j => <option key={j.id} value={j.id}>{j.projectName || j.clientName}</option>)}
                 </select>
+                {/* AFP-PROJECT-LINK-01 safety-net (Sep 2026) — make the
+                    empty / loading / error state explicit so an empty
+                    dropdown is never silent. Hidden once jobs load. */}
+                {jobsLoading ? (
+                  <p className="mt-2 text-xs text-[#A19D94]" data-testid="afp-link-project-loading">Loading projects…</p>
+                ) : jobsError ? (
+                  <p className="mt-2 text-xs text-[#F27C7C]" data-testid="afp-link-project-error">Couldn't load projects — enter details manually below, or refresh.</p>
+                ) : jobs.length === 0 ? (
+                  <p className="mt-2 text-xs text-[#A19D94]" data-testid="afp-link-project-empty">No projects yet — enter details manually below.</p>
+                ) : null}
               </Field>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Field label="Project name"><input className={inputClass} value={data.projectName} onChange={(e) => set("projectName")(e.target.value)} data-testid="afp-projectName" /></Field>

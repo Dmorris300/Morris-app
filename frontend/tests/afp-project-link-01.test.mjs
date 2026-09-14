@@ -124,5 +124,101 @@ t("Manual Project Name / Site Address inputs still render alongside the selector
   );
 });
 
+// ---- Safety-net (loading / empty / error hints) ------------------------
+// After the first "selector missing" report we still had a silent-empty
+// failure mode: users on accounts with zero jobs (e.g. `previewqa`) saw
+// only "Not linked" and had no idea whether the dropdown was still
+// loading, genuinely empty, or errored. These assertions lock the
+// user-visible hints and the toast on non-401 fetch failures.
+
+t("Wizard accepts jobsLoading + jobsError props from parent", () => {
+  assert.match(
+    src,
+    /function AfpWizard\(\{[^}]*jobsLoading[^}]*jobsError[^}]*\}\)/,
+    "AfpWizard signature must accept jobsLoading and jobsError props",
+  );
+});
+
+t("Parent tracks jobsLoading state and resets it around loadAll", () => {
+  assert.match(src, /const \[jobsLoading, setJobsLoading\] = useState\(true\)/, "jobsLoading state missing");
+  assert.match(src, /const \[jobsError, setJobsError\] = useState\(false\)/, "jobsError state missing");
+  assert.match(src, /setJobsLoading\(true\)/, "setJobsLoading(true) at start of loadAll missing");
+  assert.match(src, /setJobsLoading\(false\)/, "setJobsLoading(false) after loadAll missing");
+});
+
+t("Parent toasts on non-401 /api/jobs failure (401 is handled globally)", () => {
+  // Look for the guarded toast in the rejected-branch of the jobs load.
+  assert.match(
+    src,
+    /if \(status !== 401\)[\s\S]{0,200}toast\.error\(/,
+    "toast.error on non-401 /api/jobs failure missing",
+  );
+  assert.match(
+    src,
+    /setJobsError\(true\)/,
+    "setJobsError(true) on non-401 /api/jobs failure missing",
+  );
+});
+
+t("Parent passes jobsLoading + jobsError props to the AfpWizard render", () => {
+  // The wizard is rendered inside `{wizardOpen && editing && (...)}` so a
+  // scoped slice keeps assertions tight.
+  const propsIdx = src.indexOf("<AfpWizard");
+  assert.ok(propsIdx > -1, "<AfpWizard mount not found");
+  const propsBlock = src.slice(propsIdx, propsIdx + 400);
+  assert.match(propsBlock, /jobsLoading=\{jobsLoading\}/, "jobsLoading prop not passed to AfpWizard");
+  assert.match(propsBlock, /jobsError=\{jobsError\}/, "jobsError prop not passed to AfpWizard");
+});
+
+t("Step 1 renders a Loading hint while jobsLoading is true", () => {
+  assert.ok(
+    step1Block.includes('data-testid="afp-link-project-loading"'),
+    "afp-link-project-loading hint missing",
+  );
+  assert.match(
+    step1Block,
+    /jobsLoading\s*\?\s*\(\s*<p[^>]*data-testid="afp-link-project-loading"/,
+    "Loading hint must be gated on `jobsLoading`",
+  );
+});
+
+t("Step 1 renders an Error hint when jobsError is true", () => {
+  assert.ok(
+    step1Block.includes('data-testid="afp-link-project-error"'),
+    "afp-link-project-error hint missing",
+  );
+  assert.match(
+    step1Block,
+    /jobsError\s*\?\s*\(\s*<p[^>]*data-testid="afp-link-project-error"/,
+    "Error hint must be gated on `jobsError`",
+  );
+});
+
+t("Step 1 renders an Empty hint when jobs load OK but the list is empty", () => {
+  assert.ok(
+    step1Block.includes('data-testid="afp-link-project-empty"'),
+    "afp-link-project-empty hint missing",
+  );
+  // Empty hint must ONLY show when both jobsLoading is false AND jobsError
+  // is false AND jobs.length === 0 — otherwise it competes with the
+  // loading/error copy above.
+  assert.match(
+    step1Block,
+    /jobs\.length\s*===\s*0\s*\?\s*\(\s*<p[^>]*data-testid="afp-link-project-empty"/,
+    "Empty hint must be gated on jobs.length === 0",
+  );
+});
+
+t("None of the hints appear when jobs are populated", () => {
+  // The three hints must all live inside a single ternary chain that
+  // resolves to `null` when jobs.length > 0. Regression-guards against
+  // someone accidentally splitting the hints into always-rendered <p>s.
+  assert.match(
+    step1Block,
+    /:\s*null\s*\}/,
+    "Ternary chain must fall through to `null` so hints hide when jobs load OK",
+  );
+});
+
 console.log(`\n${passed} passed · ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);

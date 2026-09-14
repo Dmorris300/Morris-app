@@ -127,6 +127,42 @@ remain as audit-trail references only — they are NOT product marketing copy.
 
 **Final PASS/FAIL**: **AFP-PROJECT-LINK-01 — PASS**. Preview only. Nothing deployed.
 
+### 13 Sep 2026 — AFP-PROJECT-LINK-01 addendum: empty / loading / error safety-net (Preview only, undeployed)
+
+**Follow-up report**: After the guard removal, the "Link to Project" selector was visible but empty. User was logged in as `previewqa` — an account with genuinely zero jobs — so the dropdown legitimately only showed "Not linked". The state was correct but silent, which mimicked the original bug.
+
+**Fix (minimal, per user's chosen scope — "both hint + toast")**:
+- `frontend/src/pages/ApplicationsForPayment.jsx`:
+  - New parent state `jobsLoading` (true while `/api/jobs` is in flight) and `jobsError` (true when the fetch rejects with a non-401).
+  - `loadAll` toggles `jobsLoading` around the promise, sets `jobsError` on non-401 failure, and fires a single `toast.error("Couldn't load your projects — please try refreshing.")` toast. 401 continues to be handled globally by the axios interceptor (session-expiry redirect), so no duplicate toast on expired sessions.
+  - `AfpWizard` accepts new `jobsLoading` + `jobsError` props and renders a small hint under the selector in Step 1:
+    - `jobsLoading` → `Loading projects…` (`data-testid="afp-link-project-loading"`)
+    - else `jobsError` → `Couldn't load projects — enter details manually below, or refresh.` (`data-testid="afp-link-project-error"`, red)
+    - else `jobs.length === 0` → `No projects yet — enter details manually below.` (`data-testid="afp-link-project-empty"`)
+    - else → `null` (hidden when jobs populate)
+  - AFP logic otherwise untouched — `pickProject`, `buildAfpClientFromJob`, unlinked flow all unchanged.
+
+**Regression coverage extended** (`frontend/tests/afp-project-link-01.test.mjs`, **14/14 pass**):
+- Wizard signature accepts `jobsLoading` + `jobsError` props.
+- Parent tracks `jobsLoading` state and resets it around `loadAll`.
+- Parent toasts and sets `jobsError` on non-401 `/api/jobs` failure (401 handled globally).
+- Parent passes `jobsLoading` + `jobsError` props to the `<AfpWizard>` mount.
+- Step 1 renders Loading hint gated on `jobsLoading`, Error hint gated on `jobsError`, Empty hint gated on `jobs.length === 0`.
+- Ternary chain falls through to `null`, so no hint appears when jobs populate.
+
+**Live Preview verification (13 Sep 2026)**:
+- `previewqa` (0 jobs) → dropdown shows only "Not linked" and the grey "No projects yet — enter details manually below." hint below it.
+- `darrenhustle300` (14 jobs) → dropdown shows 15 options including "Riverside Apartments External Works", no hints, no toast.
+- Error/toast branch locked at code level and covered by mjs regression.
+
+**Aggregate coverage after this pass**: 123 mjs across 11 suites (afp-project-link-01 now 14/14) + 57 AFP-scope pytest = **180/180 passing** for AFP + related tools. Full mjs suite still green.
+
+**What changed (for manual regression)**:
+1. `frontend/src/pages/ApplicationsForPayment.jsx` — new `jobsLoading` / `jobsError` state + toast + three hint elements under the Step 1 selector.
+2. `frontend/tests/afp-project-link-01.test.mjs` — extended from 6 to 14 assertions.
+
+**Final PASS/FAIL**: **AFP-PROJECT-LINK-01 (guard + safety-net) — PASS**. Preview only. Nothing deployed.
+
 
 ---
 
