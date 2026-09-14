@@ -228,22 +228,16 @@ export default function ApplicationsForPayment() {
     // The authoritative draft store is `db.drafts` and per-AFP records —
     // this local cache is retired.
     try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
-    if (filterProject && !base.projectId) {
-      const j = jobs.find(x => x.id === filterProject);
-      if (j) {
-        base.projectId = j.id;
-        base.projectName = j.projectName || j.clientName || "";
-        base.projectAddress = j.address || "";
-        // AFP-CLIENT-MAP-01 (Sep 2026) — every AFP client field is a
-        // strictly-disjoint slice of the Job. `buildAfpClientFromJob`
-        // parses the legacy combined `clientContact` string into a clean
-        // name + phone and NEVER concatenates values into a foreign
-        // field. Email / phone remain blank if the Job doesn't carry
-        // them — no auto-guess overwrite.
-        Object.assign(base, buildAfpClientFromJob(j, base));
-        base.contractRef = j.poNumber || "";
-      }
-    }
+    // AFP-NEW-STATE-LEAK-01 (Sep 2026) — a brand-new AFP must ALWAYS open
+    // blank. The previous behaviour auto-pre-filled projectId/projectName/
+    // address/client fields from the list-view filter dropdown, which
+    // meant that any user who had the AFP list filtered to a project
+    // would silently inherit that project (and its previously-certified
+    // running total via the project-summary useEffect) into every new
+    // AFP they created. The list filter is a VIEW concern only — it must
+    // never leak into wizard state. Deep-linked "Create AFP for this
+    // project" flows are covered by openEdit + `?open=<afpId>` and by
+    // templates; both remain unchanged.
     setEditing(base); setWizardOpen(true);
   };
   const openEdit = (a) => { setEditing({ ...emptyAfp(), ...a }); setWizardOpen(true); };

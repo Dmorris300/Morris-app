@@ -163,6 +163,43 @@ remain as audit-trail references only — they are NOT product marketing copy.
 
 **Final PASS/FAIL**: **AFP-PROJECT-LINK-01 (guard + safety-net) — PASS**. Preview only. Nothing deployed.
 
+### 13 Sep 2026 — AFP-NEW-STATE-LEAK-01: brand-new AFP must open blank (Preview only, undeployed)
+
+**User report**: On `darrenhustle300`, with the AFP dashboard list filtered to Riverside, clicking + New Application opened the wizard already populated as:
+- Linked Project = Riverside Apartments External Works
+- Project Name = Riverside Apartments External Works
+- Site Address = 18 Riverside Way, Manchester, M3 4FP
+- Header = £65,020.00 due
+
+A brand-new AFP must instead open blank: Not linked / blank / blank / £0.00 due.
+
+**Root cause**: `openNew` in `ApplicationsForPayment.jsx` was reading the list-view `filterProject` state and auto-pre-filling `projectId`, `projectName`, `projectAddress`, `clientName/Company/Email/Phone`, and `contractRef` from the matching Job. Because `data.projectId` was now set, the wizard's project-summary `useEffect` immediately fetched `/applications-for-payment/project/{id}/summary` and hydrated `previouslyCertified` (£65,020) plus other running totals — the £65,020 header on a "new" AFP. The list-view filter (a viewing concern) was silently leaking into wizard creation state.
+
+**Fix (surgical)**:
+- `frontend/src/pages/ApplicationsForPayment.jsx` — `openNew` no longer reads `filterProject`, `jobs.find`, or `buildAfpClientFromJob`. A brand-new AFP now goes straight from `emptyAfp()` → `setEditing(base)` → `setWizardOpen(true)`. The list filter continues to work for the list view only.
+- `openEdit` (Resume), `duplicate`, `pickProject`, `openParamId`-based deep-link and template flows are all untouched. AFP-CLIENT-MAP-01 mapping still fires whenever the user manually picks a project inside the wizard.
+- No changes to `emptyAfp()` — it already defaults every previously-reported leak-prone field to blank (photoIds, supportingDocs, preparedSignature, certifierSignature, certifierName, certifierRole, certifiedDate, certifiedAmount, paidAmount, paidDate, status="Draft", approvedVariationsValue, previouslyCertified, previousRetentionHeld, contractSum, applicationNumber). These defaults are now locked by regression assertions.
+
+**Regression coverage added** (`frontend/tests/afp-new-state-leak-01.test.mjs`, **17/17 pass**):
+- `openNew` does NOT reference `filterProject`, does NOT call `jobs.find(...)`, does NOT call `buildAfpClientFromJob(...)`.
+- `openNew` still starts from `emptyAfp()`, still removes the legacy `DRAFT_KEY` localStorage cache, still mounts the wizard with the fresh base.
+- `emptyAfp()` default-locks: projectId / projectName / projectAddress / clientName / clientCompany / clientEmail / clientPhone / preparedSignature / certifierSignature / certifierName / certifierRole / certifiedDate / paidDate all `""`; photoIds / supportingDocs `[]`; certifiedAmount / paidAmount / approvedVariationsValue / previouslyCertified / previousRetentionHeld / contractSum / applicationNumber all `0`; status `"Draft"`.
+- `openEdit` still spreads existing record over emptyAfp defaults (Resume V2 unaffected).
+- `duplicate` still wipes signatures / photos / paid / certified / status per P1.2.
+
+**Live Preview verification (`darrenhustle300`, list filtered to Riverside)**:
+- + New Application → Linked Project = `""`, Project Name = `""`, Site Address = `""`, header `Untitled · £0.00 due` ✔
+- Step 2 → clientName / clientCompany / clientEmail / clientPhone / contractRef all `""` ✔
+- Manually picking Riverside inside the wizard still hydrates Step 1 with `"Riverside Apartments External Works"` and Step 2 with `clientCompany = "Harrington Developments Ltd"` (AFP-CLIENT-MAP-01 unaffected) ✔
+
+**Aggregate coverage after this pass**: 140 mjs across 12 suites (new `afp-new-state-leak-01` 17/17) + 57 AFP-scope pytest = **197/197 passing** for AFP + related tools.
+
+**What changed (for manual regression)**:
+1. `frontend/src/pages/ApplicationsForPayment.jsx` — `openNew()` no longer pre-fills from `filterProject`. Comment block above `setEditing(base)` documents the invariant.
+2. `frontend/tests/afp-new-state-leak-01.test.mjs` — NEW regression suite (17 source-level assertions locking the fix + every leak-prone empty default).
+
+**Final PASS/FAIL**: **AFP-NEW-STATE-LEAK-01 — PASS**. Preview only. Nothing deployed.
+
 
 ---
 
