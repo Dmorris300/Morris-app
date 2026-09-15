@@ -56,13 +56,32 @@ const VAT_RATES = ["20%", "5%", "0%"];
 function makeRow() {
   return {
     id: crypto.randomUUID(),
+    // AFP-PWQ-SCHEDULE-01 (Sep 2026) — extended schedule row. New fields
+    // `location` and `drawingRef` are optional and default to "" so old
+    // saved drafts / re-opened quotes without these fields still render
+    // cleanly. `itemNo` is derived from array index (see `decorated`
+    // memo) and `amount` is derived from qty × rate — neither is stored.
+    location: "",
     description: "",
+    drawingRef: "",
     unit: "Square metre",
     quantity: "",
     rate: "",
     notes: "",
   };
 }
+
+// AFP-PWQ-SCHEDULE-01 (Sep 2026) — mirrors the VO-PRICE-INPUT-01
+// helpers on VariationOrders.jsx so numeric fields don't stack "0"s
+// (e.g. typing 1400 into a "0"-initialised Rate field produces 01400).
+// Preserves "0", "0.5", "-0.25"; strips "01400" → "1400". Also exposes
+// a select-all-on-focus handler so tapping into the field just retypes.
+function _stripLeadingZeros(v) {
+  const s = String(v ?? "");
+  if (s === "" || s === "-") return s;
+  return s.replace(/^(-?)0+(?=\d)/, "$1");
+}
+function _numFocus(e) { try { e.target.select(); } catch { /* older browsers */ } }
 
 export default function PriceWorkQuote() {
   const { user, refresh } = useAuth();
@@ -242,13 +261,19 @@ export default function PriceWorkQuote() {
     setGenerating(true); setResult(""); setRefNumber(""); setGenError("");
 
     const itemsBlock = populated.map((r) => {
+      // AFP-PWQ-SCHEDULE-01 (Sep 2026) — every extended column is fed
+      // pipe-delimited to the LLM prompt so the PDF renders every field
+      // that appears on-screen. Optional fields (Location, Drawing/Ref,
+      // Notes) collapse to `—` so an unpopulated row still reads cleanly.
       return [
         `Item ${r.lineNumber}.`,
+        `Location: ${(r.location || "").trim() || "—"}`,
         `Description: ${r.description}`,
+        `Drawing / Ref: ${(r.drawingRef || "").trim() || "—"}`,
         `Unit: ${r.unit}`,
         `Quantity: ${r.quantity || "0"}`,
         `Rate: ${money(N(r.rate))} per ${r.unit.toLowerCase()}`,
-        `Line Total: ${money(r.lineTotal)}`,
+        `Amount: ${money(r.lineTotal)}`,
         `Notes: ${r.notes || "—"}`,
       ].join(" | ");
     }).join("\n");
@@ -401,7 +426,7 @@ Rules:
   };
 
   return (
-    <div className="p-6 md:p-10 max-w-7xl mx-auto" data-testid="page-price-work-quote">
+    <div className="p-6 md:p-10 max-w-[1280px] mx-auto" data-testid="page-price-work-quote">
       <Link to="/app" className="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-[#A19D94] hover:text-[#E8A020] mb-4">
         <ChevronLeft size={14}/> Back to dashboard
       </Link>
@@ -489,8 +514,29 @@ Rules:
                 </button>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <div className="sm:col-span-2 lg:col-span-3">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-12">
+                {/* Location — optional, e.g. "Level 2 / Zone B" */}
+                <div className="lg:col-span-3">
+                  <Inp
+                    label="Location (optional)"
+                    value={r.location ?? ""}
+                    onChange={(v) => updateRow(r.id, "location", v)}
+                    placeholder={`e.g. "Level 2 / Zone B"`}
+                    testId={`pwq-row-${idx}-location`}
+                  />
+                </div>
+                {/* Drawing / Specification Reference — optional */}
+                <div className="lg:col-span-3">
+                  <Inp
+                    label="Drawing / Ref (optional)"
+                    value={r.drawingRef ?? ""}
+                    onChange={(v) => updateRow(r.id, "drawingRef", v)}
+                    placeholder={`e.g. "M-204 Rev C"`}
+                    testId={`pwq-row-${idx}-drawing-ref`}
+                  />
+                </div>
+                {/* Description of Work — required content */}
+                <div className="sm:col-span-2 lg:col-span-6">
                   <Inp
                     label="Description of Work"
                     value={r.description}
@@ -499,28 +545,52 @@ Rules:
                     testId={`pwq-row-${idx}-description`}
                   />
                 </div>
-                <Drop
-                  label="Unit"
-                  value={r.unit}
-                  onChange={(v) => updateRow(r.id, "unit", v)}
-                  options={UNIT_OPTIONS}
-                  testId={`pwq-row-${idx}-unit`}
-                />
-                <Inp
-                  label="Quantity"
-                  type="number"
-                  value={r.quantity}
-                  onChange={(v) => updateRow(r.id, "quantity", v)}
-                  testId={`pwq-row-${idx}-quantity`}
-                />
-                <Inp
-                  label="Rate (£)"
-                  type="number"
-                  value={r.rate}
-                  onChange={(v) => updateRow(r.id, "rate", v)}
-                  testId={`pwq-row-${idx}-rate`}
-                />
-                <div className="sm:col-span-2 lg:col-span-3">
+                {/* Unit / Quantity / Rate / Amount — one wide row on desktop */}
+                <div className="lg:col-span-3">
+                  <Drop
+                    label="Unit"
+                    value={r.unit}
+                    onChange={(v) => updateRow(r.id, "unit", v)}
+                    options={UNIT_OPTIONS}
+                    testId={`pwq-row-${idx}-unit`}
+                  />
+                </div>
+                <div className="lg:col-span-3">
+                  <Inp
+                    label="Quantity"
+                    type="number"
+                    value={r.quantity}
+                    onChange={(v) => updateRow(r.id, "quantity", _stripLeadingZeros(v))}
+                    onFocus={_numFocus}
+                    testId={`pwq-row-${idx}-quantity`}
+                  />
+                </div>
+                <div className="lg:col-span-3">
+                  <Inp
+                    label="Rate (£)"
+                    type="number"
+                    value={r.rate}
+                    onChange={(v) => updateRow(r.id, "rate", _stripLeadingZeros(v))}
+                    onFocus={_numFocus}
+                    testId={`pwq-row-${idx}-rate`}
+                  />
+                </div>
+                {/* Amount — read-only, auto-calculated Qty × Rate */}
+                <div className="lg:col-span-3">
+                  <label className="block">
+                    <div className="text-xs uppercase tracking-widest text-[#A19D94] mb-1">Amount (£)</div>
+                    <div
+                      className="input-base flex items-center justify-end tabular-nums text-[#E8A020] font-mono"
+                      data-testid={`pwq-row-${idx}-amount`}
+                      aria-readonly="true"
+                    >
+                      {money(r.lineTotal)}
+                    </div>
+                    <div className="text-[10px] text-[#706D66] mt-1">Auto-calculated: Quantity × Rate</div>
+                  </label>
+                </div>
+                {/* Notes — kept from previous version, no functionality removed */}
+                <div className="sm:col-span-2 lg:col-span-12">
                   <Inp
                     label="Notes"
                     value={r.notes}
@@ -684,11 +754,11 @@ function Section({ title, children, testId, icon }) {
 function Grid({ children }) {
   return <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">{children}</div>;
 }
-function Inp({ label, value, onChange, type = "text", testId, helper, placeholder }) {
+function Inp({ label, value, onChange, type = "text", testId, helper, placeholder, onFocus }) {
   return (
     <label className="block">
       <div className="text-xs uppercase tracking-widest text-[#A19D94] mb-1">{label}</div>
-      <input type={type} value={value || ""} onChange={(e) => onChange(e.target.value)} className="input-base" placeholder={placeholder} data-testid={testId} />
+      <input type={type} value={value || ""} onChange={(e) => onChange(e.target.value)} onFocus={onFocus} className="input-base" placeholder={placeholder} data-testid={testId} />
       {helper && <div className="text-[10px] text-[#706D66] mt-1">{helper}</div>}
     </label>
   );

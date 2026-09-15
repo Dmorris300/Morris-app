@@ -200,6 +200,47 @@ A brand-new AFP must instead open blank: Not linked / blank / blank / £0.00 due
 
 **Final PASS/FAIL**: **AFP-NEW-STATE-LEAK-01 — PASS**. Preview only. Nothing deployed.
 
+### 13 Sep 2026 — PWQ-SCHEDULE-01: Price Work Quote extended schedule columns (Preview only, undeployed)
+
+**User ask**: Upgrade the priced-schedule row on `PriceWorkQuote.jsx` from `Description | Unit | Quantity | Rate` to `Item No | Location | Description | Drawing/Ref | Unit | Quantity | Rate | Amount`. Amount = Quantity × Rate live. Existing quotes must remain compatible. Add/Remove must still work. £ 2dp. No leading zeros. Morris black/gold theme preserved. Wider desktop, responsive mobile. Save Draft + reopen must persist every field. Generated PDF must include the new columns. No unrelated tools touched.
+
+**Fix (single-file, targeted)** — `frontend/src/pages/PriceWorkQuote.jsx`:
+- `makeRow()` — added `location: ""` and `drawingRef: ""` defaults. Existing fields (description, unit, quantity, rate, notes, id) unchanged. Old drafts without the new fields fall through via `r.location ?? ""` and `r.drawingRef ?? ""` — full backwards compatibility.
+- Schedule card — replaced the old 3-column grid with a `sm:grid-cols-2 lg:grid-cols-12` wide grid (Location 3/12 · Drawing/Ref 3/12 · Description 6/12 · Unit 3/12 · Quantity 3/12 · Rate 3/12 · Amount 3/12 · Notes 12/12). Amount is a read-only gold-highlighted cell (`aria-readonly="true"`, `data-testid="pwq-row-{idx}-amount"`) driven by `r.lineTotal` → `money()` (en-GB £ · 2 decimals). "Line Total" summary chip below the grid retained.
+- Container width widened `max-w-7xl` → `max-w-[1280px]` for more schedule breathing room. Mobile stack stays two-per-row via `sm:grid-cols-2`. Verified zero horizontal overflow at 390px.
+- Numeric fields — added `_stripLeadingZeros` and `_numFocus` helpers mirroring VO-PRICE-INPUT-01. Wired on Quantity and Rate so `0350` renders as `350` and tapping the field selects the current value.
+- LLM promptTemplate feed — `itemsBlock` now emits every new column pipe-delimited: `Item {n}. | Location: … | Description: … | Drawing / Ref: … | Unit: … | Quantity: … | Rate: … per unit | Amount: … | Notes: …`. Optional columns fall back to `—`. Existing "preserve the pipe-delimited structure exactly as supplied" prompt rule guarantees the PDF renders every field.
+- Save Draft + Reopen — no changes needed. `getDraftData()` already ships the full `rows` array; both draft-restore paths (fetchDraft + session-recovery) already restore via `if (Array.isArray(p.rows)) setRows(p.rows)`. New fields flow through automatically because they live inside each row object.
+- `Inp` helper — accepts new `onFocus` prop (no behaviour change for other consumers).
+- No unrelated files touched. `TOOL_ID` unchanged. Existing quotes open unchanged.
+
+**Regression coverage added** (`frontend/tests/pwq-schedule-01.test.mjs`, **30/30 pass**):
+- `makeRow()` — location + drawingRef default blank; existing fields retained; id remains a crypto UUID.
+- `_stripLeadingZeros` regex + `_numFocus` select-on-focus wired.
+- Schedule row renders Location / Drawing-Ref / Description / Unit / Quantity / Rate / Amount / Item No / Remove / Notes with correct data-testids.
+- Amount cell is read-only (`aria-readonly="true"`) and driven by `money(r.lineTotal)` — locks 2dp £ formatting.
+- Numeric inputs run every keystroke through `_stripLeadingZeros(v)` and select on focus.
+- Add Item + Remove Row + updateRow wiring intact.
+- `decorated` memo still computes `lineTotal = qty * rate` with `[rows]` dep-array (live recalc guarantee).
+- Save Draft: `rows` array shipped by `getDraftData`; both restore points still call `setRows(p.rows)`.
+- PDF pipeline: `itemsBlock` includes every new column (Location, Drawing/Ref, Amount) with `—` fallback for optional fields; Notes preserved; LLM prompt still instructs to render pipe-delimited schedule verbatim.
+- `TOOL_ID` unchanged, no unrelated tools touched.
+
+**Live Preview verification (`darrenhustle300`)**:
+- Filled Location = `Level 2 / Zone B`, Drawing/Ref = `M-204 Rev C`, Description = `100mm ductwork straight`, Qty = `125.5`, Rate = `42.30` → Amount recalculated live to `£5,308.65` ✔
+- Typed `0350` into Rate → rendered as `350` ✔
+- Add Item + Remove Row + Line Total roll-up + subtotal + VAT + Total all recalculated live ✔
+- Mobile 390px: fields stack cleanly, no horizontal overflow, every input visible ✔
+- Morris black/gold theme preserved (gold Amount value on dark card) ✔
+
+**Aggregate coverage after this pass**: 170 mjs across 13 suites (new `pwq-schedule-01` 30/30) + 57 AFP-scope pytest = **227/227 passing** for AFP + Price Work Quote + related tools.
+
+**What changed (for manual regression)**:
+1. `frontend/src/pages/PriceWorkQuote.jsx` — only file touched. `makeRow`, schedule card layout, numeric input helpers, `itemsBlock`, `Inp` (new optional `onFocus`), container max-width. No unrelated tools/components touched.
+2. `frontend/tests/pwq-schedule-01.test.mjs` — NEW 30-assertion regression suite locking every invariant.
+
+**Final PASS/FAIL**: **PWQ-SCHEDULE-01 — PASS**. Preview only. Nothing deployed.
+
 
 ---
 
