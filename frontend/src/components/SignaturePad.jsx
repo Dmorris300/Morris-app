@@ -10,6 +10,15 @@ export default function SignaturePad({ value, onChange, height = 180, allowVault
   const canvasRef = useRef(null);
   const drawingRef = useRef(false);
   const lastRef = useRef({ x: 0, y: 0 });
+  // PWQ-SIGNATURE-01 (Sep 2026) — cancel-token for async image loaders.
+  // The mount effect and applySaved both attach `img.onload` handlers
+  // that draw the value onto the canvas asynchronously. If the user
+  // clicks Clear before those handlers resolve (or after them, when
+  // React batches value=""), the image would repaint onto the canvas
+  // *after* clear() ran, leaving visible strokes even though state was
+  // cleared. This ref is flipped to true on clear() and checked inside
+  // every img.onload — any stale handler bails silently.
+  const clearedRef = useRef(false);
   const [hasInk, setHasInk] = useState(!!value);
   const [vault, setVault] = useState([]);
   const [showVault, setShowVault] = useState(false);
