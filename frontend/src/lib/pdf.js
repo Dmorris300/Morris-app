@@ -200,11 +200,42 @@ export function generatePdf({ title, content, user, photo, photoCaption, photos,
   const clientSigMarker = /\[SIGN HERE\]/i;
   let sigStampedY = null;
 
+  // PWQ-PDF-01 (Sep 2026) — keep sign-off / acceptance headings with
+  // their content. Without this guard the generic line-by-line renderer
+  // will happily print a heading ("QUOTED BY", "CONTRACTOR SIGN-OFF",
+  // etc.) as the last line on page N and let the block that belongs to
+  // it flow onto page N+1, leaving an orphaned heading at the bottom of
+  // the previous page. When we spot one of these headings and there
+  // isn't enough vertical space left for the heading + its full block,
+  // we page-break BEFORE the heading so it stays with its content.
+  const SIGNOFF_HEADING = /^(CONTRACTOR SIGN-OFF|CLIENT SIGN-OFF(?:\s*\(.*\))?|QUOTED BY|ACCEPTANCE OF [A-Z ]+|PAYMENT DETAILS)\s*$/;
+  // Reserved height for the heading plus 6 information lines + a
+  // signature line box (~7 × lineHeight ≈ 100pt, plus ~40pt for a
+  // signature stamp / underscore line). 140pt keeps every current
+  // sign-off block intact.
+  const SIGNOFF_MIN_BLOCK_H = 140;
+
   lines.forEach((line) => {
     if (y > bottom) {
       addFooter(doc, pageWidth, pageHeight, user, ref, today, userName);
       doc.addPage();
       // White background on every new page
+      doc.setFillColor(255, 255, 255);
+      doc.rect(0, 0, pageWidth, pageHeight, "F");
+      drawHeader(doc, pageWidth, margin, user, company, today, null);
+      y = 110;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10.5);
+      doc.setTextColor(20, 20, 20);
+    }
+
+    // PWQ-PDF-01 — heading orphan guard. Runs BEFORE the sig / body
+    // branches below so the page-break happens at the right point,
+    // pushing the heading (not just the first content line) to the
+    // next page.
+    if (SIGNOFF_HEADING.test(line.trim()) && y + SIGNOFF_MIN_BLOCK_H > bottom) {
+      addFooter(doc, pageWidth, pageHeight, user, ref, today, userName);
+      doc.addPage();
       doc.setFillColor(255, 255, 255);
       doc.rect(0, 0, pageWidth, pageHeight, "F");
       drawHeader(doc, pageWidth, margin, user, company, today, null);

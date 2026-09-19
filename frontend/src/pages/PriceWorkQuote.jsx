@@ -331,24 +331,10 @@ export default function PriceWorkQuote() {
    What is Excluded: {excluded}
    Additional Notes / Conditions: {additionalNotes}
 
-8. QUOTED BY — sign-off block:
-   Quoted by: {quotedByName}
-   Position: {quotedByRole}
-   Company: {companyName}
-   Date: {quoteDate}
-   Signature: (auto-insert user's saved signature if held; otherwise leave a signature line)
-
-9. ACCEPTANCE OF PRICE WORK QUOTE — print as a clearly separated section at the bottom of the document with the heading 'ACCEPTANCE OF PRICE WORK QUOTE' in capitals. Then print verbatim:
+8. ACCEPTANCE OF PRICE WORK QUOTE — print the heading 'ACCEPTANCE OF PRICE WORK QUOTE' in capitals on its own line, then print the following paragraph verbatim on the next line. Do NOT append any 'Accepted by / Position / Company / Date / Signature' lines under this heading — the mandatory sign-off block appended at the end of the document is the single authoritative place for those fields:
    I / We confirm acceptance of the above priced schedule of works at the total value stated. This quote is valid until {validUntil}. Works to proceed in accordance with the programme, payment terms and inclusions/exclusions set out above. Any additional works instructed after acceptance will be priced separately as a Variation.
 
-   Then print the following acceptance lines on separate lines, each followed by a blank signature line (an underscore line):
-   Accepted by (Name): __________________________
-   Position: __________________________
-   Company: __________________________
-   Date: __________________________
-   Signature: __________________________
-
-10. FOOTER — print verbatim on its own line:
+9. FOOTER — print verbatim on its own line:
     This quote is valid until {validUntil}. All prices exclude any variations instructed after the date of this document.
 
 Rules:

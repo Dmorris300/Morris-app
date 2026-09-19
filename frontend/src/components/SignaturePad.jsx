@@ -43,6 +43,10 @@ export default function SignaturePad({ value, onChange, height = 180, allowVault
     if (value) {
       const img = new Image();
       img.onload = () => {
+        // PWQ-SIGNATURE-01 — bail if the user clicked Clear while this
+        // async load was in-flight, otherwise we would repaint the
+        // signature onto a canvas the user has already visually wiped.
+        if (clearedRef.current) return;
         // Contain-fit: preserve the signature's original aspect ratio and
         // never upscale it. This stops trimmed tight-bbox signatures from
         // being stretched across the whole pad.
@@ -74,7 +78,15 @@ export default function SignaturePad({ value, onChange, height = 180, allowVault
     const t = e.touches?.[0] || e;
     return { x: t.clientX - rect.left, y: t.clientY - rect.top };
   };
-  const start = (e) => { e.preventDefault(); drawingRef.current = true; lastRef.current = pointerPos(e); };
+  const start = (e) => {
+    e.preventDefault();
+    // PWQ-SIGNATURE-01 — a fresh stroke means the user is drawing again,
+    // so re-arm any async image loaders (Use Saved / value-restore) that
+    // may fire after this.
+    clearedRef.current = false;
+    drawingRef.current = true;
+    lastRef.current = pointerPos(e);
+  };
   const move = (e) => {
     if (!drawingRef.current) return;
     e.preventDefault();
@@ -97,7 +109,20 @@ export default function SignaturePad({ value, onChange, height = 180, allowVault
   const clear = () => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
+    // PWQ-SIGNATURE-01 (Sep 2026) — arm the cancel-token so any async
+    // image loader currently in-flight (mount effect / applySaved) will
+    // bail before repainting. Then wipe the pixel buffer regardless of
+    // the active DPR transform by resetting the transform first: on
+    // retina displays the canvas is dpr×larger than its CSS size, and
+    // clearRect through the scaled context can occasionally leave a
+    // one-pixel residual band. setTransform(1,0,0,1,0,0) clears in raw
+    // physical pixels, then we restore the DPR scale so future strokes
+    // still hit the right coordinates.
+    clearedRef.current = true;
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
     setHasInk(false);
     onChange?.("");
   };
@@ -106,9 +131,14 @@ export default function SignaturePad({ value, onChange, height = 180, allowVault
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
     const w = canvas.clientWidth;
+    // PWQ-SIGNATURE-01 — applying a saved signature is an explicit user
+    // action that should re-arm the pad, so any pending clear bails.
+    clearedRef.current = false;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const img = new Image();
     img.onload = async () => {
+      // Bail if the user clicked Clear while this async load was pending.
+      if (clearedRef.current) return;
       // Contain-fit: preserve the saved signature's aspect ratio and never
       // upscale beyond its natural size. Prevents visible stretching in the
       // pad when the saved image is a trimmed tight-bbox PNG.
