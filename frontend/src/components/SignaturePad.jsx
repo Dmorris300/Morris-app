@@ -108,21 +108,52 @@ export default function SignaturePad({ value, onChange, height = 180, allowVault
   };
   const clear = () => {
     const canvas = canvasRef.current;
+    if (!canvas) return;
     const ctx = canvas.getContext("2d");
-    // PWQ-SIGNATURE-01 (Sep 2026) — arm the cancel-token so any async
-    // image loader currently in-flight (mount effect / applySaved) will
-    // bail before repainting. Then wipe the pixel buffer regardless of
-    // the active DPR transform by resetting the transform first: on
-    // retina displays the canvas is dpr×larger than its CSS size, and
-    // clearRect through the scaled context can occasionally leave a
-    // one-pixel residual band. setTransform(1,0,0,1,0,0) clears in raw
-    // physical pixels, then we restore the DPR scale so future strokes
-    // still hit the right coordinates.
+    // PWQ-SIGNATURE-01 (Sep 2026, hardened after partial-clear regression):
+    //
+    // Root cause of the residual-ink bug on Preview:
+    // A plain `ctx.clearRect(0, 0, canvas.width, canvas.height)` (even with
+    // `setTransform(1,0,0,1,0,0)` first) only zeros the current pixel data
+    // in the 2D canvas backing store. It leaves the canvas element, the
+    // GPU composited layer, the current context transform stack, and any
+    // in-flight async image loader all untouched. On some browsers /
+    // devices (Chromium's WebKit accelerated compositor in particular,
+    // when the canvas is inside a scrolling flex container), the
+    // compositor can hold a stale texture of the pre-clear frame for a
+    // paint tick, or a still-decoding `<img>` (from applySaved / the
+    // mount effect) can drawImage back onto the canvas after clearRect
+    // ran, or a lingering ctx.scale from StrictMode's double-invoke
+    // leaves the clearRect covering only 1/dpr² of the physical buffer.
+    // Any of these results in the reported "some strokes remain visible"
+    // behaviour after a single Clear click.
+    //
+    // The only genuinely atomic canvas clear is to reassign
+    // `canvas.width` (or `canvas.height`). Per the HTML spec, setting
+    // canvas.width / .height DEALLOCATES the underlying pixel buffer and
+    // allocates a fresh one, zero-initialised, AND resets EVERY 2D
+    // context state (transform, strokeStyle, lineWidth, lineCap,
+    // lineJoin, fillStyle, filter, clip region, etc.). It also
+    // invalidates any compositor texture bound to that canvas element,
+    // forcing the browser to re-paint from the fresh (blank) buffer.
+    //
+    // We then re-apply the same DPR + stroke setup as the mount effect
+    // so the next stroke lands at the correct coordinate with the
+    // correct thickness and colour.
     clearedRef.current = true;
-    ctx.save();
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.restore();
+    const dpr = window.devicePixelRatio || 1;
+    const cssW = canvas.clientWidth;
+    // Nuclear clear — reassigning triggers full pixel buffer reallocation.
+    // (Setting to the same value is NOT a no-op: the spec mandates a
+    // buffer reset regardless.)
+    canvas.width = cssW * dpr;
+    canvas.height = height * dpr;
+    // Re-apply mount-effect setup so subsequent strokes render correctly.
+    ctx.scale(dpr, dpr);
+    ctx.lineWidth = 3.2;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "#000000";
     setHasInk(false);
     onChange?.("");
   };
