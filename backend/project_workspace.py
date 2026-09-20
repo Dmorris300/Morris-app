@@ -292,6 +292,55 @@ def build_router(db, get_user):
             # rather than a wrong number. Never invent value.
             pass
 
+        # AFP-PAID-SYNC-01 (Sep 2026) — a Paid Application for Payment is
+        # itself an authoritative record of money received against this
+        # project and must contribute to `amountPaid` on the project
+        # Overview / Finance tab. Historically the AFP status endpoint
+        # did `$inc: {amountPaid}` on the `jobs` collection, but this
+        # aggregation ignores `jobs.amountPaid` entirely (it recomputes
+        # from source records to avoid drift), so that write was dead
+        # and the wizard's "Save & Generate PDF" (which routes through
+        # PATCH, not the status endpoint) bypassed it altogether.
+        #
+        # We now read from the AFP collection directly. Idempotency is
+        # a property of the schema: each AFP has exactly one `paidAmount`
+        # field, so re-saving / reopening / regenerating the PDF for the
+        # same Paid AFP cannot add its value twice. Editing paidAmount
+        # or paidDate propagates automatically because the sum
+        # re-reads the current value. Only AFPs with status == "Paid"
+        # contribute — Draft / Submitted / Certified / Rejected never
+        # move the total. If a Paid AFP is ever moved back to Certified
+        # (rare) it drops out of the sum automatically.
+        payment_tracker: List[Dict[str, Any]] = []
+        try:
+            async for afp in db.applications_for_payment.find({
+                "userId": uid,
+                "projectId": job_id,
+                "status": "Paid",
+                "isDeleted": {"$ne": True},
+            }):
+                paid_amount = float(afp.get("paidAmount") or 0)
+                if paid_amount <= 0:
+                    # A Paid AFP with no persisted paidAmount is a
+                    # data-entry bug on the AFP itself, not a source of
+                    # phantom income. Skip silently — the AFP register
+                    # will surface it as needing attention.
+                    continue
+                received += paid_amount
+                payment_tracker.append({
+                    "id": f"afp_{afp.get('id')}",  # stable, one-per-AFP
+                    "source": "afp",
+                    "afpId": afp.get("id"),
+                    "applicationRef": afp.get("applicationRef"),
+                    "applicationNumber": afp.get("applicationNumber"),
+                    "amount": round(paid_amount, 2),
+                    "paidDate": afp.get("paidDate"),
+                    "updatedAt": afp.get("updatedAt"),
+                })
+        except Exception:
+            # Never invent value if the AFP collection isn't queryable.
+            pass
+
         outstanding = round(outstanding_from_invoices, 2)
 
         # Recent activity (last 3 events)
@@ -312,6 +361,13 @@ def build_router(db, get_user):
             "applications": applications,
             "siteDiaries": diary_docs,
             "recentActivity": [_shape(r) for r in recent],
+            # AFP-PAID-SYNC-01 — per-payment breakdown for the Finance tab.
+            # Sorted most-recent first so the UI can show it directly.
+            "paymentTracker": sorted(
+                payment_tracker,
+                key=lambda p: (p.get("paidDate") or "", p.get("updatedAt") or ""),
+                reverse=True,
+            ),
         }
 
     # ---------- Search (project-scoped) ----------

@@ -374,6 +374,25 @@ def build_router(db, get_user):
             updates["totals"] = _compute_totals(merged)
             if "lineItems" in updates:
                 updates["lineItems"] = merged["lineItems"]
+        # AFP-PAID-SYNC-01 (Sep 2026) — the wizard's "Save & Generate PDF"
+        # routes through PATCH (not POST /status). When the user saves an
+        # AFP with status = "Paid" but has left paidAmount / paidDate
+        # empty, mirror the POST /status defaults so the persisted row
+        # carries a real paidAmount. Without this, the project overview
+        # rollup (which sums Paid AFPs' paidAmount) would still see £0
+        # for the project even though the AFP is now Paid.
+        merged_after_updates = {**existing, **updates}
+        if merged_after_updates.get("status") == "Paid":
+            if not merged_after_updates.get("paidDate"):
+                updates["paidDate"] = datetime.now(timezone.utc).date().isoformat()
+            if not float(merged_after_updates.get("paidAmount") or 0):
+                fallback = float(
+                    merged_after_updates.get("certifiedAmount")
+                    or ((merged_after_updates.get("totals") or {}).get("totalDue"))
+                    or 0
+                )
+                if fallback:
+                    updates["paidAmount"] = fallback
         updates["updatedAt"] = _now_iso()
         await db.applications_for_payment.update_one({"id": aid}, {"$set": updates})
         fresh = await db.applications_for_payment.find_one({"id": aid})
@@ -415,15 +434,18 @@ def build_router(db, get_user):
             if body.rejectionReason is not None:
                 upd["rejectionReason"] = body.rejectionReason
         await db.applications_for_payment.update_one({"id": aid}, {"$set": upd})
-        # Auto-record the payment against the linked job
-        if body.status == "Paid" and row.get("projectId"):
-            try:
-                await db.jobs.update_one(
-                    {"id": row["projectId"], "userId": user["id"]},
-                    {"$inc": {"amountPaid": float(upd.get("paidAmount") or 0)}, "$set": {"updatedAt": _now_iso()}},
-                )
-            except Exception:
-                pass
+        # AFP-PAID-SYNC-01 (Sep 2026) — the previous auto-record path was
+        # a `$inc: {amountPaid: X}` on the `jobs` collection. This was a
+        # DEAD WRITE: the project overview aggregation in
+        # project_workspace.py rebuilds `amountPaid` from source records
+        # (invoices + Paid AFPs) on every request and never reads
+        # `jobs.amountPaid`. Worse, the write was NOT idempotent —
+        # cycling a row through Certified → Paid → Certified → Paid
+        # would `$inc` the same value multiple times, potentially
+        # double-counting if the field is ever wired up in the future.
+        # The overview now reads paidAmount directly off the AFP
+        # document (this AFP's `paidAmount` was just persisted above),
+        # which is idempotent by construction.
         fresh = await db.applications_for_payment.find_one({"id": aid})
         return _shape(fresh)
 
