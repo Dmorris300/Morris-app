@@ -688,28 +688,34 @@ async def forgot_password(req: ForgotPasswordReq):
 
     # Phone path — issue a 6-digit code
     phone = req.phone.strip()
-    # AFP-FORGOT-PHONE-01 (Sep 2026) — the previous lookup was
-    # `db.users.find_one({"phone": phone})`, an exact-string match.
-    # Users type their number many ways (`07892 866 513`,
-    # `+44 7892 866513`, `+447892866513`, `(07892) 866513`) but users
-    # collection stores whatever was persisted at signup (typically
-    # digits-only `07892866513`). Any mismatch silently fell through
-    # to the security-generic "if that phone is registered..." branch,
-    # producing the reported "nothing happens" symptom for real
-    # registered users. We now strip non-digits and build a small set
-    # of UK-plausible variants — 0-prefix, 44-prefix, +44-prefix,
-    # and the raw digits — and $in-match any of them. This does not
-    # change the security posture: unregistered numbers still get the
-    # same generic response.
+    # AFP-FORGOT-PHONE-01 (Sep 2026, hardened after end-to-end regression):
+    #
+    # The previous lookup was an exact-string match, which failed for any
+    # user whose stored phone format differed from what they typed. The
+    # first pass of this fix generated a small set of UK-plausible input
+    # variants for a $in lookup, which covered the "user types formatted,
+    # DB stores digits-only" case — but missed the mirror case where the
+    # DB stores `+447892866513` and the user types `07892 866 513`, or any
+    # other stored format outside UK canonical (spaces, parens, mixed
+    # separators, unusual country code).
+    #
+    # We now normalise on BOTH sides. First we try the fast $in path with
+    # generated variants (O(1) index hit for common cases). If that
+    # misses, we fall back to a full scan of users-with-a-phone, comparing
+    # digits-only forms — and if the tails don't match exactly, we also
+    # compare the last-10-digit tail so `+44` <-> `0` prefix flips match
+    # naturally regardless of how either side was stored. This is O(N) in
+    # the number of users with a phone, but the reset endpoint is
+    # low-traffic and the loop reads a projected `{id, phone}` doc.
+    def _digits(s: str) -> str:
+        return "".join(ch for ch in (s or "") if ch.isdigit())
+
     def _phone_variants(raw: str) -> list:
-        # Keep the exact input too so weird one-off stored formats
-        # still work.
         variants = {raw, raw.strip()}
-        digits = "".join(ch for ch in raw if ch.isdigit())
+        digits = _digits(raw)
         if not digits:
-            return list({v for v in variants if v})
+            return [v for v in variants if v]
         variants.add(digits)
-        # UK canonicalisation: 44XXXXXXXXXX <-> 0XXXXXXXXXX
         national = digits
         if digits.startswith("44") and len(digits) >= 12:
             national = "0" + digits[2:]
@@ -720,9 +726,30 @@ async def forgot_password(req: ForgotPasswordReq):
             intl = "44" + national[1:]
             variants.add(intl)
             variants.add("+" + intl)
-        return list({v for v in variants if v})
+        return [v for v in variants if v]
 
-    user = await db.users.find_one({"phone": {"$in": _phone_variants(phone)}}, {"_id": 0})
+    input_digits = _digits(phone)
+    user = None
+    if input_digits:
+        user = await db.users.find_one({"phone": {"$in": _phone_variants(phone)}}, {"_id": 0})
+        if not user:
+            # Fallback — normalise every stored phone and compare digits.
+            cursor = db.users.find(
+                {"phone": {"$exists": True, "$ne": ""}},
+                {"_id": 0, "id": 1, "phone": 1},
+            )
+            async for u in cursor:
+                stored_digits = _digits(u.get("phone"))
+                if not stored_digits:
+                    continue
+                if stored_digits == input_digits or (
+                    len(input_digits) >= 10
+                    and len(stored_digits) >= 10
+                    and input_digits[-10:] == stored_digits[-10:]
+                ):
+                    user = await db.users.find_one({"id": u["id"]}, {"_id": 0})
+                    break
+
     if not user:
         return {"ok": True, "message": "If that phone number is registered, a reset code has been sent."}
     code = f"{secrets.randbelow(900000) + 100000}"
@@ -757,11 +784,38 @@ async def reset_password(req: ResetPasswordReq):
             raise HTTPException(400, "Invalid reset token")
     # Phone-code path
     elif req.phone and req.code:
+        # AFP-FORGOT-PHONE-01 (Sep 2026) — mirror the forgot-password
+        # normalisation so a user who typed their phone one way on the
+        # forgot page and now sees a slightly different form on the
+        # reset page (or auto-fill / copy-paste normalisation between
+        # the two) still matches their own token. Fast path: exact
+        # match on the trimmed input (unchanged behaviour). Fallback:
+        # digit-only comparison against every phone-method token that
+        # is still unused, so `+447892866513` <-> `07892 866 513` etc.
+        # resolve to the same record.
         record = await db.password_reset_tokens.find_one(
             {"phone": req.phone.strip(), "code": req.code, "method": "phone"},
             {"_id": 0},
             sort=[("createdAt", -1)],
         )
+        if not record:
+            def _digits(s: str) -> str:
+                return "".join(ch for ch in (s or "") if ch.isdigit())
+            submitted_digits = _digits(req.phone)
+            if submitted_digits:
+                cursor = db.password_reset_tokens.find(
+                    {"method": "phone", "code": req.code, "used": {"$ne": True}},
+                    {"_id": 0},
+                ).sort("createdAt", -1)
+                async for r in cursor:
+                    stored_digits = _digits(r.get("phone"))
+                    if stored_digits == submitted_digits or (
+                        len(submitted_digits) >= 10
+                        and len(stored_digits) >= 10
+                        and submitted_digits[-10:] == stored_digits[-10:]
+                    ):
+                        record = r
+                        break
         if not record:
             raise HTTPException(400, "Invalid phone or code")
     else:
