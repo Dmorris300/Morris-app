@@ -255,7 +255,25 @@ export default function PriceWorkQuote() {
   const onGenerate = async () => {
     if (!project.trim())   { toast.error("Add the project name"); return; }
     if (!quotedTo.trim())  { toast.error("Add who the quote is for"); return; }
-    const populated = decorated.filter((r) => (r.description || "").trim().length > 0);
+    // PWQ-VALIDATION-01 (Sep 2026) — a "priced item" is any row the user
+    // meaningfully filled in. Previously the gate was description-only,
+    // which was fragile: a row with a real £500 line total but a blank
+    // (or paste-sanitised, or draft-restore-race) description would be
+    // silently discarded and the user would get "Add at least one priced
+    // item" while looking at £500 on the exact row. Now we accept a row
+    // if it has a description OR real financial content (qty × rate > 0)
+    // OR any of the extended schedule text fields the user could have
+    // typed against instead of description (location / drawing ref /
+    // notes). Downstream itemsBlock generation is unchanged — it already
+    // tolerates missing optional fields via "—".
+    const populated = decorated.filter((r) => {
+      const hasDescription = (r.description || "").trim().length > 0;
+      const hasPricedFigures = N(r.quantity) > 0 && N(r.rate) > 0;
+      const hasSchedText = (r.location || "").trim().length > 0
+                        || (r.drawingRef || "").trim().length > 0
+                        || (r.notes || "").trim().length > 0;
+      return hasDescription || hasPricedFigures || hasSchedText;
+    });
     if (populated.length === 0) { toast.error("Add at least one priced item"); return; }
 
     setGenerating(true); setResult(""); setRefNumber(""); setGenError("");
