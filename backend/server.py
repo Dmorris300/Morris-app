@@ -688,7 +688,41 @@ async def forgot_password(req: ForgotPasswordReq):
 
     # Phone path — issue a 6-digit code
     phone = req.phone.strip()
-    user = await db.users.find_one({"phone": phone}, {"_id": 0})
+    # AFP-FORGOT-PHONE-01 (Sep 2026) — the previous lookup was
+    # `db.users.find_one({"phone": phone})`, an exact-string match.
+    # Users type their number many ways (`07892 866 513`,
+    # `+44 7892 866513`, `+447892866513`, `(07892) 866513`) but users
+    # collection stores whatever was persisted at signup (typically
+    # digits-only `07892866513`). Any mismatch silently fell through
+    # to the security-generic "if that phone is registered..." branch,
+    # producing the reported "nothing happens" symptom for real
+    # registered users. We now strip non-digits and build a small set
+    # of UK-plausible variants — 0-prefix, 44-prefix, +44-prefix,
+    # and the raw digits — and $in-match any of them. This does not
+    # change the security posture: unregistered numbers still get the
+    # same generic response.
+    def _phone_variants(raw: str) -> list:
+        # Keep the exact input too so weird one-off stored formats
+        # still work.
+        variants = {raw, raw.strip()}
+        digits = "".join(ch for ch in raw if ch.isdigit())
+        if not digits:
+            return list({v for v in variants if v})
+        variants.add(digits)
+        # UK canonicalisation: 44XXXXXXXXXX <-> 0XXXXXXXXXX
+        national = digits
+        if digits.startswith("44") and len(digits) >= 12:
+            national = "0" + digits[2:]
+        elif digits.startswith("0"):
+            national = digits
+        variants.add(national)
+        if national.startswith("0"):
+            intl = "44" + national[1:]
+            variants.add(intl)
+            variants.add("+" + intl)
+        return list({v for v in variants if v})
+
+    user = await db.users.find_one({"phone": {"$in": _phone_variants(phone)}}, {"_id": 0})
     if not user:
         return {"ok": True, "message": "If that phone number is registered, a reset code has been sent."}
     code = f"{secrets.randbelow(900000) + 100000}"
