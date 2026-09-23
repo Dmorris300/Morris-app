@@ -440,7 +440,15 @@ function AfpWizard({ initial, user, jobs, jobsLoading, jobsError, onClose, onSav
     if (!data.projectId) { setProjectSummary(null); return; }
     (async () => {
       try {
-        const r = await api.get(`/applications-for-payment/project/${data.projectId}/summary`);
+        // AFP-SELF-HISTORY-01 (Sep 2026) — when editing an existing AFP,
+        // exclude it from its own "Previous Applications" list, running
+        // totals and next-application-number so it can't appear in its
+        // own history (and the PDF that snapshots this data can't ship
+        // a stale self-history row).
+        const url = data.id
+          ? `/applications-for-payment/project/${data.projectId}/summary?excludeAfpId=${encodeURIComponent(data.id)}`
+          : `/applications-for-payment/project/${data.projectId}/summary`;
+        const r = await api.get(url);
         setProjectSummary(r.data);
         // Auto-fill values that are still at their defaults so the QS doesn't double-key
         setData(prev => {
@@ -454,7 +462,7 @@ function AfpWizard({ initial, user, jobs, jobsLoading, jobsError, onClose, onSav
         });
       } catch { /* ignore */ }
     })();
-  }, [data.projectId]);   
+  }, [data.projectId, data.id]);
 
   const set = (k) => (v) => setData(d => ({ ...d, [k]: v }));
   const totals = useMemo(() => computeTotals(data), [data]);
@@ -846,9 +854,18 @@ function AfpWizard({ initial, user, jobs, jobsLoading, jobsError, onClose, onSav
               {data.status === "Rejected" && (
                 <Field label="Rejection reason"><textarea className={`${inputClass} min-h-[80px]`} value={data.rejectionReason} onChange={(e) => set("rejectionReason")(e.target.value)} data-testid="afp-rejectionReason" /></Field>
               )}
-              <div className="card-dark p-3 border-l-2 border-[#E8A020] text-xs text-[#A19D94]">
-                Marking as <b>Paid</b> automatically adds the amount to the linked project&apos;s payment tracker.
-              </div>
+              {/* AFP-STEP8-HELPER-COPY-01 (Sep 2026) — this helper block
+                  is only relevant to the Paid transition. Previously it
+                  rendered unconditionally, which confused users who
+                  selected Certified / Rejected (the copy read as though
+                  Certified would also post a payment). Gating on Paid
+                  keeps the guidance visible where it applies and
+                  removes the false implication for other statuses. */}
+              {data.status === "Paid" && (
+                <div className="card-dark p-3 border-l-2 border-[#E8A020] text-xs text-[#A19D94]" data-testid="afp-step8-paid-helper">
+                  Marking as <b>Paid</b> automatically adds the amount to the linked project&apos;s payment tracker.
+                </div>
+              )}
             </div>
           )}
 

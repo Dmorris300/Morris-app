@@ -532,8 +532,19 @@ def build_router(db, get_user):
         }
 
     @router.get("/project/{job_id}/summary")
-    async def project_summary(job_id: str, authorization: Optional[str] = Header(None)):
-        """Backs step 3 of the wizard: previous applications for the same project."""
+    async def project_summary(job_id: str, excludeAfpId: Optional[str] = None, authorization: Optional[str] = Header(None)):
+        """Backs step 3 of the wizard: previous applications for the same project.
+
+        `excludeAfpId` (Sep 2026, AFP-SELF-HISTORY-01) — when the wizard is
+        editing an existing AFP it must NOT see itself in the "Previous
+        Applications" list, and the header's next-application-number must
+        not treat its own number as a prior. Callers pass the current
+        AFP's immutable id when editing; the row with that id is skipped
+        entirely from the loop (so it never appears in previousApplications
+        AND never contributes to previouslyCertifiedTotal /
+        previousRetentionHeld / nextApplicationNumber). New / unlinked
+        AFPs simply omit the param.
+        """
         token = authorization.replace("Bearer ", "") if authorization else None
         user = await get_user(token)
         rows = await db.applications_for_payment.find({
@@ -544,6 +555,12 @@ def build_router(db, get_user):
         previous_retention_held = 0.0
         highest_number = 0
         for r in rows:
+            # AFP-SELF-HISTORY-01 — skip the current AFP entirely so it
+            # never appears in its own history, its own number doesn't
+            # bump nextApplicationNumber, and its own certified/retention
+            # figures aren't double-counted into "Previously Certified".
+            if excludeAfpId and r.get("id") == excludeAfpId:
+                continue
             certified = float(r.get("certifiedAmount") or 0)
             paid = float(r.get("paidAmount") or 0)
             gross_incl = float(((r.get("totals") or {}).get("grossIncludingVariations")) or 0)
