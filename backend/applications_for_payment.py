@@ -29,6 +29,7 @@ from typing import Optional, List, Dict, Any
 
 from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel
+from pymongo.errors import DuplicateKeyError
 
 
 STATUSES = ["Draft", "Submitted", "Certified", "Paid", "Rejected"]
@@ -346,7 +347,23 @@ def build_router(db, get_user):
             doc["applicationNumber"] = await _next_app_number(user["id"], doc.get("projectId") or "")
         if not doc.get("applicationDate"):
             doc["applicationDate"] = datetime.now(timezone.utc).date().isoformat()
-        await db.applications_for_payment.insert_one(doc)
+        # AFP-DUP-GUARD-01 (Sep 2026) — the compound index
+        # (userId, projectId, applicationNumber) is now UNIQUE for active
+        # rows. If a client somehow submits a duplicate (concurrent
+        # creations, stale form re-submits, etc.) we translate the
+        # DuplicateKey error into a friendly 409 and re-issue a fresh
+        # applicationNumber transparently. This preserves the invariant
+        # that "each application number is unique within its project"
+        # without asking the user to retry.
+        try:
+            await db.applications_for_payment.insert_one(doc)
+        except DuplicateKeyError:
+            # Best-effort: bump to the next free number and retry once.
+            doc["applicationNumber"] = await _next_app_number(user["id"], doc.get("projectId") or "")
+            try:
+                await db.applications_for_payment.insert_one(doc)
+            except DuplicateKeyError:
+                raise HTTPException(status_code=409, detail="An application with this number already exists for this project.")
         return _shape(doc)
 
     @router.get("/applications/{aid}")
